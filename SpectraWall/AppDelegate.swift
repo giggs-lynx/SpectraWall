@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import SpriteKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var desktopWindows: [NSWindow] = []
@@ -18,11 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - 視窗建立
 
     private func setupDesktopWindows() {
-        // 先清掉舊的
         desktopWindows.forEach { $0.close() }
         desktopWindows = []
 
-        // 每個螢幕建一個視窗
         for screen in NSScreen.screens {
             let window = makeDesktopWindow(for: screen)
             window.makeKeyAndOrderFront(nil)
@@ -44,6 +43,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
+        // 建立 SKView 填滿視窗
+        let skView = SKView(frame: screen.frame)
+        skView.allowsTransparency = true
+        skView.scene?.backgroundColor = .clear
+
+        // 建立測試 Scene
+        let scene = TestScene(size: screen.frame.size)
+        scene.backgroundColor = .clear
+        skView.presentScene(scene)
+
+        window.contentView = skView
         return window
     }
 
