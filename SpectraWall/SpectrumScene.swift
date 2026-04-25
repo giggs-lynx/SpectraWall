@@ -50,8 +50,8 @@ class SpectrumScene: SKScene {
     // MARK: - Update
 
     private func updateBars(bins: [Float]) {
-        let maxHeight = size.height * 0.9
-        let gain: CGFloat = 1.8  // 降低 gain
+        let maxHeight = size.height * 0.75
+        let gain: CGFloat = 1.8
 
         for (i, bar) in bars.enumerated() {
             guard i < bins.count else { break }

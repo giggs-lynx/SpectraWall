@@ -66,7 +66,7 @@ class AudioAnalyzer {
         vDSP_vsdiv(magnitudes, 1, &scale, &magnitudes, 1, vDSP_Length(fftSize / 2))
 
         // 4. Chromatic scale 分組
-        var bins = chromaticScaleBins(magnitudes: magnitudes)
+        let bins = chromaticScaleBins(magnitudes: magnitudes)
 
         // 5. Attack/Release smoothing
         for i in 0..<binCount {
@@ -111,7 +111,8 @@ class AudioAnalyzer {
             let bassAtten = 30.0 * max(0, 1.0 - Float(i) / Float(binCount / 2))
             let adjusted = db - bassAtten
             // -80dB ~ -10dB 映射到 0.0 ~ 1.0
-            bins[i] = max(0, min(1, (adjusted + 80) / 90))
+            bins[i] = max(0, min(1, (adjusted + 70) / 100))
+            bins[i] = pow(bins[i], 1.5)
         }
 
         return bins
