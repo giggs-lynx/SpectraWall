@@ -7,28 +7,34 @@
 
 import SwiftUI
 
-struct SettingsView: View {
+struct PopoverView: View {
     @ObservedObject var settings = AppSettings.shared
-    @ObservedObject var visualizerSettings = VisualizerSettings.shared
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("SpectraWall")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 0) {
+
+            // MARK: - Header
+            HStack {
+                Text("SpectraWall")
+                    .font(.headline)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
 
             Divider()
 
-            Text("音訊來源")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            // MARK: - 音訊來源
+            SectionHeader(title: "音訊來源")
 
-            VStack(alignment: .leading, spacing: 8) {
-                // Global 選項
-                AudioSourceRow(title: "Global（所有音訊）", isSelected: settings.audioSource == .global, isDisabled: false) {
+            VStack(alignment: .leading, spacing: 6) {
+                AudioSourceRow(
+                    title: "Global（所有音訊）",
+                    isSelected: settings.audioSource == .global,
+                    isDisabled: false
+                ) {
                     settings.audioSource = .global
                 }
 
-                // 動態 app 列表
                 ForEach(settings.activeApps, id: \.pid) { app in
                     AudioSourceRow(
                         title: app.name,
@@ -39,73 +45,59 @@ struct SettingsView: View {
                     }
                 }
 
-                // 如果選中的 app 不在 activeApps 裡，顯示 grey out
                 if case .app(let selectedApp) = settings.audioSource,
                    !settings.activeApps.contains(where: { $0.pid == selectedApp.pid }) {
                     AudioSourceRow(
                         title: selectedApp.name,
                         isSelected: true,
-                        isDisabled: true  // grey out
+                        isDisabled: true
                     ) {}
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
 
             Divider()
-            
-            Section {
-                Text("視覺化設定")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
 
-                // 公用
-                Text("音訊分析")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                SettingsSlider(label: "低頻壓制", value: $visualizerSettings.bassAttenuation, range: 0...40, step: 1)
-
-                Divider()
-
-                // Spectrum
-                Text("Spectrum")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                SettingsSlider(label: "高度", value: $visualizerSettings.spectrumGain, range: 0.5...3.0, step: 0.1)
-                SettingsSlider(label: "差異化", value: $visualizerSettings.spectrumPowerCurve, range: 1.0...3.0, step: 0.1)
-                SettingsSlider(label: "反應速度", value: $visualizerSettings.spectrumAttack, range: 0.5...1.0, step: 0.05)
-                SettingsSlider(label: "衰減速度", value: $visualizerSettings.spectrumRelease, range: 0.1...0.5, step: 0.05)
-
-                Divider()
-
-                // Orb
-                Text("Orb")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                SettingsSlider(label: "靈敏度", value: $visualizerSettings.orbBoost, range: 1.0...6.0, step: 0.1)
-                SettingsSlider(label: "反應速度", value: $visualizerSettings.orbAttack, range: 0.3...1.0, step: 0.05)
-                SettingsSlider(label: "衰減速度", value: $visualizerSettings.orbRelease, range: 0.1...0.5, step: 0.05)
-                
-                HStack {
-                    Text("視覺化設定")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Button("恢復預設值") {
-                        visualizerSettings.resetToDefaults()
-                    }
-                    .font(.caption)
+            // MARK: - 底部按鈕
+            HStack {
+                Button("設定") {
+                    AppWindowManager.shared.openSettings()
                 }
-            }
+                .buttonStyle(.plain)
+                .font(.caption)
 
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
+                Spacer()
+
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundColor(.red)
             }
-            .foregroundColor(.red)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
-        .padding(16)
-        .frame(width: 260)
+        .frame(width: 240)
+    }
+}
+
+
+// MARK: - Components
+
+struct SectionHeader: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundColor(.secondary)
+            .textCase(.uppercase)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
     }
 }
 
@@ -117,18 +109,18 @@ struct AudioSourceRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 8) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(isDisabled ? .secondary : (isSelected ? .accentColor : .secondary))
+                    .frame(width: 16)
                 Text(title)
                     .foregroundColor(isDisabled ? .secondary : .primary)
+                Spacer()
                 if isDisabled {
-                    Spacer()
                     Text("無音訊")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Spacer()
             }
         }
         .buttonStyle(.plain)
@@ -143,7 +135,7 @@ struct SettingsSlider: View {
     let step: Double
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Text(label)
                     .font(.caption)
@@ -152,6 +144,7 @@ struct SettingsSlider: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .monospacedDigit()
+                    .frame(width: 36, alignment: .trailing)
             }
             Slider(value: $value, in: range, step: step)
         }

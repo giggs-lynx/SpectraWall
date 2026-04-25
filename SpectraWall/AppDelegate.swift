@@ -68,7 +68,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let popover = NSPopover()
-        popover.contentViewController = NSHostingController(rootView: SettingsView())
+        popover.contentViewController = NSHostingController(rootView: PopoverView())
         popover.behavior = .transient
         self.popover = popover
     }
