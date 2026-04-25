@@ -44,6 +44,8 @@ class AudioAnalyzer {
     // MARK: - Private
 
     private func process(_ samples: [Float]) -> [Float] {
+        let settings = VisualizerSettings.shared
+        
         // 1. 套用 Hanning window
         var windowed = samples
         vDSP_vmul(windowed, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
@@ -70,7 +72,9 @@ class AudioAnalyzer {
 
         // 5. Attack/Release smoothing
         for i in 0..<binCount {
-            let coeff = bins[i] > smoothed[i] ? attackCoeff : releaseCoeff
+            let coeff = bins[i] > smoothed[i]
+                ? Float(settings.attackCoeff)
+                : Float(settings.releaseCoeff)
             smoothed[i] = smoothed[i] * (1 - coeff) + bins[i] * coeff
         }
 
@@ -80,6 +84,7 @@ class AudioAnalyzer {
     // MARK: - Chromatic Scale Grouping
 
     private func chromaticScaleBins(magnitudes: [Float]) -> [Float] {
+        let settings = VisualizerSettings.shared
         let sampleRate: Float = 48000
         let freqPerBin = sampleRate / Float(fftSize)
 
@@ -108,11 +113,10 @@ class AudioAnalyzer {
         // 5. dB 轉換 + bass attenuation + normalize
         for i in 0..<binCount {
             let db = 20 * log10(max(bins[i], 1e-10))
-            let bassAtten = 30.0 * max(0, 1.0 - Float(i) / Float(binCount / 2))
+            let bassAtten = Float(settings.bassAttenuation) * max(0, 1.0 - Float(i) / Float(binCount / 2))
             let adjusted = db - bassAtten
-            // -80dB ~ -10dB 映射到 0.0 ~ 1.0
-            bins[i] = max(0, min(1, (adjusted + 70) / 100))
-            bins[i] = pow(bins[i], 1.5)
+            bins[i] = max(0, min(1, (adjusted + 80) / 70))
+            bins[i] = pow(bins[i], Float(settings.powerCurve))
         }
 
         return bins
