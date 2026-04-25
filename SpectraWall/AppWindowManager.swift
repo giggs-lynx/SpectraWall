@@ -26,6 +26,7 @@ class AppWindowManager {
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         window.title = "SpectraWall 設定"
         window.contentViewController = NSHostingController(rootView: SettingsWindowView())
         window.center()
