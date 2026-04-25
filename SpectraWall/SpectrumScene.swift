@@ -14,6 +14,8 @@ class SpectrumScene: SKScene {
 
     private let binCount = 96
     private let barSpacing: CGFloat = 4
+    
+    private var smoothed: [Float] = Array(repeating: 0, count: 96)
 
     override func didMove(to view: SKView) {
         setupBars()
@@ -52,11 +54,23 @@ class SpectrumScene: SKScene {
     private func updateBars(bins: [Float]) {
         let settings = VisualizerSettings.shared
         let maxHeight = size.height * 0.75
-        let gain = CGFloat(settings.gain)
+        let gain = CGFloat(settings.spectrumGain)
+
+        // Smoothing
+        for i in 0..<smoothed.count {
+            guard i < bins.count else { break }
+            let coeff = bins[i] > smoothed[i]
+                ? Float(settings.spectrumAttack)
+                : Float(settings.spectrumRelease)
+            smoothed[i] = smoothed[i] * (1 - coeff) + bins[i] * coeff
+        }
+
+        // Power curve
+        let curved = smoothed.map { pow($0, Float(settings.spectrumPowerCurve)) }
 
         for (i, bar) in bars.enumerated() {
-            guard i < bins.count else { break }
-            let targetHeight = max(2, min(CGFloat(bins[i]) * maxHeight * gain, maxHeight))
+            guard i < curved.count else { break }
+            let targetHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
             bar.run(.resize(toHeight: targetHeight, duration: 0.05))
 
             let ratio = CGFloat(i) / CGFloat(binCount)

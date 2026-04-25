@@ -71,15 +71,17 @@ class OrbScene: SKScene {
     // MARK: - Update
 
     private func updateOrb(amplitude: Float) {
-        let coeff = amplitude > smoothedAmplitude ? orbAttack : orbRelease
+        let settings = VisualizerSettings.shared
+        let coeff = amplitude > smoothedAmplitude
+            ? Float(settings.orbAttack)
+            : Float(settings.orbRelease)
         smoothedAmplitude = smoothedAmplitude * (1 - coeff) + amplitude * coeff
 
-        let boost: CGFloat = 3.0
+        let boost = CGFloat(settings.orbBoost)
         let targetScale = 1.0 + CGFloat(smoothedAmplitude) * boost
         let clampedScale = min(targetScale, 2.5)
 
-        let action = SKAction.scale(to: clampedScale, duration: 0.05)
-        orb?.run(action)
+        orb?.run(SKAction.scale(to: clampedScale, duration: 0.05))
         glowOrb?.run(SKAction.scale(to: clampedScale, duration: 0.08))
     }
 

@@ -57,40 +57,35 @@ struct SettingsView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                SettingsSlider(
-                    label: "整體高度",
-                    value: $visualizerSettings.gain,
-                    range: 0.5...3.0,
-                    step: 0.1
-                )
+                // 公用
+                Text("音訊分析")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
 
-                SettingsSlider(
-                    label: "差異化",
-                    value: $visualizerSettings.powerCurve,
-                    range: 1.0...3.0,
-                    step: 0.1
-                )
+                SettingsSlider(label: "低頻壓制", value: $visualizerSettings.bassAttenuation, range: 0...40, step: 1)
 
-                SettingsSlider(
-                    label: "反應速度",
-                    value: $visualizerSettings.attackCoeff,
-                    range: 0.5...1.0,
-                    step: 0.05
-                )
+                Divider()
 
-                SettingsSlider(
-                    label: "衰減速度",
-                    value: $visualizerSettings.releaseCoeff,
-                    range: 0.1...0.5,
-                    step: 0.05
-                )
+                // Spectrum
+                Text("Spectrum")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
 
-                SettingsSlider(
-                    label: "低頻壓制",
-                    value: $visualizerSettings.bassAttenuation,
-                    range: 0...40,
-                    step: 1
-                )
+                SettingsSlider(label: "高度", value: $visualizerSettings.spectrumGain, range: 0.5...3.0, step: 0.1)
+                SettingsSlider(label: "差異化", value: $visualizerSettings.spectrumPowerCurve, range: 1.0...3.0, step: 0.1)
+                SettingsSlider(label: "反應速度", value: $visualizerSettings.spectrumAttack, range: 0.5...1.0, step: 0.05)
+                SettingsSlider(label: "衰減速度", value: $visualizerSettings.spectrumRelease, range: 0.1...0.5, step: 0.05)
+
+                Divider()
+
+                // Orb
+                Text("Orb")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                SettingsSlider(label: "靈敏度", value: $visualizerSettings.orbBoost, range: 1.0...6.0, step: 0.1)
+                SettingsSlider(label: "反應速度", value: $visualizerSettings.orbAttack, range: 0.3...1.0, step: 0.05)
+                SettingsSlider(label: "衰減速度", value: $visualizerSettings.orbRelease, range: 0.1...0.5, step: 0.05)
                 
                 HStack {
                     Text("視覺化設定")
