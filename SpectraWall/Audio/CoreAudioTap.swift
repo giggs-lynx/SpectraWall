@@ -83,6 +83,47 @@ class CoreAudioTap {
             self.startIOProc(deviceID: aggID, app: app)
         }
     }
+    
+    func startGlobal() {
+        stop()
+        setupGlobalTap()
+    }
+
+    private func setupGlobalTap() {
+        let tapUID = UUID()
+        let tapDesc = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
+        tapDesc.uuid = tapUID
+        tapDesc.muteBehavior = .unmuted
+
+        var tapObjectID: AudioObjectID = .unknown
+        let tapStatus = AudioHardwareCreateProcessTap(tapDesc, &tapObjectID)
+        guard tapStatus == noErr else {
+            print("CoreAudioTap: 建立 global tap 失敗，OSStatus = \(tapStatus)")
+            return
+        }
+        tapID = tapObjectID
+
+        let aggDesc: [String: Any] = [
+            kAudioAggregateDeviceNameKey: "SpectraWallGlobalTap",
+            kAudioAggregateDeviceUIDKey: "spectrawall-global-\(UUID().uuidString)",
+            kAudioAggregateDeviceTapListKey: [[kAudioSubTapUIDKey: tapUID.uuidString]],
+            kAudioAggregateDeviceTapAutoStartKey: true,
+            kAudioAggregateDeviceIsPrivateKey: true
+        ]
+
+        var aggID: AudioObjectID = .unknown
+        let aggStatus = AudioHardwareCreateAggregateDevice(aggDesc as CFDictionary, &aggID)
+        guard aggStatus == noErr else {
+            print("CoreAudioTap: 建立 global aggregate device 失敗，OSStatus = \(aggStatus)")
+            return
+        }
+        aggregateDeviceID = aggID
+
+        waitForAggregateDevice(aggID) { [weak self] in
+            guard let self else { return }
+            self.startIOProc(deviceID: aggID, app: AudioApp(pid: 0, objectIDs: [], name: "Global", bundleID: nil))
+        }
+    }
 
     // MARK: - Device Ready Listener
 
