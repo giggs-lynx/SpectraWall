@@ -12,4 +12,5 @@ class AudioDataBus {
 
     let spectrumPublisher = PassthroughSubject<[Float], Never>()
     let amplitudePublisher = PassthroughSubject<Float, Never>()
+    let resetPublisher = PassthroughSubject<Void, Never>()
 }

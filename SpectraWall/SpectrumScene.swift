@@ -47,6 +47,13 @@ class SpectrumScene: SKScene {
                 self?.updateBars(bins: bins)
             }
             .store(in: &cancellables)
+        
+        AudioDataBus.shared.resetPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.reset()
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Update
@@ -76,6 +83,13 @@ class SpectrumScene: SKScene {
             let ratio = CGFloat(i) / CGFloat(binCount)
             let color = NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
             bar.color = color
+        }
+    }
+    
+    func reset() {
+        smoothed = Array(repeating: 0, count: binCount)
+        for bar in bars {
+            bar.run(.resize(toHeight: 2, duration: 0.3))
         }
     }
 }

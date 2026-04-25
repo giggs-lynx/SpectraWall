@@ -90,14 +90,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             AppSettings.shared.activeApps = apps
 
-            guard self.audioTap == nil else { return }
-
             switch AppSettings.shared.audioSource {
             case .global:
-                self.startGlobalTap()
+                // global 只需要建一次，不需要重建
+                if self.audioTap == nil {
+                    self.startGlobalTap()
+                }
             case .app(let selectedApp):
-                if let match = apps.first(where: { $0.pid == selectedApp.pid }) {
-                    self.startTap(for: match)
+                let isSelectedAppActive = apps.contains(where: {
+                    $0.bundleID == selectedApp.bundleID
+                })
+
+                if !isSelectedAppActive {
+                    self.audioTap?.stop()
+                    self.audioTap = nil
+                    
+                    AudioDataBus.shared.resetPublisher.send()
+                    AudioDataBus.shared.amplitudePublisher.send(0)
+                } else if self.audioTap == nil {
+                    if let match = apps.first(where: { $0.bundleID == selectedApp.bundleID }) {
+                        // 更新 audioSource 為新的 app（PID 已更新）
+                        AppSettings.shared.audioSource = .app(match)
+                        self.startTap(for: match)
+                    }
                 }
             }
         }
