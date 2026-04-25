@@ -14,12 +14,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var monitor: AudioProcessMonitor?
     private var audioTap: CoreAudioTap?
     private var analyzer: AudioAnalyzer?
+    private var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setupMenuBar()
         analyzer = AudioAnalyzer(fftSize: 4096, binCount: 96)
         setupDesktopWindows()
         startObservingScreenChanges()
         startAudioMonitor()
+    }
+    
+    private func setupMenuBar() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        
+        if let button = statusItem?.button {
+            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "SpectraWall")
+        }
+        
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        
+        statusItem?.menu = menu
+    }
+
+    @objc private func openSettings() {
+        // 之後實作
+        print("open settings")
     }
 
     // MARK: - 音訊
