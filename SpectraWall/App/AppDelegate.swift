@@ -167,7 +167,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let skView = SKView(frame: NSRect(origin: .zero, size: screen.frame.size))
         skView.allowsTransparency = true
 
-        let scene = SpectrumScene(size: screen.frame.size)
+        let scene = VisualizerScene(size: screen.frame.size)
         scene.backgroundColor = .clear
         skView.presentScene(scene)
 

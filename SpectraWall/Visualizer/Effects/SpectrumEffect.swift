@@ -8,25 +8,33 @@
 import SpriteKit
 import Combine
 
-class SpectrumScene: SKScene {
+class SpectrumEffect: SKNode {
     private var bars: [SKSpriteNode] = []
     private var cancellables = Set<AnyCancellable>()
-
+    private var smoothed: [Float] = Array(repeating: 0, count: 96)
     private let binCount = 96
     private let barSpacing: CGFloat = 4
-    
-    private var smoothed: [Float] = Array(repeating: 0, count: 96)
+    private var sceneSize: CGSize = .zero
+    private var settings: LayerSettings
 
-    override func didMove(to view: SKView) {
+    init(size: CGSize, settings: LayerSettings) {
+        self.sceneSize = size
+        self.settings = settings
+        super.init()
         setupBars()
         subscribeToAudio()
     }
 
+    required init?(coder: NSCoder) { fatalError() }
+
     // MARK: - Setup
 
     private func setupBars() {
+        bars.forEach { $0.removeFromParent() }
+        bars = []
+
         let totalSpacing = barSpacing * CGFloat(binCount - 1)
-        let barWidth = (size.width - totalSpacing) / CGFloat(binCount)
+        let barWidth = (sceneSize.width - totalSpacing) / CGFloat(binCount)
 
         for i in 0..<binCount {
             let bar = SKSpriteNode(color: .white, size: CGSize(width: barWidth, height: 2))
@@ -38,7 +46,7 @@ class SpectrumScene: SKScene {
         }
     }
 
-    // MARK: - Audio Subscription
+    // MARK: - Audio
 
     private func subscribeToAudio() {
         AudioDataBus.shared.spectrumPublisher
@@ -47,7 +55,7 @@ class SpectrumScene: SKScene {
                 self?.updateBars(bins: bins)
             }
             .store(in: &cancellables)
-        
+
         AudioDataBus.shared.resetPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -56,14 +64,11 @@ class SpectrumScene: SKScene {
             .store(in: &cancellables)
     }
 
-    // MARK: - Update
-
     private func updateBars(bins: [Float]) {
-        let settings = VisualizerSettings.shared
-        let maxHeight = size.height * 0.75
+        guard isHidden == false else { return }
+        let maxHeight = sceneSize.height * 0.75
         let gain = CGFloat(settings.spectrumGain)
 
-        // Smoothing
         for i in 0..<smoothed.count {
             guard i < bins.count else { break }
             let coeff = bins[i] > smoothed[i]
@@ -72,7 +77,6 @@ class SpectrumScene: SKScene {
             smoothed[i] = smoothed[i] * (1 - coeff) + bins[i] * coeff
         }
 
-        // Power curve
         let curved = smoothed.map { pow($0, Float(settings.spectrumPowerCurve)) }
 
         for (i, bar) in bars.enumerated() {
@@ -85,11 +89,9 @@ class SpectrumScene: SKScene {
             bar.color = color
         }
     }
-    
+
     func reset() {
         smoothed = Array(repeating: 0, count: binCount)
-        for bar in bars {
-            bar.run(.resize(toHeight: 2, duration: 0.3))
-        }
+        bars.forEach { $0.run(.resize(toHeight: 2, duration: 0.3)) }
     }
 }

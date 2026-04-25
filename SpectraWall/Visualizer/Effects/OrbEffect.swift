@@ -8,29 +8,29 @@
 import SpriteKit
 import Combine
 
-class OrbScene: SKScene {
+class OrbEffect: SKNode {
     private var orb: SKShapeNode?
     private var glowOrb: SKShapeNode?
     private var cancellables = Set<AnyCancellable>()
+    private var smoothedAmplitude: Float = 0
+    private var sceneSize: CGSize = .zero
+    private var settings: LayerSettings
 
     private let baseRadius: CGFloat = 120
-    private var currentRadius: CGFloat = 120
 
-    override func didMove(to view: SKView) {
+    init(size: CGSize, settings: LayerSettings) {
+        self.sceneSize = size
+        self.settings = settings
+        super.init()
         setupOrb()
         subscribeToAudio()
     }
-    
-    private var smoothedAmplitude: Float = 0
-    private let orbAttack: Float = 0.6
-    private let orbRelease: Float = 0.25  // 這個調大，縮回去更快
 
-    // MARK: - Setup
+    required init?(coder: NSCoder) { fatalError() }
 
     private func setupOrb() {
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let center = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
 
-        // Glow 層（大一點、半透明）
         let glow = SKShapeNode(circleOfRadius: baseRadius * 1.4)
         glow.fillColor = NSColor(hue: 0.6, saturation: 0.8, brightness: 1.0, alpha: 0.15)
         glow.strokeColor = .clear
@@ -39,7 +39,6 @@ class OrbScene: SKScene {
         addChild(glow)
         glowOrb = glow
 
-        // 主球
         let main = SKShapeNode(circleOfRadius: baseRadius)
         main.fillColor = NSColor(hue: 0.6, saturation: 0.6, brightness: 1.0, alpha: 0.9)
         main.strokeColor = NSColor(hue: 0.6, saturation: 0.4, brightness: 1.0, alpha: 0.6)
@@ -49,8 +48,6 @@ class OrbScene: SKScene {
         addChild(main)
         orb = main
     }
-
-    // MARK: - Audio Subscription
 
     private func subscribeToAudio() {
         AudioDataBus.shared.amplitudePublisher
@@ -66,12 +63,17 @@ class OrbScene: SKScene {
                 self?.updateColor(bins: bins)
             }
             .store(in: &cancellables)
+
+        AudioDataBus.shared.resetPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.reset()
+            }
+            .store(in: &cancellables)
     }
 
-    // MARK: - Update
-
     private func updateOrb(amplitude: Float) {
-        let settings = VisualizerSettings.shared
+        guard isHidden == false else { return }
         let coeff = amplitude > smoothedAmplitude
             ? Float(settings.orbAttack)
             : Float(settings.orbRelease)
@@ -86,15 +88,17 @@ class OrbScene: SKScene {
     }
 
     private func updateColor(bins: [Float]) {
-        // 低頻驅動色相變化
         guard bins.count > 4 else { return }
         let lowFreq = CGFloat(bins[0...3].reduce(0, +) / 4)
         let hue = 0.5 + lowFreq * 0.3
 
-        let mainColor = NSColor(hue: hue, saturation: 0.6, brightness: 1.0, alpha: 0.9)
-        let glowColor = NSColor(hue: hue, saturation: 0.8, brightness: 1.0, alpha: 0.15)
+        orb?.fillColor = NSColor(hue: hue, saturation: 0.6, brightness: 1.0, alpha: 0.9)
+        glowOrb?.fillColor = NSColor(hue: hue, saturation: 0.8, brightness: 1.0, alpha: 0.15)
+    }
 
-        orb?.fillColor = mainColor
-        glowOrb?.fillColor = glowColor
+    func reset() {
+        smoothedAmplitude = 0
+        orb?.run(SKAction.scale(to: 1.0, duration: 0.3))
+        glowOrb?.run(SKAction.scale(to: 1.0, duration: 0.3))
     }
 }
