@@ -13,11 +13,12 @@ class AudioAnalyzer {
     private var fftSetup: FFTSetup
     private var window: [Float]
     private var smoothed: [Float]
+    private var sampleBuffer: [Float] = []
 
-    let attackCoeff: Float = 0.8
-    let releaseCoeff: Float = 0.3
+    let attackCoeff: Float = 0.95  // 原本 0.8，上升更快更直接
+    let releaseCoeff: Float = 0.2  // 原本 0.3，下降也快一點
 
-    init(fftSize: Int = 1024, binCount: Int = 32) {
+    init(fftSize: Int = 4096, binCount: Int = 96) {
         self.fftSize = fftSize
         self.binCount = binCount
         self.fftSetup = vDSP_create_fftsetup(vDSP_Length(log2(Float(fftSize))), FFTRadix(kFFTRadix2))!
@@ -30,17 +31,25 @@ class AudioAnalyzer {
         vDSP_destroy_fftsetup(fftSetup)
     }
 
-    func analyze(_ samples: [Float]) -> [Float] {
-        // 1. 確保長度足夠，不足補零
-        var input = samples.count >= fftSize
-            ? Array(samples.prefix(fftSize))
-            : samples + [Float](repeating: 0, count: fftSize - samples.count)
+    func analyze(_ samples: [Float]) -> [Float]? {
+        sampleBuffer.append(contentsOf: samples)
+        guard sampleBuffer.count >= fftSize else { return nil }
 
-        // 2. 套用 Hanning window
-        vDSP_vmul(input, 1, window, 1, &input, 1, vDSP_Length(fftSize))
+        let input = Array(sampleBuffer.suffix(fftSize))
+        sampleBuffer = Array(sampleBuffer.suffix(fftSize / 2))
 
-        // 3. FFT
-        var realPart = input
+        return process(input)
+    }
+
+    // MARK: - Private
+
+    private func process(_ samples: [Float]) -> [Float] {
+        // 1. 套用 Hanning window
+        var windowed = samples
+        vDSP_vmul(windowed, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
+
+        // 2. FFT
+        var realPart = windowed
         var imagPart = [Float](repeating: 0, count: fftSize)
         var magnitudes = [Float](repeating: 0, count: fftSize / 2)
 
@@ -48,14 +57,18 @@ class AudioAnalyzer {
             imagPart.withUnsafeMutableBufferPointer { imagBuf in
                 var complex = DSPSplitComplex(realp: realBuf.baseAddress!, imagp: imagBuf.baseAddress!)
                 vDSP_fft_zrip(fftSetup, &complex, 1, vDSP_Length(log2(Float(fftSize))), FFTDirection(FFT_FORWARD))
-                vDSP_zvmags(&complex, 1, &magnitudes, 1, vDSP_Length(fftSize / 2))
+                vDSP_zvabs(&complex, 1, &magnitudes, 1, vDSP_Length(fftSize / 2))
             }
         }
 
-        // 5. 對數刻度分組（Mel-like）
-        let bins = melScaleBins(magnitudes: magnitudes)
+        // 3. 正規化
+        var scale = Float(fftSize)
+        vDSP_vsdiv(magnitudes, 1, &scale, &magnitudes, 1, vDSP_Length(fftSize / 2))
 
-        // 6. Attack/Release smoothing
+        // 4. Chromatic scale 分組
+        var bins = chromaticScaleBins(magnitudes: magnitudes)
+
+        // 5. Attack/Release smoothing
         for i in 0..<binCount {
             let coeff = bins[i] > smoothed[i] ? attackCoeff : releaseCoeff
             smoothed[i] = smoothed[i] * (1 - coeff) + bins[i] * coeff
@@ -64,46 +77,43 @@ class AudioAnalyzer {
         return smoothed
     }
 
-    // MARK: - Mel Scale Grouping
+    // MARK: - Chromatic Scale Grouping
 
-    private func melScaleBins(magnitudes: [Float]) -> [Float] {
-        let nyquist = Float(fftSize / 2)
-        let minMel = melScale(20)
-        let maxMel = melScale(20000)
+    private func chromaticScaleBins(magnitudes: [Float]) -> [Float] {
+        let sampleRate: Float = 48000
+        let freqPerBin = sampleRate / Float(fftSize)
 
+        // A0 = 27.5Hz から 96 半音（8 オクターブ）
+        let baseFreq: Float = 27.5
         var bins = [Float](repeating: 0, count: binCount)
 
         for i in 0..<binCount {
-            let melLow  = minMel + (maxMel - minMel) * Float(i) / Float(binCount)
-            let melHigh = minMel + (maxMel - minMel) * Float(i + 1) / Float(binCount)
-            let freqLow  = inverseMelScale(melLow)
-            let freqHigh = inverseMelScale(melHigh)
+            let freqLow  = baseFreq * pow(2, Float(i) / 12)
+            let freqHigh = baseFreq * pow(2, Float(i + 1) / 12)
 
-            let idxLow  = Int(freqLow  / 20000 * nyquist)
-            let idxHigh = Int(freqHigh / 20000 * nyquist)
-            let low  = max(0, min(idxLow,  magnitudes.count - 1))
-            let high = max(low + 1, min(idxHigh, magnitudes.count))
+            let idxLow  = max(0, Int(freqLow  / freqPerBin))
+            let idxHigh = min(magnitudes.count - 1, Int(freqHigh / freqPerBin))
+
+            if idxHigh <= idxLow {
+                bins[i] = magnitudes[max(0, idxLow)]
+                continue
+            }
 
             var sum: Float = 0
-            vDSP_sve(Array(magnitudes[low..<high]), 1, &sum, vDSP_Length(high - low))
-            bins[i] = sum / Float(high - low)
+            let slice = Array(magnitudes[idxLow...idxHigh])
+            vDSP_sve(slice, 1, &sum, vDSP_Length(slice.count))
+            bins[i] = sum / Float(slice.count)
         }
 
-        // Normalize 到 0.0 ~ 1.0
-        var maxVal: Float = 0
-        vDSP_maxv(bins, 1, &maxVal, vDSP_Length(binCount))
-        if maxVal > 0 {
-            vDSP_vsdiv(bins, 1, &maxVal, &bins, 1, vDSP_Length(binCount))
+        // 5. dB 轉換 + bass attenuation + normalize
+        for i in 0..<binCount {
+            let db = 20 * log10(max(bins[i], 1e-10))
+            let bassAtten = 30.0 * max(0, 1.0 - Float(i) / Float(binCount / 2))
+            let adjusted = db - bassAtten
+            // -80dB ~ -10dB 映射到 0.0 ~ 1.0
+            bins[i] = max(0, min(1, (adjusted + 80) / 90))
         }
 
         return bins
-    }
-
-    private func melScale(_ freq: Float) -> Float {
-        return 2595 * log10(1 + freq / 700)
-    }
-
-    private func inverseMelScale(_ mel: Float) -> Float {
-        return 700 * (pow(10, mel / 2595) - 1)
     }
 }

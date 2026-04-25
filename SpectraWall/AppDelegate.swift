@@ -16,7 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var analyzer: AudioAnalyzer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        analyzer = AudioAnalyzer(fftSize: 1024, binCount: 32)
+        analyzer = AudioAnalyzer(fftSize: 4096, binCount: 96)
         setupDesktopWindows()
         startObservingScreenChanges()
         startAudioMonitor()
@@ -37,8 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let tap = CoreAudioTap()
         tap.onAudioData = { [weak self] samples in
             guard let self, let bins = self.analyzer?.analyze(samples) else { return }
-            // 只取前 4 個 bin（低頻）的平均當作 amplitude
-            let bassAmplitude = bins.prefix(4).reduce(0, +) / 4
+            let bassAmplitude = Float(bins.prefix(8).reduce(0, +)) / 8
             AudioDataBus.shared.spectrumPublisher.send(bins)
             AudioDataBus.shared.amplitudePublisher.send(bassAmplitude)
         }
@@ -72,10 +71,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
-        let skView = SKView(frame: screen.frame)
+        let skView = SKView(frame: NSRect(origin: .zero, size: screen.frame.size))
         skView.allowsTransparency = true
 
-        let scene = OrbScene(size: screen.frame.size)
+        let scene = SpectrumScene(size: screen.frame.size)
         scene.backgroundColor = .clear
         skView.presentScene(scene)
 

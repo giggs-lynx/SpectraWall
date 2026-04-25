@@ -12,7 +12,7 @@ class SpectrumScene: SKScene {
     private var bars: [SKSpriteNode] = []
     private var cancellables = Set<AnyCancellable>()
 
-    private let binCount = 32
+    private let binCount = 96
     private let barSpacing: CGFloat = 4
 
     override func didMove(to view: SKView) {
@@ -50,14 +50,14 @@ class SpectrumScene: SKScene {
     // MARK: - Update
 
     private func updateBars(bins: [Float]) {
-        let maxHeight = size.height * 0.8
+        let maxHeight = size.height * 0.9
+        let gain: CGFloat = 1.8  // 降低 gain
 
         for (i, bar) in bars.enumerated() {
             guard i < bins.count else { break }
-            let targetHeight = max(2, CGFloat(bins[i]) * maxHeight)
+            let targetHeight = max(2, min(CGFloat(bins[i]) * maxHeight * gain, maxHeight))
             bar.run(.resize(toHeight: targetHeight, duration: 0.05))
 
-            // 低頻暖色 → 高頻冷色
             let ratio = CGFloat(i) / CGFloat(binCount)
             let color = NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
             bar.color = color

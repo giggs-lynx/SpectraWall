@@ -15,7 +15,7 @@ class CoreAudioTap {
     private var deviceProcID: AudioDeviceIOProcID?
     private var deviceReadyListenerBlock: AudioObjectPropertyListenerBlock?
 
-    // MARK: - Public
+    // MARK: - Public/Users/giggs/project/lab/SpectraWall/SpectraWall/Audio/CoreAudioTap.swift
 
     func start(app: AudioApp) {
         stop()
@@ -116,6 +116,17 @@ class CoreAudioTap {
     // MARK: - IO Proc
 
     private func startIOProc(deviceID: AudioObjectID, app: AudioApp) {
+        
+        var sampleRate: Float64 = 0
+        var size = UInt32(MemoryLayout<Float64>.size)
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &sampleRate)
+        print("CoreAudioTap: sample rate = \(sampleRate)")
+        
         var procID: AudioDeviceIOProcID?
 
         let err = AudioDeviceCreateIOProcIDWithBlock(&procID, deviceID, nil) { [weak self] _, inInputData, _, _, _ in
@@ -143,11 +154,6 @@ class CoreAudioTap {
 
     private func handleAudioBuffer(_ inputBufferList: UnsafePointer<AudioBufferList>) {
         let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inputBufferList))
-
-        print("Buffer count: \(buffers.count)")
-        for (i, buf) in buffers.enumerated() {
-            print("  [\(i)] channels=\(buf.mNumberChannels), byteSize=\(buf.mDataByteSize)")
-        }
         
         guard let firstBuffer = buffers.first,
               let data = firstBuffer.mData else { return }
