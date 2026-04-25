@@ -8,7 +8,7 @@
 import SpriteKit
 import Combine
 
-class TestScene: SKScene {
+class SpectrumScene: SKScene {
     private var bars: [SKSpriteNode] = []
     private var cancellables = Set<AnyCancellable>()
 

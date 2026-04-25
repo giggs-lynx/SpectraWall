@@ -15,7 +15,7 @@ class AudioAnalyzer {
     private var smoothed: [Float]
 
     let attackCoeff: Float = 0.8
-    let releaseCoeff: Float = 0.15
+    let releaseCoeff: Float = 0.3
 
     init(fftSize: Int = 1024, binCount: Int = 32) {
         self.fftSize = fftSize

@@ -10,39 +10,43 @@ import SpriteKit
 import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var desktopWindows: [NSWindow] = []
-    var monitor: AudioProcessMonitor?
-    var audioTap: CoreAudioTap?
-    var analyzer: AudioAnalyzer?
+    private var desktopWindows: [NSWindow] = []
+    private var monitor: AudioProcessMonitor?
+    private var audioTap: CoreAudioTap?
+    private var analyzer: AudioAnalyzer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        analyzer = AudioAnalyzer(fftSize: 1024, binCount: 32)
         setupDesktopWindows()
         startObservingScreenChanges()
-        
-        monitor = AudioProcessMonitor()
-        monitor?.onAppsChanged = { [weak self] apps in
-            print("Active audio apps:")
-            apps.forEach { print("  \($0.name) — \($0.bundleID ?? "no bundle ID") — objectIDs: \($0.objectIDs)") }
-
-            // 抓第一個 app 測試
-            if let first = apps.first, self?.audioTap == nil {
-                let tap = CoreAudioTap()
-                tap.onAudioData = { [weak self] samples in
-                    guard let self, let bins = self.analyzer?.analyze(samples) else { return }
-                    let amplitude = samples.map { abs($0) }.max() ?? 0
-                    AudioDataBus.shared.spectrumPublisher.send(bins)
-                    AudioDataBus.shared.amplitudePublisher.send(amplitude)
-                }
-                tap.start(app: first)
-                self?.audioTap = tap
-            }
-        }
-        monitor?.start()
-        
-        analyzer = AudioAnalyzer(fftSize: 1024, binCount: 32)
+        startAudioMonitor()
     }
 
-    // MARK: - 視窗建立
+    // MARK: - 音訊
+
+    private func startAudioMonitor() {
+        monitor = AudioProcessMonitor()
+        monitor?.onAppsChanged = { [weak self] apps in
+            guard let self, self.audioTap == nil, let first = apps.first else { return }
+            self.startTap(for: first)
+        }
+        monitor?.start()
+    }
+
+    private func startTap(for app: AudioApp) {
+        let tap = CoreAudioTap()
+        tap.onAudioData = { [weak self] samples in
+            guard let self, let bins = self.analyzer?.analyze(samples) else { return }
+            // 只取前 4 個 bin（低頻）的平均當作 amplitude
+            let bassAmplitude = bins.prefix(4).reduce(0, +) / 4
+            AudioDataBus.shared.spectrumPublisher.send(bins)
+            AudioDataBus.shared.amplitudePublisher.send(bassAmplitude)
+        }
+        tap.start(app: app)
+        audioTap = tap
+    }
+
+    // MARK: - 視窗
 
     private func setupDesktopWindows() {
         desktopWindows.forEach { $0.close() }
@@ -62,20 +66,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
-
         window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)))
         window.isOpaque = false
         window.backgroundColor = .clear
         window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
-        // 建立 SKView 填滿視窗
         let skView = SKView(frame: screen.frame)
         skView.allowsTransparency = true
-        skView.scene?.backgroundColor = .clear
 
-        // 建立測試 Scene
-        let scene = TestScene(size: screen.frame.size)
+        let scene = OrbScene(size: screen.frame.size)
         scene.backgroundColor = .clear
         skView.presentScene(scene)
 
