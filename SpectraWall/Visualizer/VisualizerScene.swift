@@ -46,9 +46,28 @@ class VisualizerScene: SKScene {
     private func observeLayerChanges() {
         VisualizerLayerManager.shared.$layers
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] layers in
                 self?.setupLayers()
+                // 同時監聽每個 layer 的屬性變化
+                self?.observeEachLayer(layers)
             }
             .store(in: &cancellables)
+    }
+
+    private func observeEachLayer(_ layers: [LayerSettings]) {
+        for layer in layers {
+            layer.objectWillChange
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.syncLayerVisibility()
+                }
+                .store(in: &cancellables)
+        }
+    }
+
+    private func syncLayerVisibility() {
+        for layer in VisualizerLayerManager.shared.layers {
+            effectNodes[layer.id]?.isHidden = !layer.isVisible
+        }
     }
 }
