@@ -20,6 +20,10 @@ class AudioProcessMonitor {
     private(set) var activeApps: [AudioApp] = []
 
     private var processListListenerBlock: AudioObjectPropertyListenerBlock?
+    private var processListenerBlocks: [AudioObjectID: AudioObjectPropertyListenerBlock] = [:]
+    private var monitoredProcesses: Set<AudioObjectID> = []
+    private var periodicRefreshTask: Task<Void, Never>?
+
     private var processListAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwarePropertyProcessObjectList,
         mScope: kAudioObjectPropertyScopeGlobal,
@@ -43,17 +47,36 @@ class AudioProcessMonitor {
         )
 
         refresh()
+        startPeriodicRefresh()
     }
 
     func stop() {
+        periodicRefreshTask?.cancel()
+        periodicRefreshTask = nil
+
         if let block = processListListenerBlock {
             AudioObjectRemovePropertyListenerBlock(.system, &processListAddress, .main, block)
             processListListenerBlock = nil
         }
+
+        removeAllProcessListeners()
         activeApps = []
     }
 
-    // MARK: - Private
+    // MARK: - Periodic Refresh
+
+    private func startPeriodicRefresh() {
+        periodicRefreshTask?.cancel()
+        periodicRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                guard !Task.isCancelled else { return }
+                await MainActor.run { self?.refresh() }
+            }
+        }
+    }
+
+    // MARK: - Refresh
 
     private func refresh() {
         guard let processIDs = try? AudioObjectID.readProcessList() else { return }
@@ -85,8 +108,69 @@ class AudioProcessMonitor {
             }
         }
 
+        // 對所有 process 掛 isRunning listener（包括沒在播音樂的）
+        updateProcessListeners(for: processIDs)
+
         let sorted = result.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        let oldIDs = Set(activeApps.map { $0.pid })
+        let newIDs = Set(sorted.map { $0.pid })
+
         activeApps = sorted
-        onAppsChanged?(sorted)
+        if oldIDs != newIDs {
+            onAppsChanged?(sorted)
+        }
+    }
+
+    // MARK: - Process Listeners
+
+    private func updateProcessListeners(for processIDs: [AudioObjectID]) {
+        let currentSet = Set(processIDs)
+
+        let removed = monitoredProcesses.subtracting(currentSet)
+        removed.forEach { removeProcessListener(for: $0) }
+
+        let added = currentSet.subtracting(monitoredProcesses)
+        added.forEach { addProcessListener(for: $0) }
+
+        monitoredProcesses = currentSet
+    }
+
+    private func addProcessListener(for objectID: AudioObjectID) {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioProcessPropertyIsRunning,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            DispatchQueue.main.async { self?.refresh() }
+        }
+
+        let status = AudioObjectAddPropertyListenerBlock(objectID, &address, .main, block)
+        if status == noErr {
+            processListenerBlocks[objectID] = block
+        }
+    }
+
+    private func removeProcessListener(for objectID: AudioObjectID) {
+        guard let block = processListenerBlocks.removeValue(forKey: objectID) else { return }
+
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioProcessPropertyIsRunning,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        let status = AudioObjectRemovePropertyListenerBlock(objectID, &address, .main, block)
+        if status != noErr && status != OSStatus(kAudioHardwareBadObjectError) {
+            print("AudioProcessMonitor: 移除 listener 失敗 \(objectID): \(status)")
+        }
+    }
+
+    private func removeAllProcessListeners() {
+        monitoredProcesses.forEach { removeProcessListener(for: $0) }
+        monitoredProcesses.removeAll()
+        processListenerBlocks.removeAll()
     }
 }
