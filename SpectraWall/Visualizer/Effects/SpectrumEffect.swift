@@ -64,17 +64,32 @@ class SpectrumEffect: SKNode {
             .store(in: &cancellables)
     }
 
-    private func updateBars(bins: [Float]) {
+    private func selectedBins(from stereo: StereoBins) -> [Float] {
+        switch settings.channelMode {
+        case .stereo:
+            let half = binCount / 2
+            return Array(stereo.left.prefix(half)) + Array(stereo.right.prefix(half))
+        case .left:
+            return stereo.left
+        case .right:
+            return stereo.right
+        case .mono:
+            return zip(stereo.left, stereo.right).map { ($0 + $1) / 2 }
+        }
+    }
+
+    private func updateBars(bins: StereoBins) {
         guard isHidden == false else { return }
+        let selected = selectedBins(from: bins)
         let maxHeight = sceneSize.height * 0.75
         let gain = CGFloat(settings.spectrumGain)
 
         for i in 0..<smoothed.count {
-            guard i < bins.count else { break }
-            let coeff = bins[i] > smoothed[i]
+            guard i < selected.count else { break }
+            let coeff = selected[i] > smoothed[i]
                 ? Float(settings.spectrumAttack)
                 : Float(settings.spectrumRelease)
-            smoothed[i] = smoothed[i] * (1 - coeff) + bins[i] * coeff
+            smoothed[i] = smoothed[i] * (1 - coeff) + selected[i] * coeff
         }
 
         let curved = smoothed.map { pow($0, Float(settings.spectrumPowerCurve)) }

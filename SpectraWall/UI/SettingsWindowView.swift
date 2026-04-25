@@ -163,6 +163,13 @@ struct SpectrumSettingsSection: View {
     var body: some View {
         SectionHeader(title: "Spectrum")
         VStack(spacing: 10) {
+            Picker("聲道", selection: $layer.channelMode) {
+                ForEach(ChannelMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            
             SettingsSlider(label: "高度", value: $layer.spectrumGain, range: 0.5...3.0, step: 0.1)
             SettingsSlider(label: "差異化", value: $layer.spectrumPowerCurve, range: 1.0...3.0, step: 0.1)
             SettingsSlider(label: "反應速度", value: $layer.spectrumAttack, range: 0.5...1.0, step: 0.05)
@@ -183,6 +190,13 @@ struct OrbSettingsSection: View {
     var body: some View {
         SectionHeader(title: "Orb")
         VStack(spacing: 10) {
+            Picker("聲道", selection: $layer.channelMode) {
+                ForEach(ChannelMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            
             SettingsSlider(label: "靈敏度", value: $layer.orbBoost, range: 1.0...6.0, step: 0.1)
             SettingsSlider(label: "反應速度", value: $layer.orbAttack, range: 0.3...1.0, step: 0.05)
             SettingsSlider(label: "衰減速度", value: $layer.orbRelease, range: 0.1...0.5, step: 0.05)

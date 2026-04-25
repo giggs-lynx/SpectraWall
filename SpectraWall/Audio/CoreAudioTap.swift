@@ -8,7 +8,7 @@
 import AudioToolbox
 
 class CoreAudioTap {
-    var onAudioData: (([Float]) -> Void)?
+    var onAudioData: (([Float], [Float]) -> Void)?
 
     private var tapID: AudioObjectID = .unknown
     private var aggregateDeviceID: AudioObjectID = .unknown
@@ -195,16 +195,35 @@ class CoreAudioTap {
 
     private func handleAudioBuffer(_ inputBufferList: UnsafePointer<AudioBufferList>) {
         let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inputBufferList))
-        
-        guard let firstBuffer = buffers.first,
-              let data = firstBuffer.mData else { return }
 
-        let count = Int(firstBuffer.mDataByteSize) / MemoryLayout<Float>.size
-        let samples = data.bindMemory(to: Float.self, capacity: count)
-        let array = Array(UnsafeBufferPointer(start: samples, count: count))
+        var leftSamples: [Float] = []
+        var rightSamples: [Float] = []
+
+        for buffer in buffers {
+            guard let data = buffer.mData else { continue }
+            let channelCount = Int(buffer.mNumberChannels)
+            let frameCount = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size / max(channelCount, 1)
+            let samples = data.bindMemory(to: Float.self, capacity: frameCount * channelCount)
+
+            if channelCount >= 2 {
+                // 交錯格式：L R L R L R...
+                for i in 0..<frameCount {
+                    leftSamples.append(samples[i * 2])
+                    rightSamples.append(samples[i * 2 + 1])
+                }
+            } else {
+                // 單聲道，左右都用同一個
+                for i in 0..<frameCount {
+                    leftSamples.append(samples[i])
+                    rightSamples.append(samples[i])
+                }
+            }
+        }
+
+        guard !leftSamples.isEmpty else { return }
 
         DispatchQueue.main.async {
-            self.onAudioData?(array)
+            self.onAudioData?(leftSamples, rightSamples)
         }
     }
 }

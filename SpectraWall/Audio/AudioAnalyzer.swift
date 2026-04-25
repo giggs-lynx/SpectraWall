@@ -5,6 +5,7 @@
 //  Created by Giggs Lynx on 2026/4/25.
 //
 
+// SpectraWall/Audio/AudioAnalyzer.swift
 import Accelerate
 
 class AudioAnalyzer {
@@ -12,7 +13,8 @@ class AudioAnalyzer {
     private let binCount: Int
     private var fftSetup: FFTSetup
     private var window: [Float]
-    private var sampleBuffer: [Float] = []
+    private var leftBuffer: [Float] = []
+    private var rightBuffer: [Float] = []
 
     init(fftSize: Int = 4096, binCount: Int = 96) {
         self.fftSize = fftSize
@@ -26,22 +28,28 @@ class AudioAnalyzer {
         vDSP_destroy_fftsetup(fftSetup)
     }
 
-    func analyze(_ samples: [Float]) -> [Float]? {
-        sampleBuffer.append(contentsOf: samples)
-        guard sampleBuffer.count >= fftSize else { return nil }
+    func analyze(left: [Float], right: [Float]) -> StereoBins? {
+        leftBuffer.append(contentsOf: left)
+        rightBuffer.append(contentsOf: right)
 
-        let input = Array(sampleBuffer.suffix(fftSize))
-        sampleBuffer = Array(sampleBuffer.suffix(fftSize / 2))
+        guard leftBuffer.count >= fftSize else { return nil }
 
-        return process(input)
+        let leftInput = Array(leftBuffer.suffix(fftSize))
+        let rightInput = Array(rightBuffer.suffix(fftSize))
+
+        leftBuffer = Array(leftBuffer.suffix(fftSize / 2))
+        rightBuffer = Array(rightBuffer.suffix(fftSize / 2))
+
+        let leftBins = process(leftInput)
+        let rightBins = process(rightInput)
+
+        return StereoBins(left: leftBins, right: rightBins)
     }
 
     private func process(_ samples: [Float]) -> [Float] {
-        // 1. Hanning window
         var windowed = samples
         vDSP_vmul(windowed, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
 
-        // 2. FFT
         var realPart = windowed
         var imagPart = [Float](repeating: 0, count: fftSize)
         var magnitudes = [Float](repeating: 0, count: fftSize / 2)
@@ -54,11 +62,9 @@ class AudioAnalyzer {
             }
         }
 
-        // 3. 正規化
         var scale = Float(fftSize)
         vDSP_vsdiv(magnitudes, 1, &scale, &magnitudes, 1, vDSP_Length(fftSize / 2))
 
-        // 4. Chromatic scale 分組 + dB + bass attenuation
         return chromaticScaleBins(magnitudes: magnitudes)
     }
 
@@ -86,7 +92,6 @@ class AudioAnalyzer {
             bins[i] = sum / Float(slice.count)
         }
 
-        // dB + bass attenuation（這是分析層的決定，留在 Analyzer）
         for i in 0..<binCount {
             let db = 20 * log10(max(bins[i], 1e-10))
             let bassAtten = Float(settings.bassAttenuation) * max(0, 1.0 - Float(i) / Float(binCount / 2))

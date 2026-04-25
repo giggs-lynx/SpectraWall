@@ -13,10 +13,18 @@ enum EffectType: String, Codable, CaseIterable {
     case orb = "Orb"
 }
 
+enum ChannelMode: String, Codable, CaseIterable {
+    case stereo = "立體聲"
+    case left = "左聲道"
+    case right = "右聲道"
+    case mono = "單聲道（混音）"
+}
+
 class LayerSettings: ObservableObject, Codable, Identifiable {
     let id: UUID
 
     @Published var effectType: EffectType
+    @Published var channelMode: ChannelMode = .stereo
     @Published var isVisible: Bool
 
     // Spectrum

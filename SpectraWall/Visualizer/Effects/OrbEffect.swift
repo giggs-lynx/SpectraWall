@@ -87,9 +87,11 @@ class OrbEffect: SKNode {
         glowOrb?.run(SKAction.scale(to: clampedScale, duration: 0.08))
     }
 
-    private func updateColor(bins: [Float]) {
-        guard bins.count > 4 else { return }
-        let lowFreq = CGFloat(bins[0...3].reduce(0, +) / 4)
+    private func updateColor(bins: StereoBins) {
+        // 用左右平均的低頻驅動顏色
+        let leftLow = bins.left.prefix(4).reduce(0, +) / 4
+        let rightLow = bins.right.prefix(4).reduce(0, +) / 4
+        let lowFreq = CGFloat((leftLow + rightLow) / 2)
         let hue = 0.5 + lowFreq * 0.3
 
         orb?.fillColor = NSColor(hue: hue, saturation: 0.6, brightness: 1.0, alpha: 0.9)

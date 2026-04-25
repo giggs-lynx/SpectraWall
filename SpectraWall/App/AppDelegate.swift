@@ -48,9 +48,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func startGlobalTap() {
         let tap = CoreAudioTap()
-        tap.onAudioData = { [weak self] samples in
-            guard let self, let bins = self.analyzer?.analyze(samples) else { return }
-            let bassAmplitude = Float(bins.prefix(8).reduce(0, +)) / 8
+        tap.onAudioData = { [weak self] left, right in
+            guard let self, let bins = self.analyzer?.analyze(left: left, right: right) else { return }
+            let bassAmplitude = Float(bins.left.prefix(8).reduce(0, +) + bins.right.prefix(8).reduce(0, +)) / 16
             AudioDataBus.shared.spectrumPublisher.send(bins)
             AudioDataBus.shared.amplitudePublisher.send(bassAmplitude)
         }
@@ -128,9 +128,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startTap(for app: AudioApp) {
         let tap = CoreAudioTap()
-        tap.onAudioData = { [weak self] samples in
-            guard let self, let bins = self.analyzer?.analyze(samples) else { return }
-            let bassAmplitude = Float(bins.prefix(8).reduce(0, +)) / 8
+        tap.onAudioData = { [weak self] left, right in
+            guard let self, let bins = self.analyzer?.analyze(left: left, right: right) else { return }
+            let bassAmplitude = Float(bins.left.prefix(8).reduce(0, +) + bins.right.prefix(8).reduce(0, +)) / 16
             AudioDataBus.shared.spectrumPublisher.send(bins)
             AudioDataBus.shared.amplitudePublisher.send(bassAmplitude)
         }
