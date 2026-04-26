@@ -117,13 +117,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         monitor?.start()
-
-        switch AppSettings.shared.audioSource {
-        case .global:
-            startGlobalTap()
-        case .app:
-            break
-        }
     }
 
     private func startTap(for app: AudioApp) {
