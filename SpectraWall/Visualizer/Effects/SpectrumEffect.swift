@@ -23,6 +23,7 @@ class SpectrumEffect: SKNode {
         super.init()
         setupBars()
         subscribeToAudio()
+        observeSettings()
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -33,17 +34,33 @@ class SpectrumEffect: SKNode {
         bars.forEach { $0.removeFromParent() }
         bars = []
 
+        let totalWidth = sceneSize.width * CGFloat(settings.spectrumWidth)
+        let startX = (sceneSize.width - totalWidth) * CGFloat(settings.positionX)
         let totalSpacing = barSpacing * CGFloat(binCount - 1)
-        let barWidth = (sceneSize.width - totalSpacing) / CGFloat(binCount)
+        let barWidth = (totalWidth - totalSpacing) / CGFloat(binCount)
+        let startY = sceneSize.height * CGFloat(settings.positionY)
 
         for i in 0..<binCount {
             let bar = SKSpriteNode(color: .white, size: CGSize(width: barWidth, height: 2))
-            let x = barWidth / 2 + CGFloat(i) * (barWidth + barSpacing)
+            let x = startX + barWidth / 2 + CGFloat(i) * (barWidth + barSpacing)
             bar.anchorPoint = CGPoint(x: 0.5, y: 0)
-            bar.position = CGPoint(x: x, y: 0)
+            bar.position = CGPoint(x: x, y: startY)
             addChild(bar)
             bars.append(bar)
         }
+
+        alpha = CGFloat(settings.opacity)
+    }
+
+    // MARK: - Observe Settings
+
+    private func observeSettings() {
+        settings.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.setupBars()
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Audio
@@ -79,9 +96,9 @@ class SpectrumEffect: SKNode {
     }
 
     private func updateBars(bins: StereoBins) {
-        guard isHidden == false else { return }
+        guard !isHidden else { return }
         let selected = selectedBins(from: bins)
-        let maxHeight = sceneSize.height * 0.75
+        let maxHeight = sceneSize.height * CGFloat(settings.spectrumMaxHeight)
         let gain = CGFloat(settings.spectrumGain)
 
         for i in 0..<smoothed.count {
@@ -98,10 +115,17 @@ class SpectrumEffect: SKNode {
             guard i < curved.count else { break }
             let targetHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
             bar.run(.resize(toHeight: targetHeight, duration: 0.05))
+            bar.color = barColor(for: i, value: curved[i])
+        }
+    }
 
-            let ratio = CGFloat(i) / CGFloat(binCount)
-            let color = NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
-            bar.color = color
+    private func barColor(for index: Int, value: Float) -> NSColor {
+        switch settings.spectrumColorMode {
+        case .rainbow:
+            let ratio = CGFloat(index) / CGFloat(binCount)
+            return NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
+        case .solid:
+            return settings.spectrumSolidColor.nsColor
         }
     }
 

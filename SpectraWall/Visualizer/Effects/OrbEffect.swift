@@ -16,23 +16,31 @@ class OrbEffect: SKNode {
     private var sceneSize: CGSize = .zero
     private var settings: LayerSettings
 
-    private let baseRadius: CGFloat = 120
-
     init(size: CGSize, settings: LayerSettings) {
         self.sceneSize = size
         self.settings = settings
         super.init()
         setupOrb()
         subscribeToAudio()
+        observeSettings()
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
+    // MARK: - Setup
+
     private func setupOrb() {
-        let center = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
+        orb?.removeFromParent()
+        glowOrb?.removeFromParent()
+
+        let baseRadius = CGFloat(settings.orbBaseRadius)
+        let center = CGPoint(
+            x: sceneSize.width * CGFloat(settings.positionX),
+            y: sceneSize.height * CGFloat(settings.positionY)
+        )
 
         let glow = SKShapeNode(circleOfRadius: baseRadius * 1.4)
-        glow.fillColor = NSColor(hue: 0.6, saturation: 0.8, brightness: 1.0, alpha: 0.15)
+        glow.fillColor = settings.orbOuterColorLow.nsColor.withAlphaComponent(CGFloat(settings.orbOuterOpacity))
         glow.strokeColor = .clear
         glow.position = center
         glow.blendMode = .add
@@ -40,14 +48,29 @@ class OrbEffect: SKNode {
         glowOrb = glow
 
         let main = SKShapeNode(circleOfRadius: baseRadius)
-        main.fillColor = NSColor(hue: 0.6, saturation: 0.6, brightness: 1.0, alpha: 0.9)
-        main.strokeColor = NSColor(hue: 0.6, saturation: 0.4, brightness: 1.0, alpha: 0.6)
+        main.fillColor = settings.orbInnerColorLow.nsColor
+        main.strokeColor = settings.orbInnerColorLow.nsColor.withAlphaComponent(0.6)
         main.lineWidth = 2
         main.position = center
         main.blendMode = .add
         addChild(main)
         orb = main
+
+        alpha = CGFloat(settings.opacity)
     }
+
+    // MARK: - Observe Settings
+
+    private func observeSettings() {
+        settings.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.setupOrb()
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Audio
 
     private func subscribeToAudio() {
         AudioDataBus.shared.amplitudePublisher
@@ -73,7 +96,7 @@ class OrbEffect: SKNode {
     }
 
     private func updateOrb(amplitude: Float) {
-        guard isHidden == false else { return }
+        guard !isHidden else { return }
         let coeff = amplitude > smoothedAmplitude
             ? Float(settings.orbAttack)
             : Float(settings.orbRelease)
@@ -88,14 +111,33 @@ class OrbEffect: SKNode {
     }
 
     private func updateColor(bins: StereoBins) {
-        // 用左右平均的低頻驅動顏色
         let leftLow = bins.left.prefix(4).reduce(0, +) / 4
         let rightLow = bins.right.prefix(4).reduce(0, +) / 4
-        let lowFreq = CGFloat((leftLow + rightLow) / 2)
-        let hue = 0.5 + lowFreq * 0.3
+        let t = CGFloat((leftLow + rightLow) / 2)
 
-        orb?.fillColor = NSColor(hue: hue, saturation: 0.6, brightness: 1.0, alpha: 0.9)
-        glowOrb?.fillColor = NSColor(hue: hue, saturation: 0.8, brightness: 1.0, alpha: 0.15)
+        // 在 low 和 high 顏色之間插值
+        let innerColor = interpolateColor(
+            from: settings.orbInnerColorLow.nsColor,
+            to: settings.orbInnerColorHigh.nsColor,
+            t: t
+        )
+        let outerColor = interpolateColor(
+            from: settings.orbOuterColorLow.nsColor,
+            to: settings.orbOuterColorHigh.nsColor,
+            t: t
+        )
+
+        orb?.fillColor = innerColor
+        orb?.strokeColor = innerColor.withAlphaComponent(0.6)
+        glowOrb?.fillColor = outerColor.withAlphaComponent(CGFloat(settings.orbOuterOpacity))
+    }
+
+    private func interpolateColor(from: NSColor, to: NSColor, t: CGFloat) -> NSColor {
+        let r = from.redComponent + (to.redComponent - from.redComponent) * t
+        let g = from.greenComponent + (to.greenComponent - from.greenComponent) * t
+        let b = from.blueComponent + (to.blueComponent - from.blueComponent) * t
+        let a = from.alphaComponent + (to.alphaComponent - from.alphaComponent) * t
+        return NSColor(red: r, green: g, blue: b, alpha: a)
     }
 
     func reset() {

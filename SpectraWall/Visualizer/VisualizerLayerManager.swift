@@ -38,6 +38,16 @@ class VisualizerLayerManager: ObservableObject {
         layers.move(fromOffsets: source, toOffset: destination)
         save()
     }
+    
+    func duplicateLayer(_ layer: LayerSettings) {
+        let copy = LayerSettings(copying: layer)
+        if let index = layers.firstIndex(where: { $0.id == layer.id }) {
+            layers.insert(copy, at: index + 1)
+        } else {
+            layers.append(copy)
+        }
+        save()
+    }
 
     func save() {
         if let data = try? JSONEncoder().encode(layers) {
