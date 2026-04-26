@@ -235,21 +235,23 @@ struct SpectrumSettingsSection: View {
             }
             .pickerStyle(.segmented)
             .onChange(of: layer.spectrumAnchor) {
-                switch layer.spectrumAnchor {
-                case .bottom:
-                    layer.positionY = 0.0
-                    layer.positionX = 0.5
-                case .top:
-                    layer.positionY = 1.0
-                    layer.positionX = 0.5
-                case .left:
-                    layer.positionX = 0.0
-                    layer.positionY = 0.5
-                case .right:
-                    layer.positionX = 1.0
-                    layer.positionY = 0.5
+                Task { @MainActor in
+                    switch layer.spectrumAnchor {
+                    case .bottom:
+                        layer.positionY = 0.0
+                        layer.positionX = 0.5
+                    case .top:
+                        layer.positionY = 1.0
+                        layer.positionX = 0.5
+                    case .left:
+                        layer.positionX = 0.0
+                        layer.positionY = 0.5
+                    case .right:
+                        layer.positionX = 1.0
+                        layer.positionY = 0.5
+                    }
+                    VisualizerLayerManager.shared.save()
                 }
-                VisualizerLayerManager.shared.save()
             }
             SettingsSlider(label: "高度", value: $layer.spectrumGain, range: 0.5...3.0, step: 0.1)
             SettingsSlider(label: "高度上限", value: $layer.spectrumMaxHeight, range: 0.1...1.0, step: 0.05)
@@ -260,20 +262,51 @@ struct SpectrumSettingsSection: View {
 
             Divider()
 
-            // 顏色模式
-            Picker("顏色模式", selection: $layer.spectrumColorMode) {
-                ForEach(SpectrumColorMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
+            // 顏色設定
+            if layer.channelMode == .stereo {
+                Toggle("左右聲道同步顏色", isOn: $layer.spectrumColorSync)
 
-            if layer.spectrumColorMode == .solid {
-                ColorPickerRow(label: "顏色", colorData: $layer.spectrumSolidColor)
+                if layer.spectrumColorSync {
+                    ChannelColorSettingsView(colorSettings: $layer.spectrumColorSettings)
+                } else {
+                    SectionHeader(title: "左聲道")
+                    ChannelColorSettingsView(colorSettings: $layer.spectrumLeftColorSettings)
+                    SectionHeader(title: "右聲道")
+                    ChannelColorSettingsView(colorSettings: $layer.spectrumRightColorSettings)
+                }
+            } else {
+                ChannelColorSettingsView(colorSettings: $layer.spectrumColorSettings)
             }
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
+
+        Divider()
+    }
+}
+
+// MARK: - Channel Color Settings View
+
+struct ChannelColorSettingsView: View {
+    @Binding var colorSettings: ChannelColorSettings
+
+    var body: some View {
+        Picker("顏色模式", selection: $colorSettings.colorMode) {
+            ForEach(ChannelColorMode.allCases, id: \.self) { mode in
+                Text(mode.rawValue).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+
+        switch colorSettings.colorMode {
+        case .rainbow:
+            EmptyView()
+        case .gradient:
+            ColorPickerRow(label: "起始色", colorData: $colorSettings.gradientColorLow)
+            ColorPickerRow(label: "結束色", colorData: $colorSettings.gradientColorHigh)
+        case .solid:
+            ColorPickerRow(label: "顏色", colorData: $colorSettings.solidColor)
+        }
     }
 }
 

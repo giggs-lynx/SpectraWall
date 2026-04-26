@@ -157,7 +157,8 @@ class SpectrumEffect: SKNode {
             guard i < curved.count else { break }
             let targetHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
             bar.run(.resize(toHeight: targetHeight, duration: 0.05))
-            bar.color = barColor(for: i, value: curved[i])
+            let half = binCount / 2
+            bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
 
@@ -169,22 +170,30 @@ class SpectrumEffect: SKNode {
             guard i < curved.count else { break }
             let targetWidth = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
             bar.run(.resize(toWidth: targetWidth, duration: 0.05))
-            bar.color = barColor(for: i, value: curved[i])
+            let half = binCount / 2
+            bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
 
-    private func barColor(for index: Int, value: Float) -> NSColor {
-        switch settings.spectrumColorMode {
+    private func barColor(for index: Int, value: Float, isRightChannel: Bool = false) -> NSColor {
+        let colorSettings: ChannelColorSettings
+
+        if settings.channelMode == .stereo && !settings.spectrumColorSync {
+            colorSettings = isRightChannel
+                ? settings.spectrumRightColorSettings
+                : settings.spectrumLeftColorSettings
+        } else {
+            colorSettings = settings.spectrumColorSettings
+        }
+
+        switch colorSettings.colorMode {
         case .rainbow:
             if settings.channelMode == .stereo {
                 let half = binCount / 2
                 let ratio: CGFloat
-
                 if index < half {
-                    // 左聲道：低頻 -> 高頻
                     ratio = CGFloat(index) / CGFloat(half - 1)
                 } else {
-                    // 右聲道：高頻 -> 低頻（反轉）
                     let originalRatio = CGFloat(index - half) / CGFloat(half - 1)
                     ratio = 1.0 - originalRatio
                 }
@@ -193,9 +202,36 @@ class SpectrumEffect: SKNode {
                 let ratio = CGFloat(index) / CGFloat(binCount)
                 return NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
             }
+
+        case .gradient:
+            let ratio: CGFloat
+            if settings.channelMode == .stereo {
+                let half = binCount / 2
+                if index < half {
+                    ratio = CGFloat(index) / CGFloat(half - 1)
+                } else {
+                    let originalRatio = CGFloat(index - half) / CGFloat(half - 1)
+                    ratio = 1.0 - originalRatio
+                }
+            } else {
+                ratio = CGFloat(index) / CGFloat(binCount - 1)
+            }
+            return interpolateColor(
+                from: colorSettings.gradientColorLow.nsColor,
+                to: colorSettings.gradientColorHigh.nsColor,
+                t: ratio
+            )
+
         case .solid:
-            return settings.spectrumSolidColor.nsColor
+            return colorSettings.solidColor.nsColor
         }
+    }
+
+    private func interpolateColor(from: NSColor, to: NSColor, t: CGFloat) -> NSColor {
+        let r = from.redComponent + (to.redComponent - from.redComponent) * t
+        let g = from.greenComponent + (to.greenComponent - from.greenComponent) * t
+        let b = from.blueComponent + (to.blueComponent - from.blueComponent) * t
+        return NSColor(red: r, green: g, blue: b, alpha: 1.0)
     }
 
     func reset() {

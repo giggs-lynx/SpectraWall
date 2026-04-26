@@ -38,6 +38,19 @@ struct ColorData: Codable {
     }
 }
 
+enum ChannelColorMode: String, Codable, CaseIterable {
+    case rainbow = "彩虹漸層"
+    case gradient = "自訂漸層"
+    case solid = "單色"
+}
+
+struct ChannelColorSettings: Codable {
+    var colorMode: ChannelColorMode = .rainbow
+    var gradientColorLow: ColorData = ColorData(red: 0.0, green: 0.4, blue: 1.0)
+    var gradientColorHigh: ColorData = ColorData(red: 1.0, green: 0.2, blue: 0.8)
+    var solidColor: ColorData = ColorData(red: 1.0, green: 1.0, blue: 1.0)
+}
+
 enum EffectType: String, Codable, CaseIterable {
     case spectrum = "Spectrum"
     case orb = "Orb"
@@ -50,11 +63,6 @@ enum ChannelMode: String, Codable, CaseIterable {
     case mono = "單聲道（混音）"
 }
 
-enum SpectrumColorMode: String, Codable, CaseIterable {
-    case rainbow = "彩虹漸層"
-    case solid = "單色"
-}
-
 enum SpectrumAnchor: String, Codable, CaseIterable {
     case bottom = "下"
     case top = "上"
@@ -63,14 +71,14 @@ enum SpectrumAnchor: String, Codable, CaseIterable {
 }
 
 class LayerSettings: ObservableObject, Codable, Identifiable {
-    var id: UUID
+    let id: UUID
 
     @Published var effectType: EffectType
     @Published var isVisible: Bool
     @Published var channelMode: ChannelMode
     @Published var name: String
 
-    // MARK: - 共用位置
+    // MARK: - 共用
     @Published var positionX: Double
     @Published var positionY: Double
     @Published var opacity: Double
@@ -82,9 +90,11 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
     @Published var spectrumRelease: Double
     @Published var spectrumWidth: Double
     @Published var spectrumMaxHeight: Double
-    @Published var spectrumColorMode: SpectrumColorMode
-    @Published var spectrumSolidColor: ColorData
-    @Published var spectrumAnchor: SpectrumAnchor = .bottom
+    @Published var spectrumAnchor: SpectrumAnchor
+    @Published var spectrumColorSync: Bool
+    @Published var spectrumColorSettings: ChannelColorSettings
+    @Published var spectrumLeftColorSettings: ChannelColorSettings
+    @Published var spectrumRightColorSettings: ChannelColorSettings
 
     // MARK: - Orb
     @Published var orbBoost: Double
@@ -103,7 +113,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         self.effectType = effectType
         self.isVisible = true
         self.channelMode = DefaultVal.channelMode
-        self.name = if let name { name } else { effectType.rawValue }
+        self.name = name ?? effectType.rawValue
         self.positionX = DefaultVal.positionX
         self.positionY = DefaultVal.positionY
         self.opacity = DefaultVal.opacity
@@ -113,9 +123,11 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         self.spectrumRelease = DefaultVal.spectrumRelease
         self.spectrumWidth = DefaultVal.spectrumWidth
         self.spectrumMaxHeight = DefaultVal.spectrumMaxHeight
-        self.spectrumColorMode = DefaultVal.spectrumColorMode
-        self.spectrumSolidColor = DefaultVal.spectrumSolidColor
         self.spectrumAnchor = DefaultVal.spectrumAnchor
+        self.spectrumColorSync = DefaultVal.spectrumColorSync
+        self.spectrumColorSettings = DefaultVal.spectrumColorSettings
+        self.spectrumLeftColorSettings = DefaultVal.spectrumLeftColorSettings
+        self.spectrumRightColorSettings = DefaultVal.spectrumRightColorSettings
         self.orbBoost = DefaultVal.orbBoost
         self.orbAttack = DefaultVal.orbAttack
         self.orbRelease = DefaultVal.orbRelease
@@ -127,7 +139,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         self.orbOuterColorHigh = DefaultVal.orbOuterColorHigh
         self.orbOuterOpacity = DefaultVal.orbOuterOpacity
     }
-    
+
     convenience init(copying source: LayerSettings) {
         self.init(effectType: source.effectType, name: source.name + " 副本")
         self.isVisible = source.isVisible
@@ -141,9 +153,11 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         self.spectrumRelease = source.spectrumRelease
         self.spectrumWidth = source.spectrumWidth
         self.spectrumMaxHeight = source.spectrumMaxHeight
-        self.spectrumColorMode = source.spectrumColorMode
-        self.spectrumSolidColor = source.spectrumSolidColor
         self.spectrumAnchor = source.spectrumAnchor
+        self.spectrumColorSync = source.spectrumColorSync
+        self.spectrumColorSettings = source.spectrumColorSettings
+        self.spectrumLeftColorSettings = source.spectrumLeftColorSettings
+        self.spectrumRightColorSettings = source.spectrumRightColorSettings
         self.orbBoost = source.orbBoost
         self.orbAttack = source.orbAttack
         self.orbRelease = source.orbRelease
@@ -162,7 +176,9 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         case id, effectType, isVisible, channelMode, name
         case positionX, positionY, opacity
         case spectrumGain, spectrumPowerCurve, spectrumAttack, spectrumRelease
-        case spectrumWidth, spectrumMaxHeight, spectrumColorMode, spectrumSolidColor, spectrumAnchor
+        case spectrumWidth, spectrumMaxHeight, spectrumAnchor
+        case spectrumColorSync, spectrumColorSettings
+        case spectrumLeftColorSettings, spectrumRightColorSettings
         case orbBoost, orbAttack, orbRelease, orbBaseRadius, orbOuterRadiusMultiplier
         case orbInnerColorLow, orbInnerColorHigh
         case orbOuterColorLow, orbOuterColorHigh, orbOuterOpacity
@@ -174,7 +190,6 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         effectType = try c.decode(EffectType.self, forKey: .effectType)
         isVisible = try c.decode(Bool.self, forKey: .isVisible)
         channelMode = try c.decode(ChannelMode.self, forKey: .channelMode)
-        name = try c.decode(String.self, forKey: .name)
         positionX = try c.decode(Double.self, forKey: .positionX)
         positionY = try c.decode(Double.self, forKey: .positionY)
         opacity = try c.decode(Double.self, forKey: .opacity)
@@ -184,9 +199,11 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         spectrumRelease = try c.decode(Double.self, forKey: .spectrumRelease)
         spectrumWidth = try c.decode(Double.self, forKey: .spectrumWidth)
         spectrumMaxHeight = try c.decode(Double.self, forKey: .spectrumMaxHeight)
-        spectrumColorMode = try c.decode(SpectrumColorMode.self, forKey: .spectrumColorMode)
-        spectrumSolidColor = try c.decode(ColorData.self, forKey: .spectrumSolidColor)
-        spectrumAnchor = try c.decode(SpectrumAnchor.self, forKey: .spectrumAnchor)
+        spectrumAnchor = try c.decodeIfPresent(SpectrumAnchor.self, forKey: .spectrumAnchor) ?? DefaultVal.spectrumAnchor
+        spectrumColorSync = try c.decodeIfPresent(Bool.self, forKey: .spectrumColorSync) ?? DefaultVal.spectrumColorSync
+        spectrumColorSettings = try c.decodeIfPresent(ChannelColorSettings.self, forKey: .spectrumColorSettings) ?? DefaultVal.spectrumColorSettings
+        spectrumLeftColorSettings = try c.decodeIfPresent(ChannelColorSettings.self, forKey: .spectrumLeftColorSettings) ?? DefaultVal.spectrumLeftColorSettings
+        spectrumRightColorSettings = try c.decodeIfPresent(ChannelColorSettings.self, forKey: .spectrumRightColorSettings) ?? DefaultVal.spectrumRightColorSettings
         orbBoost = try c.decode(Double.self, forKey: .orbBoost)
         orbAttack = try c.decode(Double.self, forKey: .orbAttack)
         orbRelease = try c.decode(Double.self, forKey: .orbRelease)
@@ -197,6 +214,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         orbOuterColorLow = try c.decode(ColorData.self, forKey: .orbOuterColorLow)
         orbOuterColorHigh = try c.decode(ColorData.self, forKey: .orbOuterColorHigh)
         orbOuterOpacity = try c.decode(Double.self, forKey: .orbOuterOpacity)
+        name = try c.decode(String.self, forKey: .name)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -206,21 +224,20 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         try c.encode(isVisible, forKey: .isVisible)
         try c.encode(channelMode, forKey: .channelMode)
         try c.encode(name, forKey: .name)
-
         try c.encode(positionX, forKey: .positionX)
         try c.encode(positionY, forKey: .positionY)
         try c.encode(opacity, forKey: .opacity)
-
         try c.encode(spectrumGain, forKey: .spectrumGain)
         try c.encode(spectrumPowerCurve, forKey: .spectrumPowerCurve)
         try c.encode(spectrumAttack, forKey: .spectrumAttack)
         try c.encode(spectrumRelease, forKey: .spectrumRelease)
         try c.encode(spectrumWidth, forKey: .spectrumWidth)
         try c.encode(spectrumMaxHeight, forKey: .spectrumMaxHeight)
-        try c.encode(spectrumColorMode, forKey: .spectrumColorMode)
-        try c.encode(spectrumSolidColor, forKey: .spectrumSolidColor)
         try c.encode(spectrumAnchor, forKey: .spectrumAnchor)
-
+        try c.encode(spectrumColorSync, forKey: .spectrumColorSync)
+        try c.encode(spectrumColorSettings, forKey: .spectrumColorSettings)
+        try c.encode(spectrumLeftColorSettings, forKey: .spectrumLeftColorSettings)
+        try c.encode(spectrumRightColorSettings, forKey: .spectrumRightColorSettings)
         try c.encode(orbBoost, forKey: .orbBoost)
         try c.encode(orbAttack, forKey: .orbAttack)
         try c.encode(orbRelease, forKey: .orbRelease)
@@ -248,9 +265,11 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
             spectrumRelease = DefaultVal.spectrumRelease
             spectrumWidth = DefaultVal.spectrumWidth
             spectrumMaxHeight = DefaultVal.spectrumMaxHeight
-            spectrumColorMode = DefaultVal.spectrumColorMode
-            spectrumSolidColor = DefaultVal.spectrumSolidColor
             spectrumAnchor = DefaultVal.spectrumAnchor
+            spectrumColorSync = DefaultVal.spectrumColorSync
+            spectrumColorSettings = DefaultVal.spectrumColorSettings
+            spectrumLeftColorSettings = DefaultVal.spectrumLeftColorSettings
+            spectrumRightColorSettings = DefaultVal.spectrumRightColorSettings
         case .orb:
             orbBoost = DefaultVal.orbBoost
             orbAttack = DefaultVal.orbAttack
@@ -281,9 +300,11 @@ extension LayerSettings {
         static let spectrumRelease: Double = 0.2
         static let spectrumWidth: Double = 1.0
         static let spectrumMaxHeight: Double = 0.75
-        static let spectrumColorMode: SpectrumColorMode = .rainbow
-        static let spectrumSolidColor = ColorData(red: 1.0, green: 1.0, blue: 1.0)
         static let spectrumAnchor: SpectrumAnchor = .bottom
+        static let spectrumColorSync: Bool = true
+        static let spectrumColorSettings = ChannelColorSettings()
+        static let spectrumLeftColorSettings = ChannelColorSettings()
+        static let spectrumRightColorSettings = ChannelColorSettings()
 
         static let orbBoost: Double = 3.0
         static let orbAttack: Double = 0.6
