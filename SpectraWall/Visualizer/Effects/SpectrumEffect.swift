@@ -85,7 +85,9 @@ class SpectrumEffect: SKNode {
         switch settings.channelMode {
         case .stereo:
             let half = binCount / 2
-            return Array(stereo.left.prefix(half)) + Array(stereo.right.prefix(half))
+            let leftBins = Array(stereo.left.prefix(half))
+            let rightBins = Array(stereo.right.prefix(half).reversed())
+            return leftBins + rightBins
         case .left:
             return stereo.left
         case .right:
@@ -122,8 +124,24 @@ class SpectrumEffect: SKNode {
     private func barColor(for index: Int, value: Float) -> NSColor {
         switch settings.spectrumColorMode {
         case .rainbow:
-            let ratio = CGFloat(index) / CGFloat(binCount)
-            return NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
+            if settings.channelMode == .stereo {
+                let half = binCount / 2
+                let ratio: CGFloat
+                
+                if index < half {
+                    // 左聲道：低頻 -> 高頻 (0.0 -> 1.0)
+                    ratio = CGFloat(index) / CGFloat(half - 1)
+                } else {
+                    // 右聲道：高頻 -> 低頻
+                    // 透過 (1.0 - ratio) 將顏色反轉，使其符合 高頻(暖) -> 低頻(冷)
+                    let originalRatio = CGFloat(index - half) / CGFloat(half - 1)
+                    ratio = 1.0 - originalRatio
+                }
+                return NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
+            } else {
+                let ratio = CGFloat(index) / CGFloat(binCount)
+                return NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
+            }
         case .solid:
             return settings.spectrumSolidColor.nsColor
         }
