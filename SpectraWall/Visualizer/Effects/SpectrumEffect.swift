@@ -34,6 +34,17 @@ class SpectrumEffect: SKNode {
         bars.forEach { $0.removeFromParent() }
         bars = []
 
+        switch settings.spectrumAnchor {
+        case .bottom, .top:
+            setupHorizontalBars()
+        case .left, .right:
+            setupVerticalBars()
+        }
+
+        alpha = CGFloat(settings.opacity)
+    }
+
+    private func setupHorizontalBars() {
         let totalWidth = sceneSize.width * CGFloat(settings.spectrumWidth)
         let startX = (sceneSize.width - totalWidth) * CGFloat(settings.positionX)
         let totalSpacing = barSpacing * CGFloat(binCount - 1)
@@ -43,13 +54,32 @@ class SpectrumEffect: SKNode {
         for i in 0..<binCount {
             let bar = SKSpriteNode(color: .white, size: CGSize(width: barWidth, height: 2))
             let x = startX + barWidth / 2 + CGFloat(i) * (barWidth + barSpacing)
-            bar.anchorPoint = CGPoint(x: 0.5, y: 0)
+            bar.anchorPoint = settings.spectrumAnchor == .bottom
+                ? CGPoint(x: 0.5, y: 0)
+                : CGPoint(x: 0.5, y: 1)
             bar.position = CGPoint(x: x, y: startY)
             addChild(bar)
             bars.append(bar)
         }
+    }
 
-        alpha = CGFloat(settings.opacity)
+    private func setupVerticalBars() {
+        let totalHeight = sceneSize.height * CGFloat(settings.spectrumWidth)
+        let startY = (sceneSize.height - totalHeight) * CGFloat(settings.positionY)
+        let totalSpacing = barSpacing * CGFloat(binCount - 1)
+        let barHeight = (totalHeight - totalSpacing) / CGFloat(binCount)
+        let startX = sceneSize.width * CGFloat(settings.positionX)
+
+        for i in 0..<binCount {
+            let bar = SKSpriteNode(color: .white, size: CGSize(width: 2, height: barHeight))
+            let y = startY + barHeight / 2 + CGFloat(i) * (barHeight + barSpacing)
+            bar.anchorPoint = settings.spectrumAnchor == .left
+                ? CGPoint(x: 0, y: 0.5)
+                : CGPoint(x: 1, y: 0.5)
+            bar.position = CGPoint(x: startX, y: y)
+            addChild(bar)
+            bars.append(bar)
+        }
     }
 
     // MARK: - Observe Settings
@@ -100,8 +130,6 @@ class SpectrumEffect: SKNode {
     private func updateBars(bins: StereoBins) {
         guard !isHidden else { return }
         let selected = selectedBins(from: bins)
-        let maxHeight = sceneSize.height * CGFloat(settings.spectrumMaxHeight)
-        let gain = CGFloat(settings.spectrumGain)
 
         for i in 0..<smoothed.count {
             guard i < selected.count else { break }
@@ -113,10 +141,34 @@ class SpectrumEffect: SKNode {
 
         let curved = smoothed.map { pow($0, Float(settings.spectrumPowerCurve)) }
 
+        switch settings.spectrumAnchor {
+        case .bottom, .top:
+            updateHorizontalBars(curved: curved)
+        case .left, .right:
+            updateVerticalBars(curved: curved)
+        }
+    }
+
+    private func updateHorizontalBars(curved: [Float]) {
+        let maxHeight = sceneSize.height * CGFloat(settings.spectrumMaxHeight)
+        let gain = CGFloat(settings.spectrumGain)
+
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
             let targetHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
             bar.run(.resize(toHeight: targetHeight, duration: 0.05))
+            bar.color = barColor(for: i, value: curved[i])
+        }
+    }
+
+    private func updateVerticalBars(curved: [Float]) {
+        let maxWidth = sceneSize.width * CGFloat(settings.spectrumMaxHeight)
+        let gain = CGFloat(settings.spectrumGain)
+
+        for (i, bar) in bars.enumerated() {
+            guard i < curved.count else { break }
+            let targetWidth = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
+            bar.run(.resize(toWidth: targetWidth, duration: 0.05))
             bar.color = barColor(for: i, value: curved[i])
         }
     }
@@ -127,13 +179,12 @@ class SpectrumEffect: SKNode {
             if settings.channelMode == .stereo {
                 let half = binCount / 2
                 let ratio: CGFloat
-                
+
                 if index < half {
-                    // 左聲道：低頻 -> 高頻 (0.0 -> 1.0)
+                    // 左聲道：低頻 -> 高頻
                     ratio = CGFloat(index) / CGFloat(half - 1)
                 } else {
-                    // 右聲道：高頻 -> 低頻
-                    // 透過 (1.0 - ratio) 將顏色反轉，使其符合 高頻(暖) -> 低頻(冷)
+                    // 右聲道：高頻 -> 低頻（反轉）
                     let originalRatio = CGFloat(index - half) / CGFloat(half - 1)
                     ratio = 1.0 - originalRatio
                 }
@@ -149,6 +200,11 @@ class SpectrumEffect: SKNode {
 
     func reset() {
         smoothed = Array(repeating: 0, count: binCount)
-        bars.forEach { $0.run(.resize(toHeight: 2, duration: 0.3)) }
+        switch settings.spectrumAnchor {
+        case .bottom, .top:
+            bars.forEach { $0.run(.resize(toHeight: 2, duration: 0.3)) }
+        case .left, .right:
+            bars.forEach { $0.run(.resize(toWidth: 2, duration: 0.3)) }
+        }
     }
 }

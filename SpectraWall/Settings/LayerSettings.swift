@@ -55,6 +55,13 @@ enum SpectrumColorMode: String, Codable, CaseIterable {
     case solid = "單色"
 }
 
+enum SpectrumAnchor: String, Codable, CaseIterable {
+    case bottom = "下"
+    case top = "上"
+    case left = "左"
+    case right = "右"
+}
+
 class LayerSettings: ObservableObject, Codable, Identifiable {
     var id: UUID
 
@@ -77,6 +84,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
     @Published var spectrumMaxHeight: Double
     @Published var spectrumColorMode: SpectrumColorMode
     @Published var spectrumSolidColor: ColorData
+    @Published var spectrumAnchor: SpectrumAnchor = .bottom
 
     // MARK: - Orb
     @Published var orbBoost: Double
@@ -107,6 +115,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         self.spectrumMaxHeight = DefaultVal.spectrumMaxHeight
         self.spectrumColorMode = DefaultVal.spectrumColorMode
         self.spectrumSolidColor = DefaultVal.spectrumSolidColor
+        self.spectrumAnchor = DefaultVal.spectrumAnchor
         self.orbBoost = DefaultVal.orbBoost
         self.orbAttack = DefaultVal.orbAttack
         self.orbRelease = DefaultVal.orbRelease
@@ -134,6 +143,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         self.spectrumMaxHeight = source.spectrumMaxHeight
         self.spectrumColorMode = source.spectrumColorMode
         self.spectrumSolidColor = source.spectrumSolidColor
+        self.spectrumAnchor = source.spectrumAnchor
         self.orbBoost = source.orbBoost
         self.orbAttack = source.orbAttack
         self.orbRelease = source.orbRelease
@@ -152,7 +162,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         case id, effectType, isVisible, channelMode, name
         case positionX, positionY, opacity
         case spectrumGain, spectrumPowerCurve, spectrumAttack, spectrumRelease
-        case spectrumWidth, spectrumMaxHeight, spectrumColorMode, spectrumSolidColor
+        case spectrumWidth, spectrumMaxHeight, spectrumColorMode, spectrumSolidColor, spectrumAnchor
         case orbBoost, orbAttack, orbRelease, orbBaseRadius, orbOuterRadiusMultiplier
         case orbInnerColorLow, orbInnerColorHigh
         case orbOuterColorLow, orbOuterColorHigh, orbOuterOpacity
@@ -176,6 +186,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         spectrumMaxHeight = try c.decode(Double.self, forKey: .spectrumMaxHeight)
         spectrumColorMode = try c.decode(SpectrumColorMode.self, forKey: .spectrumColorMode)
         spectrumSolidColor = try c.decode(ColorData.self, forKey: .spectrumSolidColor)
+        spectrumAnchor = try c.decode(SpectrumAnchor.self, forKey: .spectrumAnchor)
         orbBoost = try c.decode(Double.self, forKey: .orbBoost)
         orbAttack = try c.decode(Double.self, forKey: .orbAttack)
         orbRelease = try c.decode(Double.self, forKey: .orbRelease)
@@ -208,6 +219,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         try c.encode(spectrumMaxHeight, forKey: .spectrumMaxHeight)
         try c.encode(spectrumColorMode, forKey: .spectrumColorMode)
         try c.encode(spectrumSolidColor, forKey: .spectrumSolidColor)
+        try c.encode(spectrumAnchor, forKey: .spectrumAnchor)
 
         try c.encode(orbBoost, forKey: .orbBoost)
         try c.encode(orbAttack, forKey: .orbAttack)
@@ -238,6 +250,7 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
             spectrumMaxHeight = DefaultVal.spectrumMaxHeight
             spectrumColorMode = DefaultVal.spectrumColorMode
             spectrumSolidColor = DefaultVal.spectrumSolidColor
+            spectrumAnchor = DefaultVal.spectrumAnchor
         case .orb:
             orbBoost = DefaultVal.orbBoost
             orbAttack = DefaultVal.orbAttack
@@ -270,6 +283,7 @@ extension LayerSettings {
         static let spectrumMaxHeight: Double = 0.75
         static let spectrumColorMode: SpectrumColorMode = .rainbow
         static let spectrumSolidColor = ColorData(red: 1.0, green: 1.0, blue: 1.0)
+        static let spectrumAnchor: SpectrumAnchor = .bottom
 
         static let orbBoost: Double = 3.0
         static let orbAttack: Double = 0.6

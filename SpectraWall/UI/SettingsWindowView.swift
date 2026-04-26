@@ -228,6 +228,29 @@ struct SpectrumSettingsSection: View {
     var body: some View {
         SectionHeader(title: "Spectrum")
         VStack(spacing: 10) {
+            Picker("貼邊方向", selection: $layer.spectrumAnchor) {
+                ForEach(SpectrumAnchor.allCases, id: \.self) { anchor in
+                    Text(anchor.rawValue).tag(anchor)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: layer.spectrumAnchor) {
+                switch layer.spectrumAnchor {
+                case .bottom:
+                    layer.positionY = 0.0
+                    layer.positionX = 0.5
+                case .top:
+                    layer.positionY = 1.0
+                    layer.positionX = 0.5
+                case .left:
+                    layer.positionX = 0.0
+                    layer.positionY = 0.5
+                case .right:
+                    layer.positionX = 1.0
+                    layer.positionY = 0.5
+                }
+                VisualizerLayerManager.shared.save()
+            }
             SettingsSlider(label: "高度", value: $layer.spectrumGain, range: 0.5...3.0, step: 0.1)
             SettingsSlider(label: "高度上限", value: $layer.spectrumMaxHeight, range: 0.1...1.0, step: 0.05)
             SettingsSlider(label: "寬度", value: $layer.spectrumWidth, range: 0.1...1.0, step: 0.05)
