@@ -54,6 +54,7 @@ struct ChannelColorSettings: Codable {
 enum EffectType: String, Codable, CaseIterable {
     case spectrum = "Spectrum"
     case orb = "Orb"
+    case border = "Border"
 }
 
 enum ChannelMode: String, Codable, CaseIterable {
@@ -70,74 +71,27 @@ enum SpectrumAnchor: String, Codable, CaseIterable {
     case right = "右"
 }
 
-class LayerSettings: ObservableObject, Codable, Identifiable {
-    let id: UUID
-
-    @Published var effectType: EffectType
+class LayerSettings: ObservableObject, Identifiable {
+    var id: UUID
+    @Published var name: String
     @Published var isVisible: Bool
     @Published var channelMode: ChannelMode
-    @Published var name: String
-
-    // MARK: - 共用
     @Published var positionX: Double
     @Published var positionY: Double
     @Published var opacity: Double
-
-    // MARK: - Spectrum
-    @Published var spectrumGain: Double
-    @Published var spectrumPowerCurve: Double
-    @Published var spectrumAttack: Double
-    @Published var spectrumRelease: Double
-    @Published var spectrumWidth: Double
-    @Published var spectrumMaxHeight: Double
-    @Published var spectrumAnchor: SpectrumAnchor
-    @Published var spectrumColorSync: Bool
-    @Published var spectrumColorSettings: ChannelColorSettings
-    @Published var spectrumLeftColorSettings: ChannelColorSettings
-    @Published var spectrumRightColorSettings: ChannelColorSettings
-
-    // MARK: - Orb
-    @Published var orbBoost: Double
-    @Published var orbAttack: Double
-    @Published var orbRelease: Double
-    @Published var orbBaseRadius: Double
-    @Published var orbOuterRadiusMultiplier: Double
-    @Published var orbInnerColorLow: ColorData
-    @Published var orbInnerColorHigh: ColorData
-    @Published var orbOuterColorLow: ColorData
-    @Published var orbOuterColorHigh: ColorData
-    @Published var orbOuterOpacity: Double
+    @Published var effectType: EffectType
+    @Published var effectSettings: any EffectSettings
 
     init(effectType: EffectType = .spectrum, name: String? = nil) {
         self.id = UUID()
         self.effectType = effectType
-        self.isVisible = true
-        self.channelMode = DefaultVal.channelMode
         self.name = name ?? effectType.rawValue
-        self.positionX = DefaultVal.positionX
-        self.positionY = DefaultVal.positionY
-        self.opacity = DefaultVal.opacity
-        self.spectrumGain = DefaultVal.spectrumGain
-        self.spectrumPowerCurve = DefaultVal.spectrumPowerCurve
-        self.spectrumAttack = DefaultVal.spectrumAttack
-        self.spectrumRelease = DefaultVal.spectrumRelease
-        self.spectrumWidth = DefaultVal.spectrumWidth
-        self.spectrumMaxHeight = DefaultVal.spectrumMaxHeight
-        self.spectrumAnchor = DefaultVal.spectrumAnchor
-        self.spectrumColorSync = DefaultVal.spectrumColorSync
-        self.spectrumColorSettings = DefaultVal.spectrumColorSettings
-        self.spectrumLeftColorSettings = DefaultVal.spectrumLeftColorSettings
-        self.spectrumRightColorSettings = DefaultVal.spectrumRightColorSettings
-        self.orbBoost = DefaultVal.orbBoost
-        self.orbAttack = DefaultVal.orbAttack
-        self.orbRelease = DefaultVal.orbRelease
-        self.orbBaseRadius = DefaultVal.orbBaseRadius
-        self.orbOuterRadiusMultiplier = DefaultVal.orbOuterRadiusMultiplier
-        self.orbInnerColorLow = DefaultVal.orbInnerColorLow
-        self.orbInnerColorHigh = DefaultVal.orbInnerColorHigh
-        self.orbOuterColorLow = DefaultVal.orbOuterColorLow
-        self.orbOuterColorHigh = DefaultVal.orbOuterColorHigh
-        self.orbOuterOpacity = DefaultVal.orbOuterOpacity
+        self.isVisible = true
+        self.channelMode = .stereo
+        self.positionX = 0.5
+        self.positionY = 0.0
+        self.opacity = 1.0
+        self.effectSettings = Self.defaultSettings(for: effectType)
     }
 
     convenience init(copying source: LayerSettings) {
@@ -147,174 +101,79 @@ class LayerSettings: ObservableObject, Codable, Identifiable {
         self.positionX = source.positionX
         self.positionY = source.positionY
         self.opacity = source.opacity
-        self.spectrumGain = source.spectrumGain
-        self.spectrumPowerCurve = source.spectrumPowerCurve
-        self.spectrumAttack = source.spectrumAttack
-        self.spectrumRelease = source.spectrumRelease
-        self.spectrumWidth = source.spectrumWidth
-        self.spectrumMaxHeight = source.spectrumMaxHeight
-        self.spectrumAnchor = source.spectrumAnchor
-        self.spectrumColorSync = source.spectrumColorSync
-        self.spectrumColorSettings = source.spectrumColorSettings
-        self.spectrumLeftColorSettings = source.spectrumLeftColorSettings
-        self.spectrumRightColorSettings = source.spectrumRightColorSettings
-        self.orbBoost = source.orbBoost
-        self.orbAttack = source.orbAttack
-        self.orbRelease = source.orbRelease
-        self.orbBaseRadius = source.orbBaseRadius
-        self.orbOuterRadiusMultiplier = source.orbOuterRadiusMultiplier
-        self.orbInnerColorLow = source.orbInnerColorLow
-        self.orbInnerColorHigh = source.orbInnerColorHigh
-        self.orbOuterColorLow = source.orbOuterColorLow
-        self.orbOuterColorHigh = source.orbOuterColorHigh
-        self.orbOuterOpacity = source.orbOuterOpacity
+        self.effectSettings = source.effectSettings
     }
-
-    // MARK: - Codable
-
-    enum CodingKeys: String, CodingKey {
-        case id, effectType, isVisible, channelMode, name
-        case positionX, positionY, opacity
-        case spectrumGain, spectrumPowerCurve, spectrumAttack, spectrumRelease
-        case spectrumWidth, spectrumMaxHeight, spectrumAnchor
-        case spectrumColorSync, spectrumColorSettings
-        case spectrumLeftColorSettings, spectrumRightColorSettings
-        case orbBoost, orbAttack, orbRelease, orbBaseRadius, orbOuterRadiusMultiplier
-        case orbInnerColorLow, orbInnerColorHigh
-        case orbOuterColorLow, orbOuterColorHigh, orbOuterOpacity
-    }
-
-    required init(from decoder: Decoder) throws {
+    
+    required convenience init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
-        effectType = try c.decode(EffectType.self, forKey: .effectType)
+        let effectType = try c.decode(EffectType.self, forKey: .effectType)
+        self.init(effectType: effectType)
+
+        id = try c.decode(UUID.self, forKey: .id) // id 是 let，這裡要處理
+        name = try c.decode(String.self, forKey: .name)
         isVisible = try c.decode(Bool.self, forKey: .isVisible)
         channelMode = try c.decode(ChannelMode.self, forKey: .channelMode)
         positionX = try c.decode(Double.self, forKey: .positionX)
         positionY = try c.decode(Double.self, forKey: .positionY)
         opacity = try c.decode(Double.self, forKey: .opacity)
-        spectrumGain = try c.decode(Double.self, forKey: .spectrumGain)
-        spectrumPowerCurve = try c.decode(Double.self, forKey: .spectrumPowerCurve)
-        spectrumAttack = try c.decode(Double.self, forKey: .spectrumAttack)
-        spectrumRelease = try c.decode(Double.self, forKey: .spectrumRelease)
-        spectrumWidth = try c.decode(Double.self, forKey: .spectrumWidth)
-        spectrumMaxHeight = try c.decode(Double.self, forKey: .spectrumMaxHeight)
-        spectrumAnchor = try c.decodeIfPresent(SpectrumAnchor.self, forKey: .spectrumAnchor) ?? DefaultVal.spectrumAnchor
-        spectrumColorSync = try c.decodeIfPresent(Bool.self, forKey: .spectrumColorSync) ?? DefaultVal.spectrumColorSync
-        spectrumColorSettings = try c.decodeIfPresent(ChannelColorSettings.self, forKey: .spectrumColorSettings) ?? DefaultVal.spectrumColorSettings
-        spectrumLeftColorSettings = try c.decodeIfPresent(ChannelColorSettings.self, forKey: .spectrumLeftColorSettings) ?? DefaultVal.spectrumLeftColorSettings
-        spectrumRightColorSettings = try c.decodeIfPresent(ChannelColorSettings.self, forKey: .spectrumRightColorSettings) ?? DefaultVal.spectrumRightColorSettings
-        orbBoost = try c.decode(Double.self, forKey: .orbBoost)
-        orbAttack = try c.decode(Double.self, forKey: .orbAttack)
-        orbRelease = try c.decode(Double.self, forKey: .orbRelease)
-        orbBaseRadius = try c.decode(Double.self, forKey: .orbBaseRadius)
-        orbOuterRadiusMultiplier = try c.decodeIfPresent(Double.self, forKey: .orbOuterRadiusMultiplier) ?? DefaultVal.orbOuterRadiusMultiplier
-        orbInnerColorLow = try c.decode(ColorData.self, forKey: .orbInnerColorLow)
-        orbInnerColorHigh = try c.decode(ColorData.self, forKey: .orbInnerColorHigh)
-        orbOuterColorLow = try c.decode(ColorData.self, forKey: .orbOuterColorLow)
-        orbOuterColorHigh = try c.decode(ColorData.self, forKey: .orbOuterColorHigh)
-        orbOuterOpacity = try c.decode(Double.self, forKey: .orbOuterOpacity)
-        name = try c.decode(String.self, forKey: .name)
+
+        switch effectType {
+        case .spectrum:
+            effectSettings = try c.decode(SpectrumSettings.self, forKey: .effectSettings)
+        case .orb:
+            effectSettings = try c.decode(OrbSettings.self, forKey: .effectSettings)
+        case .border:
+            effectSettings = try c.decode(BorderSettings.self, forKey: .effectSettings)
+        }
+    }
+
+    static func defaultSettings(for effectType: EffectType) -> any EffectSettings {
+        switch effectType {
+        case .spectrum: return SpectrumSettings.defaults
+        case .orb:      return OrbSettings.defaults
+        case .border:   return BorderSettings.defaults
+        }
+    }
+
+    func resetToDefaults() {
+        isVisible = true
+        channelMode = .stereo
+        positionX = 0.5
+        positionY = 0.0
+        opacity = 1.0
+        effectSettings.resetToDefaults()
+    }
+}
+
+// MARK: - Codable
+
+extension LayerSettings: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, name, isVisible, channelMode
+        case positionX, positionY, opacity
+        case effectType, effectSettings
     }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
-        try c.encode(effectType, forKey: .effectType)
+        try c.encode(name, forKey: .name)
         try c.encode(isVisible, forKey: .isVisible)
         try c.encode(channelMode, forKey: .channelMode)
-        try c.encode(name, forKey: .name)
         try c.encode(positionX, forKey: .positionX)
         try c.encode(positionY, forKey: .positionY)
         try c.encode(opacity, forKey: .opacity)
-        try c.encode(spectrumGain, forKey: .spectrumGain)
-        try c.encode(spectrumPowerCurve, forKey: .spectrumPowerCurve)
-        try c.encode(spectrumAttack, forKey: .spectrumAttack)
-        try c.encode(spectrumRelease, forKey: .spectrumRelease)
-        try c.encode(spectrumWidth, forKey: .spectrumWidth)
-        try c.encode(spectrumMaxHeight, forKey: .spectrumMaxHeight)
-        try c.encode(spectrumAnchor, forKey: .spectrumAnchor)
-        try c.encode(spectrumColorSync, forKey: .spectrumColorSync)
-        try c.encode(spectrumColorSettings, forKey: .spectrumColorSettings)
-        try c.encode(spectrumLeftColorSettings, forKey: .spectrumLeftColorSettings)
-        try c.encode(spectrumRightColorSettings, forKey: .spectrumRightColorSettings)
-        try c.encode(orbBoost, forKey: .orbBoost)
-        try c.encode(orbAttack, forKey: .orbAttack)
-        try c.encode(orbRelease, forKey: .orbRelease)
-        try c.encode(orbBaseRadius, forKey: .orbBaseRadius)
-        try c.encode(orbOuterRadiusMultiplier, forKey: .orbOuterRadiusMultiplier)
-        try c.encode(orbInnerColorLow, forKey: .orbInnerColorLow)
-        try c.encode(orbInnerColorHigh, forKey: .orbInnerColorHigh)
-        try c.encode(orbOuterColorLow, forKey: .orbOuterColorLow)
-        try c.encode(orbOuterColorHigh, forKey: .orbOuterColorHigh)
-        try c.encode(orbOuterOpacity, forKey: .orbOuterOpacity)
-    }
+        try c.encode(effectType, forKey: .effectType)
 
-    func resetToDefaults() {
-        isVisible = true
-        channelMode = DefaultVal.channelMode
-        positionX = DefaultVal.positionX
-        positionY = DefaultVal.positionY
-        opacity = DefaultVal.opacity
-
-        switch effectType {
-        case .spectrum:
-            spectrumGain = DefaultVal.spectrumGain
-            spectrumPowerCurve = DefaultVal.spectrumPowerCurve
-            spectrumAttack = DefaultVal.spectrumAttack
-            spectrumRelease = DefaultVal.spectrumRelease
-            spectrumWidth = DefaultVal.spectrumWidth
-            spectrumMaxHeight = DefaultVal.spectrumMaxHeight
-            spectrumAnchor = DefaultVal.spectrumAnchor
-            spectrumColorSync = DefaultVal.spectrumColorSync
-            spectrumColorSettings = DefaultVal.spectrumColorSettings
-            spectrumLeftColorSettings = DefaultVal.spectrumLeftColorSettings
-            spectrumRightColorSettings = DefaultVal.spectrumRightColorSettings
-        case .orb:
-            orbBoost = DefaultVal.orbBoost
-            orbAttack = DefaultVal.orbAttack
-            orbRelease = DefaultVal.orbRelease
-            orbBaseRadius = DefaultVal.orbBaseRadius
-            orbOuterRadiusMultiplier = DefaultVal.orbOuterRadiusMultiplier
-            orbInnerColorLow = DefaultVal.orbInnerColorLow
-            orbInnerColorHigh = DefaultVal.orbInnerColorHigh
-            orbOuterColorLow = DefaultVal.orbOuterColorLow
-            orbOuterColorHigh = DefaultVal.orbOuterColorHigh
-            orbOuterOpacity = DefaultVal.orbOuterOpacity
+        switch effectSettings {
+        case let s as SpectrumSettings:
+            try c.encode(s, forKey: .effectSettings)
+        case let s as OrbSettings:
+            try c.encode(s, forKey: .effectSettings)
+        case let s as BorderSettings:
+            try c.encode(s, forKey: .effectSettings)
+        default:
+            break
         }
-    }
-}
-
-extension LayerSettings {
-    struct DefaultVal {
-        private init() {}
-
-        static let positionX: Double = 0.5
-        static let positionY: Double = 0.0
-        static let opacity: Double = 1.0
-        static let channelMode: ChannelMode = .stereo
-
-        static let spectrumGain: Double = 1.8
-        static let spectrumPowerCurve: Double = 1.5
-        static let spectrumAttack: Double = 0.95
-        static let spectrumRelease: Double = 0.2
-        static let spectrumWidth: Double = 1.0
-        static let spectrumMaxHeight: Double = 0.75
-        static let spectrumAnchor: SpectrumAnchor = .bottom
-        static let spectrumColorSync: Bool = true
-        static let spectrumColorSettings = ChannelColorSettings()
-        static let spectrumLeftColorSettings = ChannelColorSettings()
-        static let spectrumRightColorSettings = ChannelColorSettings()
-
-        static let orbBoost: Double = 3.0
-        static let orbAttack: Double = 0.6
-        static let orbRelease: Double = 0.25
-        static let orbBaseRadius: Double = 120
-        static let orbOuterRadiusMultiplier: Double = 1.4
-        static let orbInnerColorLow = ColorData(red: 0.2, green: 0.4, blue: 1.0)
-        static let orbInnerColorHigh = ColorData(red: 0.8, green: 0.2, blue: 1.0)
-        static let orbOuterColorLow = ColorData(red: 0.2, green: 0.4, blue: 1.0)
-        static let orbOuterColorHigh = ColorData(red: 0.8, green: 0.2, blue: 1.0)
-        static let orbOuterOpacity: Double = 0.15
     }
 }

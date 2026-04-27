@@ -17,6 +17,10 @@ class SpectrumEffect: SKNode {
     private var sceneSize: CGSize = .zero
     private var settings: LayerSettings
 
+    private var spectrumSettings: SpectrumSettings {
+        settings.effectSettings as? SpectrumSettings ?? .defaults
+    }
+
     init(size: CGSize, settings: LayerSettings) {
         self.sceneSize = size
         self.settings = settings
@@ -34,7 +38,7 @@ class SpectrumEffect: SKNode {
         bars.forEach { $0.removeFromParent() }
         bars = []
 
-        switch settings.spectrumAnchor {
+        switch spectrumSettings.anchor {
         case .bottom, .top:
             setupHorizontalBars()
         case .left, .right:
@@ -45,7 +49,8 @@ class SpectrumEffect: SKNode {
     }
 
     private func setupHorizontalBars() {
-        let totalWidth = sceneSize.width * CGFloat(settings.spectrumWidth)
+        let ss = spectrumSettings
+        let totalWidth = sceneSize.width * CGFloat(ss.width)
         let startX = (sceneSize.width - totalWidth) * CGFloat(settings.positionX)
         let totalSpacing = barSpacing * CGFloat(binCount - 1)
         let barWidth = (totalWidth - totalSpacing) / CGFloat(binCount)
@@ -54,7 +59,7 @@ class SpectrumEffect: SKNode {
         for i in 0..<binCount {
             let bar = SKSpriteNode(color: .white, size: CGSize(width: barWidth, height: 2))
             let x = startX + barWidth / 2 + CGFloat(i) * (barWidth + barSpacing)
-            bar.anchorPoint = settings.spectrumAnchor == .bottom
+            bar.anchorPoint = ss.anchor == .bottom
                 ? CGPoint(x: 0.5, y: 0)
                 : CGPoint(x: 0.5, y: 1)
             bar.position = CGPoint(x: x, y: startY)
@@ -64,7 +69,8 @@ class SpectrumEffect: SKNode {
     }
 
     private func setupVerticalBars() {
-        let totalHeight = sceneSize.height * CGFloat(settings.spectrumWidth)
+        let ss = spectrumSettings
+        let totalHeight = sceneSize.height * CGFloat(ss.width)
         let startY = (sceneSize.height - totalHeight) * CGFloat(settings.positionY)
         let totalSpacing = barSpacing * CGFloat(binCount - 1)
         let barHeight = (totalHeight - totalSpacing) / CGFloat(binCount)
@@ -73,7 +79,7 @@ class SpectrumEffect: SKNode {
         for i in 0..<binCount {
             let bar = SKSpriteNode(color: .white, size: CGSize(width: 2, height: barHeight))
             let y = startY + barHeight / 2 + CGFloat(i) * (barHeight + barSpacing)
-            bar.anchorPoint = settings.spectrumAnchor == .left
+            bar.anchorPoint = ss.anchor == .left
                 ? CGPoint(x: 0, y: 0.5)
                 : CGPoint(x: 1, y: 0.5)
             bar.position = CGPoint(x: startX, y: y)
@@ -129,19 +135,20 @@ class SpectrumEffect: SKNode {
 
     private func updateBars(bins: StereoBins) {
         guard !isHidden else { return }
+        let ss = spectrumSettings
         let selected = selectedBins(from: bins)
 
         for i in 0..<smoothed.count {
             guard i < selected.count else { break }
             let coeff = selected[i] > smoothed[i]
-                ? Float(settings.spectrumAttack)
-                : Float(settings.spectrumRelease)
+                ? Float(ss.attack)
+                : Float(ss.release)
             smoothed[i] = smoothed[i] * (1 - coeff) + selected[i] * coeff
         }
 
-        let curved = smoothed.map { pow($0, Float(settings.spectrumPowerCurve)) }
+        let curved = smoothed.map { pow($0, Float(ss.powerCurve)) }
 
-        switch settings.spectrumAnchor {
+        switch ss.anchor {
         case .bottom, .top:
             updateHorizontalBars(curved: curved)
         case .left, .right:
@@ -150,40 +157,41 @@ class SpectrumEffect: SKNode {
     }
 
     private func updateHorizontalBars(curved: [Float]) {
-        let maxHeight = sceneSize.height * CGFloat(settings.spectrumMaxHeight)
-        let gain = CGFloat(settings.spectrumGain)
+        let ss = spectrumSettings
+        let maxHeight = sceneSize.height * CGFloat(ss.maxHeight)
+        let gain = CGFloat(ss.gain)
+        let half = binCount / 2
 
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
             let targetHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
             bar.run(.resize(toHeight: targetHeight, duration: 0.05))
-            let half = binCount / 2
             bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
 
     private func updateVerticalBars(curved: [Float]) {
-        let maxWidth = sceneSize.width * CGFloat(settings.spectrumMaxHeight)
-        let gain = CGFloat(settings.spectrumGain)
+        let ss = spectrumSettings
+        let maxWidth = sceneSize.width * CGFloat(ss.maxHeight)
+        let gain = CGFloat(ss.gain)
+        let half = binCount / 2
 
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
             let targetWidth = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
             bar.run(.resize(toWidth: targetWidth, duration: 0.05))
-            let half = binCount / 2
             bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
 
     private func barColor(for index: Int, value: Float, isRightChannel: Bool = false) -> NSColor {
+        let ss = spectrumSettings
         let colorSettings: ChannelColorSettings
 
-        if settings.channelMode == .stereo && !settings.spectrumColorSync {
-            colorSettings = isRightChannel
-                ? settings.spectrumRightColorSettings
-                : settings.spectrumLeftColorSettings
+        if settings.channelMode == .stereo && !ss.colorSync {
+            colorSettings = isRightChannel ? ss.rightColorSettings : ss.leftColorSettings
         } else {
-            colorSettings = settings.spectrumColorSettings
+            colorSettings = ss.colorSettings
         }
 
         switch colorSettings.colorMode {
@@ -236,7 +244,7 @@ class SpectrumEffect: SKNode {
 
     func reset() {
         smoothed = Array(repeating: 0, count: binCount)
-        switch settings.spectrumAnchor {
+        switch spectrumSettings.anchor {
         case .bottom, .top:
             bars.forEach { $0.run(.resize(toHeight: 2, duration: 0.3)) }
         case .left, .right:

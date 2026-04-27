@@ -16,6 +16,12 @@ class OrbEffect: SKNode {
     private var sceneSize: CGSize = .zero
     private var settings: LayerSettings
 
+    private var orbSettings: OrbSettings {
+        settings.effectSettings as? OrbSettings ?? .defaults
+    }
+
+    private let baseRadius: CGFloat = 120
+
     init(size: CGSize, settings: LayerSettings) {
         self.sceneSize = size
         self.settings = settings
@@ -33,14 +39,15 @@ class OrbEffect: SKNode {
         orb?.removeFromParent()
         glowOrb?.removeFromParent()
 
-        let baseRadius = CGFloat(settings.orbBaseRadius)
+        let os = orbSettings
+        let baseRadius = CGFloat(os.baseRadius)
         let center = CGPoint(
             x: sceneSize.width * CGFloat(settings.positionX),
             y: sceneSize.height * CGFloat(settings.positionY)
         )
 
-        let glow = SKShapeNode(circleOfRadius: baseRadius * 1.4)
-        glow.fillColor = settings.orbOuterColorLow.nsColor.withAlphaComponent(CGFloat(settings.orbOuterOpacity))
+        let glow = SKShapeNode(circleOfRadius: baseRadius * CGFloat(os.outerRadiusMultiplier))
+        glow.fillColor = os.outerColorLow.nsColor.withAlphaComponent(CGFloat(os.outerOpacity))
         glow.strokeColor = .clear
         glow.position = center
         glow.blendMode = .add
@@ -48,8 +55,8 @@ class OrbEffect: SKNode {
         glowOrb = glow
 
         let main = SKShapeNode(circleOfRadius: baseRadius)
-        main.fillColor = settings.orbInnerColorLow.nsColor
-        main.strokeColor = settings.orbInnerColorLow.nsColor.withAlphaComponent(0.6)
+        main.fillColor = os.innerColorLow.nsColor
+        main.strokeColor = os.innerColorLow.nsColor.withAlphaComponent(0.6)
         main.lineWidth = 2
         main.position = center
         main.blendMode = .add
@@ -97,12 +104,13 @@ class OrbEffect: SKNode {
 
     private func updateOrb(amplitude: Float) {
         guard !isHidden else { return }
+        let os = orbSettings
         let coeff = amplitude > smoothedAmplitude
-            ? Float(settings.orbAttack)
-            : Float(settings.orbRelease)
+            ? Float(os.attack)
+            : Float(os.release)
         smoothedAmplitude = smoothedAmplitude * (1 - coeff) + amplitude * coeff
 
-        let boost = CGFloat(settings.orbBoost)
+        let boost = CGFloat(os.boost)
         let targetScale = 1.0 + CGFloat(smoothedAmplitude) * boost
         let clampedScale = min(targetScale, 2.5)
 
@@ -111,25 +119,17 @@ class OrbEffect: SKNode {
     }
 
     private func updateColor(bins: StereoBins) {
+        let os = orbSettings
         let leftLow = bins.left.prefix(4).reduce(0, +) / 4
         let rightLow = bins.right.prefix(4).reduce(0, +) / 4
         let t = CGFloat((leftLow + rightLow) / 2)
 
-        // 在 low 和 high 顏色之間插值
-        let innerColor = interpolateColor(
-            from: settings.orbInnerColorLow.nsColor,
-            to: settings.orbInnerColorHigh.nsColor,
-            t: t
-        )
-        let outerColor = interpolateColor(
-            from: settings.orbOuterColorLow.nsColor,
-            to: settings.orbOuterColorHigh.nsColor,
-            t: t
-        )
+        let innerColor = interpolateColor(from: os.innerColorLow.nsColor, to: os.innerColorHigh.nsColor, t: t)
+        let outerColor = interpolateColor(from: os.outerColorLow.nsColor, to: os.outerColorHigh.nsColor, t: t)
 
         orb?.fillColor = innerColor
         orb?.strokeColor = innerColor.withAlphaComponent(0.6)
-        glowOrb?.fillColor = outerColor.withAlphaComponent(CGFloat(settings.orbOuterOpacity))
+        glowOrb?.fillColor = outerColor.withAlphaComponent(CGFloat(os.outerOpacity))
     }
 
     private func interpolateColor(from: NSColor, to: NSColor, t: CGFloat) -> NSColor {

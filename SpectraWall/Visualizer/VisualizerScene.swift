@@ -11,6 +11,14 @@ import Combine
 class VisualizerScene: SKScene {
     private var effectNodes: [UUID: SKNode] = [:]
     private var cancellables = Set<AnyCancellable>()
+    
+    override func update(_ currentTime: TimeInterval) {
+        for node in effectNodes.values {
+            if let border = node as? BorderEffect {
+                border.update(currentTime)
+            }
+        }
+    }
 
     override func didMove(to view: SKView) {
         backgroundColor = .clear
@@ -19,12 +27,10 @@ class VisualizerScene: SKScene {
     }
 
     private func setupLayers() {
-        // 清掉舊的
         effectNodes.values.forEach { $0.removeFromParent() }
         effectNodes = [:]
 
-        let manager = VisualizerLayerManager.shared
-        for (index, layer) in manager.layers.enumerated() {
+        for (index, layer) in VisualizerLayerManager.shared.layers.enumerated() {
             addEffectNode(for: layer, zPosition: CGFloat(index))
         }
     }
@@ -36,6 +42,8 @@ class VisualizerScene: SKScene {
             node = SpectrumEffect(size: size, settings: layer)
         case .orb:
             node = OrbEffect(size: size, settings: layer)
+        case .border:
+            node = BorderEffect(size: size, settings: layer)
         }
         node.zPosition = zPosition
         node.isHidden = !layer.isVisible
