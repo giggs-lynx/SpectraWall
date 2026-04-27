@@ -22,9 +22,9 @@ struct OrbSettings: EffectSettings {
     static var defaults: OrbSettings {
         OrbSettings(
             boost: 3.0,
-            attack: 0.6,
-            release: 0.25,
-            baseRadius: 120,
+            attack: 0.95,
+            release: 0.4,
+            baseRadius: 80,
             outerRadiusMultiplier: 1.4,
             innerColorLow: ColorData(red: 0.2, green: 0.4, blue: 1.0),
             innerColorHigh: ColorData(red: 0.8, green: 0.2, blue: 1.0),

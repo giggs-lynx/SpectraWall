@@ -23,7 +23,7 @@ struct BorderSettings: EffectSettings {
 
     static var defaults: BorderSettings {
         BorderSettings(
-            strokeCount: 1,
+            strokeCount: 2,
             clockwise: true,
             speed: 0.15,
             stroke1ColorStart: ColorData(red: 0.0, green: 0.8, blue: 1.0),

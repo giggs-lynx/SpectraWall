@@ -22,12 +22,12 @@ struct SpectrumSettings: EffectSettings {
 
     static var defaults: SpectrumSettings {
         SpectrumSettings(
-            gain: 1.8,
-            powerCurve: 1.5,
+            gain: 2.6,
+            powerCurve: 2.0,
             attack: 0.95,
             release: 0.2,
             width: 1.0,
-            maxHeight: 0.75,
+            maxHeight: 0.35,
             anchor: .bottom,
             colorSync: true,
             colorSettings: .init(),
