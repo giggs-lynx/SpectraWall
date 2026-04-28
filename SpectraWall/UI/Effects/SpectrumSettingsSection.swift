@@ -42,7 +42,7 @@ struct SpectrumSettingsSection: View {
                         layer.positionX = 1.0
                         layer.positionY = 0.5
                     }
-                    VisualizerLayerManager.shared.save()
+                    VisualizerSceneManager.shared.save()
                 }
             }
 

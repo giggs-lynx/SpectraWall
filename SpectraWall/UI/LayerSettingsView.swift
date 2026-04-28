@@ -20,7 +20,7 @@ struct LayerSettingsView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
                     .onChange(of: layer.name) {
-                        VisualizerLayerManager.shared.save()
+                        VisualizerSceneManager.shared.save()
                     }
 
                 Divider()
@@ -49,7 +49,7 @@ struct LayerSettingsView: View {
                     Spacer()
                     Button("恢復預設值") {
                         layer.resetToDefaults()
-                        VisualizerLayerManager.shared.save()
+                        VisualizerSceneManager.shared.save()
                     }
                     .foregroundColor(.secondary)
                     .padding(.trailing, 20)
@@ -59,8 +59,10 @@ struct LayerSettingsView: View {
         }
         .confirmationDialog("確定要刪除「\(layer.name)」嗎？", isPresented: $showDeleteConfirm) {
             Button("刪除", role: .destructive) {
-                if let index = VisualizerLayerManager.shared.layers.firstIndex(where: { $0.id == layer.id }) {
-                    VisualizerLayerManager.shared.removeLayer(at: IndexSet([index]))
+                if let scene = VisualizerSceneManager.shared.scenes.first(where: {
+                    $0.layers.contains(where: { $0.id == layer.id })
+                }) {
+                    VisualizerSceneManager.shared.removeLayer(layer, from: scene)
                 }
             }
             Button("取消", role: .cancel) {}

@@ -9,10 +9,10 @@ import SwiftUI
 
 struct PopoverView: View {
     @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var sceneManager = VisualizerSceneManager.shared
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-
-            // MARK: - Header
             HStack {
                 Text("SpectraWall")
                     .font(.headline)
@@ -23,7 +23,6 @@ struct PopoverView: View {
 
             Divider()
 
-            // MARK: - 音訊來源
             SectionHeader(title: "音訊來源")
 
             VStack(alignment: .leading, spacing: 6) {
@@ -59,7 +58,34 @@ struct PopoverView: View {
 
             Divider()
 
-            // MARK: - 底部按鈕
+            SectionHeader(title: "場景")
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(sceneManager.scenes) { scene in
+                    HStack(spacing: 8) {
+                        // Active 指示器
+                        Button {
+                            sceneManager.setActiveScene(scene)
+                        } label: {
+                            Image(systemName: sceneManager.activeSceneID == scene.id
+                                  ? "circle.fill" : "circle")
+                                .foregroundColor(sceneManager.activeSceneID == scene.id
+                                                 ? .accentColor : .secondary)
+                                .frame(width: 16)
+                        }
+                        .buttonStyle(.plain)
+
+                        Text(scene.name)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+
+            Divider()
+
             HStack {
                 Button("設定") {
                     AppWindowManager.shared.openSettings()

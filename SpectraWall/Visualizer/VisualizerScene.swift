@@ -11,28 +11,74 @@ import Combine
 class VisualizerScene: SKScene {
     private var effectNodes: [UUID: SKNode] = [:]
     private var cancellables = Set<AnyCancellable>()
-    
-    override func update(_ currentTime: TimeInterval) {
-        for node in effectNodes.values {
-            if node.isHidden { continue }
-            if let border = node as? BorderEffect {
-                border.update(currentTime)
-            }
-        }
-    }
+    private var currentSceneID: UUID?
 
     override func didMove(to view: SKView) {
         backgroundColor = .clear
-        setupLayers()
-        observeLayerChanges()
+        observeSceneChanges()
     }
 
-    private func setupLayers() {
+    private func observeSceneChanges() {
+        VisualizerSceneManager.shared.$activeSceneID
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.reloadActiveScene()
+            }
+            .store(in: &cancellables)
+
+        // 監聽 active scene 的 layers 變化
+        VisualizerSceneManager.shared.$scenes
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.syncActiveSceneLayers()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func reloadActiveScene() {
         effectNodes.values.forEach { $0.removeFromParent() }
         effectNodes = [:]
 
-        for (index, layer) in VisualizerLayerManager.shared.layers.enumerated() {
+        guard let scene = VisualizerSceneManager.shared.activeScene else { return }
+        currentSceneID = scene.id
+
+        for (index, layer) in scene.layers.enumerated() {
             addEffectNode(for: layer, zPosition: CGFloat(index))
+        }
+
+        // 監聽這個 scene 的 layers 變化
+        scene.$layers
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.syncActiveSceneLayers()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func syncActiveSceneLayers() {
+        guard let scene = VisualizerSceneManager.shared.activeScene,
+              scene.id == currentSceneID else {
+            reloadActiveScene()
+            return
+        }
+
+        let newLayers = scene.layers
+        let newIDs = Set(newLayers.map { $0.id })
+        let existingIDs = Set(effectNodes.keys)
+
+        for id in existingIDs.subtracting(newIDs) {
+            effectNodes[id]?.removeFromParent()
+            effectNodes.removeValue(forKey: id)
+        }
+
+        for layer in newLayers where !existingIDs.contains(layer.id) {
+            let zPosition = CGFloat(newLayers.firstIndex(where: { $0.id == layer.id }) ?? 0)
+            addEffectNode(for: layer, zPosition: zPosition)
+        }
+
+        for (index, layer) in newLayers.enumerated() {
+            effectNodes[layer.id]?.zPosition = CGFloat(index)
+            effectNodes[layer.id]?.isHidden = !layer.isVisible
         }
     }
 
@@ -52,31 +98,12 @@ class VisualizerScene: SKScene {
         effectNodes[layer.id] = node
     }
 
-    private func observeLayerChanges() {
-        VisualizerLayerManager.shared.$layers
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] layers in
-                self?.setupLayers()
-                // 同時監聽每個 layer 的屬性變化
-                self?.observeEachLayer(layers)
+    override func update(_ currentTime: TimeInterval) {
+        for node in effectNodes.values {
+            if node.isHidden { continue }
+            if let border = node as? BorderEffect {
+                border.update(currentTime)
             }
-            .store(in: &cancellables)
-    }
-
-    private func observeEachLayer(_ layers: [LayerSettings]) {
-        for layer in layers {
-            layer.objectWillChange
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in
-                    self?.syncLayerVisibility()
-                }
-                .store(in: &cancellables)
-        }
-    }
-
-    private func syncLayerVisibility() {
-        for layer in VisualizerLayerManager.shared.layers {
-            effectNodes[layer.id]?.isHidden = !layer.isVisible
         }
     }
 }
