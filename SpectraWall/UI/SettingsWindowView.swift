@@ -27,7 +27,7 @@ struct SettingsWindowView: View {
                 selectedSceneID: $selectedSceneID,
                 selectedLayerID: $selectedLayerID
             )
-            .frame(width: 160)
+            .frame(width: 260)
 
             Divider()
 
@@ -39,7 +39,7 @@ struct SettingsWindowView: View {
                     scene: scene,
                     selectedLayerID: $selectedLayerID
                 )
-                .frame(width: 160)
+                .frame(width: 260)
             } else {
                 VStack {
                     Spacer()
@@ -48,7 +48,7 @@ struct SettingsWindowView: View {
                         .font(.caption)
                     Spacer()
                 }
-                .frame(width: 160)
+                .frame(width: 260)
             }
 
             Divider()
@@ -79,7 +79,7 @@ struct SettingsWindowView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .frame(width: 800, height: 560)
+        .frame(width: 1200, height: 560)
         .onAppear {
             // 預設選中全局設定
             selectedSceneID = globalID
