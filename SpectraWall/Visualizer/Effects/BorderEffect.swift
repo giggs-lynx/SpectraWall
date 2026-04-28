@@ -70,8 +70,6 @@ class BorderEffect: SKNode {
                 let node = SKShapeNode()
                 node.lineWidth = 0
                 node.lineCap = .round
-                let alpha = CGFloat(j) / CGFloat(trailSegments - 1)
-                node.alpha = alpha
                 node.blendMode = .add
                 addChild(node)
                 state.nodes.append(node)
@@ -84,9 +82,10 @@ class BorderEffect: SKNode {
     }
 
     private func updatePerimeterLength() {
-        let w = sceneSize.width
-        let h = sceneSize.height
-        let r = CGFloat(borderSettings.cornerRadius)
+        let inset = max(CGFloat(borderSettings.baseWidth) / 2, 0)
+        let w = sceneSize.width - inset * 2
+        let h = sceneSize.height - inset * 2
+        let r = max(CGFloat(borderSettings.cornerRadius) - inset, 0)
         let straightLength = 2 * (w - 2 * r) + 2 * (h - 2 * r)
         let cornerLength = 2 * .pi * r
         perimeterLength = straightLength + cornerLength
@@ -168,6 +167,7 @@ class BorderEffect: SKNode {
             )
             node.strokeColor = color
             node.lineWidth = baseWidth * CGFloat(t)
+            node.alpha = CGFloat(t)
         }
     }
 
@@ -202,7 +202,7 @@ class BorderEffect: SKNode {
                     radius: seg.radius,
                     startAngle: startAngle,
                     endAngle: endAngle,
-                    clockwise: !clockwise
+                    clockwise: false
                 )
             } else {
                 path.addLine(to: seg.point(at: endT))
@@ -241,27 +241,28 @@ class BorderEffect: SKNode {
     }
 
     private func borderSegments() -> [BorderSegment] {
+        let inset = max(CGFloat(borderSettings.baseWidth) / 2, 0)
         if let cache = segmentCache,
            cachedSceneSize == sceneSize,
            cachedCornerRadius == borderSettings.cornerRadius {
             return cache
         }
 
-        let w = sceneSize.width
-        let h = sceneSize.height
-        let r = CGFloat(borderSettings.cornerRadius)
+        let w = sceneSize.width - inset * 2
+        let h = sceneSize.height - inset * 2
+        let r = max(CGFloat(borderSettings.cornerRadius) - inset, 0)
         let pi = CGFloat.pi
 
         var segs: [BorderSegment] = []
 
-        segs.append(BorderSegment(length: w - 2*r, isArc: false, startPoint: CGPoint(x: r, y: 0), endPoint: CGPoint(x: w-r, y: 0)))
-        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: w-r, y: r), radius: r, startAngle: -pi/2, endAngle: 0))
-        segs.append(BorderSegment(length: h - 2*r, isArc: false, startPoint: CGPoint(x: w, y: r), endPoint: CGPoint(x: w, y: h-r)))
-        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: w-r, y: h-r), radius: r, startAngle: 0, endAngle: pi/2))
-        segs.append(BorderSegment(length: w - 2*r, isArc: false, startPoint: CGPoint(x: w-r, y: h), endPoint: CGPoint(x: r, y: h)))
-        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: r, y: h-r), radius: r, startAngle: pi/2, endAngle: pi))
-        segs.append(BorderSegment(length: h - 2*r, isArc: false, startPoint: CGPoint(x: 0, y: h-r), endPoint: CGPoint(x: 0, y: r)))
-        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: r, y: r), radius: r, startAngle: pi, endAngle: 3*pi/2))
+        segs.append(BorderSegment(length: w - 2*r, isArc: false, startPoint: CGPoint(x: inset + r, y: inset), endPoint: CGPoint(x: inset + w - r, y: inset)))
+        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: inset + w - r, y: inset + r), radius: r, startAngle: -pi/2, endAngle: 0))
+        segs.append(BorderSegment(length: h - 2*r, isArc: false, startPoint: CGPoint(x: inset + w, y: inset + r), endPoint: CGPoint(x: inset + w, y: inset + h - r)))
+        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: inset + w - r, y: inset + h - r), radius: r, startAngle: 0, endAngle: pi/2))
+        segs.append(BorderSegment(length: w - 2*r, isArc: false, startPoint: CGPoint(x: inset + w - r, y: inset + h), endPoint: CGPoint(x: inset + r, y: inset + h)))
+        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: inset + r, y: inset + h - r), radius: r, startAngle: pi/2, endAngle: pi))
+        segs.append(BorderSegment(length: h - 2*r, isArc: false, startPoint: CGPoint(x: inset, y: inset + h - r), endPoint: CGPoint(x: inset, y: inset + r)))
+        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: inset + r, y: inset + r), radius: r, startAngle: pi, endAngle: 3*pi/2))
 
         segmentCache = segs
         cachedSceneSize = sceneSize
