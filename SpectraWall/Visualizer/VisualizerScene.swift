@@ -35,7 +35,10 @@ class VisualizerScene: SKScene {
             .store(in: &cancellables)
     }
 
+    private var perLayerCancellables = Set<AnyCancellable>()
+
     private func reloadActiveScene() {
+        perLayerCancellables.removeAll()
         effectNodes.values.forEach { $0.removeFromParent() }
         effectNodes = [:]
 
@@ -46,13 +49,26 @@ class VisualizerScene: SKScene {
             addEffectNode(for: layer, zPosition: CGFloat(index))
         }
 
-        // 監聽這個 scene 的 layers 變化
+        observeLayerProperties(scene.layers)
+
         scene.$layers
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] newLayers in
                 self?.syncActiveSceneLayers()
+                self?.observeLayerProperties(newLayers)
             }
-            .store(in: &cancellables)
+            .store(in: &perLayerCancellables)
+    }
+
+    private func observeLayerProperties(_ layers: [LayerSettings]) {
+        for layer in layers {
+            layer.objectWillChange
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self, id = layer.id] _ in
+                    self?.effectNodes[id]?.isHidden = !layer.isVisible
+                }
+                .store(in: &perLayerCancellables)
+        }
     }
 
     private func syncActiveSceneLayers() {
