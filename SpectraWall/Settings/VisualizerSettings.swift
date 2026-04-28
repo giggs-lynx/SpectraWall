@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import ServiceManagement
 
 class VisualizerSettings: ObservableObject {
     static let shared = VisualizerSettings()
@@ -17,5 +18,24 @@ class VisualizerSettings: ObservableObject {
     // MARK: - Reset
     func resetToDefaults() {
         bassAttenuation = 30.0
+    }
+}
+
+extension VisualizerSettings {
+    var launchAtLogin: Bool {
+        get {
+            SMAppService.mainApp.status == .enabled
+        }
+        set {
+            do {
+                if newValue {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("LaunchAtLogin error: \(error)")
+            }
+        }
     }
 }
