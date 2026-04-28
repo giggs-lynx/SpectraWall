@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct BorderSettings: EffectSettings {
+struct BorderSettings: EffectSettings, Equatable {
     var strokeCount: Int
     var clockwise: Bool
     var speed: Double

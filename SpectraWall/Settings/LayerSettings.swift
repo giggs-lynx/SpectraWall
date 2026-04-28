@@ -8,7 +8,7 @@
 import SwiftUI
 import Combine
 
-struct ColorData: Codable {
+struct ColorData: Codable, Equatable {
     var red: Double
     var green: Double
     var blue: Double
@@ -44,7 +44,7 @@ enum ChannelColorMode: String, Codable, CaseIterable {
     case solid = "單色"
 }
 
-struct ChannelColorSettings: Codable {
+struct ChannelColorSettings: Codable, Equatable {
     var colorMode: ChannelColorMode = .rainbow
     var gradientColorLow: ColorData = ColorData(red: 0.0, green: 0.4, blue: 1.0)
     var gradientColorHigh: ColorData = ColorData(red: 1.0, green: 0.2, blue: 0.8)

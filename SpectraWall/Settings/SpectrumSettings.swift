@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct SpectrumSettings: EffectSettings {
+struct SpectrumSettings: EffectSettings, Equatable {
     var gain: Double
     var powerCurve: Double
     var attack: Double

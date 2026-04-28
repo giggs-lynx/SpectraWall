@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct OrbSettings: EffectSettings {
+struct OrbSettings: EffectSettings, Equatable {
     var boost: Double
     var attack: Double
     var release: Double
