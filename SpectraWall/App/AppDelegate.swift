@@ -71,6 +71,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentViewController = NSHostingController(rootView: PopoverView())
         popover.behavior = .transient
         self.popover = popover
+
+        setupMainMenu()
     }
 
     @objc private func togglePopover() {
@@ -79,6 +81,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             popover?.performClose(nil)
         } else {
             popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover?.contentViewController?.view.window?.makeKey()
         }
     }
 
@@ -178,5 +181,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.setupDesktopWindows()
         }
+    }
+
+    // MARK: - Main Menu
+
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+
+        let appMenu = NSMenu()
+        appMenu.addItem(
+            NSMenuItem(title: "設定...", action: #selector(openSettingsFromMenu), keyEquivalent: ",")
+        )
+        appMenu.addItem(.separator())
+        appMenu.addItem(
+            NSMenuItem(title: "結束 SpectraWall", action: #selector(terminateApp), keyEquivalent: "q")
+        )
+
+        let appMenuItem = NSMenuItem()
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+
+        NSApplication.shared.mainMenu = mainMenu
+    }
+
+    @objc private func openSettingsFromMenu() {
+        popover?.performClose(nil)
+        AppWindowManager.shared.openSettings()
+    }
+
+    @objc private func terminateApp() {
+        NSApplication.shared.terminate(nil)
     }
 }

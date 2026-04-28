@@ -13,6 +13,8 @@ struct AudioSourceRow: View {
     let isDisabled: Bool
     let action: () -> Void
 
+    @State private var isHovered = false
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
@@ -28,8 +30,17 @@ struct AudioSourceRow: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isHovered ? Color.primary.opacity(0.08) : Color.clear)
+            )
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 }

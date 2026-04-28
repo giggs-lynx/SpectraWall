@@ -10,6 +10,8 @@ import SwiftUI
 struct PopoverView: View {
     @ObservedObject var settings = AppSettings.shared
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
+    @State private var sceneHoveredID: UUID? = nil
+    @State private var footerHovered: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -62,22 +64,28 @@ struct PopoverView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(sceneManager.scenes) { scene in
+                    let isActive = sceneManager.activeSceneID == scene.id
                     HStack(spacing: 8) {
-                        // Active 指示器
-                        Button {
-                            sceneManager.setActiveScene(scene)
-                        } label: {
-                            Image(systemName: sceneManager.activeSceneID == scene.id
-                                  ? "circle.fill" : "circle")
-                                .foregroundColor(sceneManager.activeSceneID == scene.id
-                                                 ? .accentColor : .secondary)
-                                .frame(width: 16)
-                        }
-                        .buttonStyle(.plain)
+                        Image(systemName: isActive ? "circle.fill" : "circle")
+                            .foregroundColor(isActive ? .accentColor : .secondary)
+                            .frame(width: 16)
 
                         Text(scene.name)
                             .foregroundColor(.primary)
                         Spacer()
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(sceneHoveredID == scene.id ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        sceneManager.setActiveScene(scene)
+                    }
+                    .onHover { hovering in
+                        sceneHoveredID = hovering ? scene.id : nil
                     }
                 }
             }
@@ -86,24 +94,53 @@ struct PopoverView: View {
 
             Divider()
 
-            HStack {
-                Button("設定") {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "gearshape")
+                        .foregroundColor(.secondary)
+                        .frame(width: 16)
+                    Text("設定")
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(footerHovered == "settings" ? Color.primary.opacity(0.08) : Color.clear)
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
                     AppWindowManager.shared.openSettings()
                 }
-                .buttonStyle(.plain)
-                .font(.caption)
+                .onHover { hovering in
+                    footerHovered = hovering ? "settings" : nil
+                }
 
-                Spacer()
-
-                Button("Quit") {
+                HStack(spacing: 8) {
+                    Image(systemName: "power")
+                        .foregroundColor(.secondary)
+                        .frame(width: 16)
+                    Text("結束 SpectraWall")
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(footerHovered == "quit" ? Color.primary.opacity(0.08) : Color.clear)
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
                     NSApplication.shared.terminate(nil)
                 }
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundColor(.red)
+                .onHover { hovering in
+                    footerHovered = hovering ? "quit" : nil
+                }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
         }
         .frame(width: 240)
     }

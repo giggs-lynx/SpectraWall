@@ -20,15 +20,12 @@ class AppWindowManager {
             return
         }
 
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 560),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
+        let hostingController = NSHostingController(rootView: SettingsWindowView())
+        let window = NSWindow(contentViewController: hostingController)
+        window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
         window.title = "SpectraWall 設定"
-        window.contentViewController = NSHostingController(rootView: SettingsWindowView())
+        window.setContentSize(NSSize(width: 1200, height: 560))
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
