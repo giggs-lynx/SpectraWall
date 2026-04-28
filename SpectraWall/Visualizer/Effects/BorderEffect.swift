@@ -26,6 +26,11 @@ class BorderEffect: SKNode {
     private var smoothedAmplitude: Float = 0
     private var lastUpdateTime: TimeInterval = 0
     private var perimeterLength: CGFloat = 0
+
+    private var segmentCache: [BorderSegment]? = nil
+    private var cachedSceneSize: CGSize = .zero
+    private var cachedCornerRadius: Double = -1
+
     private let trailSegments = 20
 
     init(size: CGSize, settings: LayerSettings) {
@@ -51,6 +56,8 @@ class BorderEffect: SKNode {
     // MARK: - Setup
 
     private func setupStrokes() {
+        segmentCache = nil  // 強制重建 segments
+
         strokes.forEach { $0.nodes.forEach { $0.removeFromParent() } }
         strokes = []
 
@@ -111,8 +118,8 @@ class BorderEffect: SKNode {
         let dt = currentTime - lastUpdateTime
         lastUpdateTime = currentTime
 
-        let speed = borderSettings.speed
-        let delta = speed * dt * (borderSettings.clockwise ? 1 : -1)
+        let bs = borderSettings
+        let delta = bs.speed * dt * (bs.clockwise ? 1 : -1)
 
         for i in 0..<strokes.count {
             strokes[i].progress = (strokes[i].progress + delta).truncatingRemainder(dividingBy: 1.0)
@@ -124,6 +131,10 @@ class BorderEffect: SKNode {
     private func renderStroke(index: Int) {
         let stroke = strokes[index]
         let bs = borderSettings
+        let clockwise = bs.clockwise
+
+        // 順時針：j=trailSegments-1 是頭，j=0 是尾
+        // 逆時針：j=0 是頭，j=trailSegments-1 是尾
         let colorStart = index == 0 ? bs.stroke1ColorStart : bs.stroke2ColorStart
         let colorEnd = index == 0 ? bs.stroke1ColorEnd : bs.stroke2ColorEnd
         let tailLength = bs.tailLength
@@ -132,12 +143,22 @@ class BorderEffect: SKNode {
 
         for j in 0..<trailSegments {
             let node = stroke.nodes[j]
-            let t = Double(j) / Double(trailSegments - 1)
-            let segProgress = stroke.progress - (1.0 - t) * tailLength
+
+            // t=1 是頭部（最亮、最寬），t=0 是尾部
+            let t: Double = clockwise
+                ? Double(j) / Double(trailSegments - 1)
+                : 1.0 - Double(j) / Double(trailSegments - 1)
+
+            // 頭部在 progress，尾巴往反方向延伸
+            let offset = clockwise
+                ? -(1.0 - t) * tailLength
+                : (1.0 - t) * tailLength
+
+            let segProgress = stroke.progress + offset
             let adjustedProgress = ((segProgress.truncatingRemainder(dividingBy: 1.0)) + 1.0).truncatingRemainder(dividingBy: 1.0)
 
             let segLength = perimeterLength * CGFloat(tailLength) / CGFloat(trailSegments)
-            let path = borderPath(from: adjustedProgress, length: segLength)
+            let path = borderPath(from: adjustedProgress, length: segLength, clockwise: clockwise)
             node.path = path
 
             let color = interpolateColor(
@@ -152,7 +173,7 @@ class BorderEffect: SKNode {
 
     // MARK: - Path
 
-    private func borderPath(from progress: Double, length: CGFloat) -> CGPath {
+    private func borderPath(from progress: Double, length: CGFloat, clockwise: Bool) -> CGPath {
         let path = CGMutablePath()
         var drawn: CGFloat = 0
         var current = CGFloat(progress) * perimeterLength
@@ -181,7 +202,7 @@ class BorderEffect: SKNode {
                     radius: seg.radius,
                     startAngle: startAngle,
                     endAngle: endAngle,
-                    clockwise: !borderSettings.clockwise
+                    clockwise: !clockwise
                 )
             } else {
                 path.addLine(to: seg.point(at: endT))
@@ -220,21 +241,32 @@ class BorderEffect: SKNode {
     }
 
     private func borderSegments() -> [BorderSegment] {
+        if let cache = segmentCache,
+           cachedSceneSize == sceneSize,
+           cachedCornerRadius == borderSettings.cornerRadius {
+            return cache
+        }
+
         let w = sceneSize.width
         let h = sceneSize.height
         let r = CGFloat(borderSettings.cornerRadius)
         let pi = CGFloat.pi
 
-        return [
-            BorderSegment(length: w - 2*r, isArc: false, startPoint: CGPoint(x: r, y: 0), endPoint: CGPoint(x: w-r, y: 0)),
-            BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: w-r, y: r), radius: r, startAngle: -pi/2, endAngle: 0),
-            BorderSegment(length: h - 2*r, isArc: false, startPoint: CGPoint(x: w, y: r), endPoint: CGPoint(x: w, y: h-r)),
-            BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: w-r, y: h-r), radius: r, startAngle: 0, endAngle: pi/2),
-            BorderSegment(length: w - 2*r, isArc: false, startPoint: CGPoint(x: w-r, y: h), endPoint: CGPoint(x: r, y: h)),
-            BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: r, y: h-r), radius: r, startAngle: pi/2, endAngle: pi),
-            BorderSegment(length: h - 2*r, isArc: false, startPoint: CGPoint(x: 0, y: h-r), endPoint: CGPoint(x: 0, y: r)),
-            BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: r, y: r), radius: r, startAngle: pi, endAngle: 3*pi/2)
-        ]
+        var segs: [BorderSegment] = []
+
+        segs.append(BorderSegment(length: w - 2*r, isArc: false, startPoint: CGPoint(x: r, y: 0), endPoint: CGPoint(x: w-r, y: 0)))
+        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: w-r, y: r), radius: r, startAngle: -pi/2, endAngle: 0))
+        segs.append(BorderSegment(length: h - 2*r, isArc: false, startPoint: CGPoint(x: w, y: r), endPoint: CGPoint(x: w, y: h-r)))
+        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: w-r, y: h-r), radius: r, startAngle: 0, endAngle: pi/2))
+        segs.append(BorderSegment(length: w - 2*r, isArc: false, startPoint: CGPoint(x: w-r, y: h), endPoint: CGPoint(x: r, y: h)))
+        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: r, y: h-r), radius: r, startAngle: pi/2, endAngle: pi))
+        segs.append(BorderSegment(length: h - 2*r, isArc: false, startPoint: CGPoint(x: 0, y: h-r), endPoint: CGPoint(x: 0, y: r)))
+        segs.append(BorderSegment(length: pi/2*r, isArc: true, center: CGPoint(x: r, y: r), radius: r, startAngle: pi, endAngle: 3*pi/2))
+
+        segmentCache = segs
+        cachedSceneSize = sceneSize
+        cachedCornerRadius = borderSettings.cornerRadius
+        return segs
     }
 
     private func segmentAt(distance: CGFloat, segments: [BorderSegment]) -> (Int, CGFloat) {
@@ -247,6 +279,8 @@ class BorderEffect: SKNode {
         }
         return (segments.count - 1, distance - accumulated)
     }
+
+    // MARK: - Helpers
 
     private func interpolateColor(from: NSColor, to: NSColor, t: CGFloat) -> NSColor {
         let r = from.redComponent + (to.redComponent - from.redComponent) * t

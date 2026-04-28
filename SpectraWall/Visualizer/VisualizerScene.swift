@@ -14,6 +14,7 @@ class VisualizerScene: SKScene {
     
     override func update(_ currentTime: TimeInterval) {
         for node in effectNodes.values {
+            if node.isHidden { continue }
             if let border = node as? BorderEffect {
                 border.update(currentTime)
             }
