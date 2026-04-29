@@ -8,13 +8,16 @@
 import SwiftUI
 import Combine
 import ServiceManagement
+import os.log
 
 class VisualizerSettings: ObservableObject {
     static let shared = VisualizerSettings()
-
-    // MARK: - 公用（Analyzer 層）
+    
+    private let logger = Logger(subsystem: "com.spectrawall.app", category: "VisualizerSettings")
+    
+    // MARK: - Shared (Analyzer layer)
     @AppStorage("bassAttenuation") var bassAttenuation: Double = 30.0
-
+    
     // MARK: - Reset
     func resetToDefaults() {
         bassAttenuation = 30.0
@@ -34,7 +37,7 @@ extension VisualizerSettings {
                     try SMAppService.mainApp.unregister()
                 }
             } catch {
-                print("LaunchAtLogin error: \(error)")
+                logger.error("LaunchAtLogin error: \(error)")
             }
         }
     }

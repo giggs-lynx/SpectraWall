@@ -109,7 +109,7 @@ class LayerSettings: ObservableObject, Identifiable {
         let effectType = try c.decode(EffectType.self, forKey: .effectType)
         self.init(effectType: effectType)
 
-        id = try c.decode(UUID.self, forKey: .id) // id 是 let，這裡要處理
+        id = try c.decode(UUID.self, forKey: .id) // id is let, need to handle here
         name = try c.decode(String.self, forKey: .name)
         isVisible = try c.decode(Bool.self, forKey: .isVisible)
         channelMode = try c.decode(ChannelMode.self, forKey: .channelMode)

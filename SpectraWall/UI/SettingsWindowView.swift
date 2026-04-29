@@ -21,7 +21,7 @@ struct SettingsWindowView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // MARK: - 左欄：Scene 列表
+            // MARK: - Left Column: Scene List
             SceneListColumn(
                 globalID: globalID,
                 selectedSceneID: $selectedSceneID,
@@ -31,7 +31,7 @@ struct SettingsWindowView: View {
 
             Divider()
 
-            // MARK: - 中欄：Effect 列表
+            // MARK: - Middle Column: Effect List
             if selectedSceneID == globalID {
                 Spacer()
             } else if let scene = selectedScene {
@@ -53,7 +53,7 @@ struct SettingsWindowView: View {
 
             Divider()
 
-            // MARK: - 右欄：設定內容
+            // MARK: - Right Column: Settings Content
             if selectedSceneID == globalID {
                 GlobalSettingsView()
             } else if let id = selectedLayerID,
@@ -81,7 +81,7 @@ struct SettingsWindowView: View {
         }
         .frame(width: 1200, height: 560)
         .onAppear {
-            // 預設選中全局設定
+            // Default to selecting global settings
             selectedSceneID = globalID
         }
     }
@@ -100,7 +100,7 @@ struct SceneListColumn: View {
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $selectedSceneID) {
-                // 全局設定
+                // Global Settings
                 HStack(spacing: 8) {
                     Image(systemName: "slider.horizontal.3")
                         .foregroundColor(.secondary)

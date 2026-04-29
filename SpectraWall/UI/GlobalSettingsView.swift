@@ -7,17 +7,20 @@
 
 import SwiftUI
 import ServiceManagement
+import os
 
 struct GlobalSettingsView: View {
     @ObservedObject var visualizerSettings = VisualizerSettings.shared
     @State private var launchAtLogin: Bool = SMAppService.mainApp.status == .enabled
-
+    
+    private let logger = Logger(subsystem: "com.spectrawall.app", category: "GlobalSettingsView")
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                SectionHeader(title: "系統")
+                SectionHeader(title: "System")
                 VStack(spacing: 10) {
-                    Toggle("登入時自動啟動", isOn: $launchAtLogin)
+                    Toggle("Launch at login", isOn: $launchAtLogin)
                         .onChange(of: launchAtLogin) {
                             do {
                                 if launchAtLogin {
@@ -26,8 +29,8 @@ struct GlobalSettingsView: View {
                                     try SMAppService.mainApp.unregister()
                                 }
                             } catch {
-                                print("LaunchAtLogin error: \(error)")
-                                // 失敗時還原 UI
+                                logger.error("LaunchAtLogin error: \(error)")
+                                // Restore UI on failure
                                 launchAtLogin = SMAppService.mainApp.status == .enabled
                             }
                         }

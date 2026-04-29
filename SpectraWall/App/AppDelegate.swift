@@ -22,7 +22,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         settingsCancellable = AppSettings.shared.$audioSource
-            .dropFirst()  // 跳過初始值
+                .dropFirst()  // Skip initial value
             .receive(on: DispatchQueue.main)
             .sink { [weak self] source in
                 self?.switchAudioSource(to: source)
@@ -82,8 +82,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: - 音訊
-
+    // MARK: - Audio
+    
     private func startAudioMonitor() {
         monitor = AudioProcessMonitor()
         monitor?.onAppsChanged = { [weak self] apps in
@@ -92,7 +92,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             switch AppSettings.shared.audioSource {
             case .global:
-                // global 只需要建一次，不需要重建
+                // Global tap only needs to be created once
                 if self.audioTap == nil {
                     self.startGlobalTap()
                 }
@@ -109,7 +109,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     AudioDataBus.shared.amplitudePublisher.send(0)
                 } else if self.audioTap == nil {
                     if let match = apps.first(where: { $0.bundleID == selectedApp.bundleID }) {
-                        // 更新 audioSource 為新的 app（PID 已更新）
+                        // Update audioSource with new app (PID updated)
                         AppSettings.shared.audioSource = .app(match)
                         self.startTap(for: match)
                     }
@@ -131,8 +131,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         audioTap = tap
     }
 
-    // MARK: - 視窗
-
+    // MARK: - Windows
+    
     private func setupDesktopWindows() {
         desktopWindows.forEach { $0.close() }
         desktopWindows = []
@@ -168,8 +168,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return window
     }
 
-    // MARK: - 多螢幕監聽
-
+    // MARK: - Multi-Screen Monitor
+    
     private func startObservingScreenChanges() {
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,

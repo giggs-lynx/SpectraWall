@@ -26,7 +26,7 @@ class VisualizerScene: SKScene {
             }
             .store(in: &cancellables)
 
-        // 監聽 active scene 的 layers 變化
+        // Monitor active scene's layer changes
         VisualizerSceneManager.shared.$scenes
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in

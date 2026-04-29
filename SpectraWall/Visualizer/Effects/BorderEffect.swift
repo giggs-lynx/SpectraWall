@@ -56,7 +56,7 @@ class BorderEffect: SKNode {
     // MARK: - Setup
 
     private func setupStrokes() {
-        segmentCache = nil  // 強制重建 segments
+        segmentCache = nil  // Force rebuild segments
 
         strokes.forEach { $0.nodes.forEach { $0.removeFromParent() } }
         strokes = []
@@ -131,24 +131,24 @@ class BorderEffect: SKNode {
         let stroke = strokes[index]
         let bs = borderSettings
         let clockwise = bs.clockwise
-
-        // 順時針：j=trailSegments-1 是頭，j=0 是尾
-        // 逆時針：j=0 是頭，j=trailSegments-1 是尾
+        
+        // Clockwise: j=trailSegments-1 is head, j=0 is tail
+        // Counter-clockwise: j=0 is head, j=trailSegments-1 is tail
         let colorStart = index == 0 ? bs.stroke1ColorStart : bs.stroke2ColorStart
         let colorEnd = index == 0 ? bs.stroke1ColorEnd : bs.stroke2ColorEnd
         let tailLength = bs.tailLength
         let pulseWidth = CGFloat(smoothedAmplitude) * 8.0
         let baseWidth = CGFloat(bs.baseWidth) + pulseWidth
-
+        
         for j in 0..<trailSegments {
             let node = stroke.nodes[j]
-
-            // t=1 是頭部（最亮、最寬），t=0 是尾部
+            
+            // t=1 is head (brightest, widest), t=0 is tail
             let t: Double = clockwise
                 ? Double(j) / Double(trailSegments - 1)
                 : 1.0 - Double(j) / Double(trailSegments - 1)
-
-            // 頭部在 progress，尾巴往反方向延伸
+            
+            // Head at progress, tail extends in opposite direction
             let offset = clockwise
                 ? -(1.0 - t) * tailLength
                 : (1.0 - t) * tailLength

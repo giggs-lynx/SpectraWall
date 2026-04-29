@@ -6,16 +6,19 @@
 //
 
 import AudioToolbox
+import os
 
 class CoreAudioTap {
     var onAudioData: (([Float], [Float]) -> Void)?
-
+    
+    private let logger = Logger(subsystem: "com.spectrawall.app", category: "CoreAudioTap")
+    
     private var tapID: AudioObjectID = .unknown
     private var aggregateDeviceID: AudioObjectID = .unknown
     private var deviceProcID: AudioDeviceIOProcID?
     private var deviceReadyListenerBlock: AudioObjectPropertyListenerBlock?
 
-    // MARK: - Public/Users/giggs/project/lab/SpectraWall/SpectraWall/Audio/CoreAudioTap.swift
+    // MARK: - Public
 
     func start(app: AudioApp) {
         stop()
@@ -43,7 +46,7 @@ class CoreAudioTap {
     // MARK: - Tap Setup
 
     private func setupTap(app: AudioApp) {
-        // 1. 建立 Process Tap
+        // 1. Create Process Tap
         let tapUID = UUID()
         let tapDesc = CATapDescription(stereoMixdownOfProcesses: app.objectIDs)
         tapDesc.uuid = tapUID
@@ -52,13 +55,12 @@ class CoreAudioTap {
         var tapObjectID: AudioObjectID = .unknown
         let tapStatus = AudioHardwareCreateProcessTap(tapDesc, &tapObjectID)
         guard tapStatus == noErr else {
-            print("CoreAudioTap: 建立 tap 失敗，OSStatus = \(tapStatus)")
+            logger.error("Failed to create tap, OSStatus = \(tapStatus)")
             return
         }
         tapID = tapObjectID
-        print("CoreAudioTap: tap 建立成功，ID = \(tapObjectID)")
 
-        // 2. 建立 Aggregate Device
+        // 2. Create Aggregate Device
         let aggDesc: [String: Any] = [
             kAudioAggregateDeviceNameKey: "SpectraWallTap",
             kAudioAggregateDeviceUIDKey: "spectrawall-\(UUID().uuidString)",
@@ -70,19 +72,19 @@ class CoreAudioTap {
         var aggID: AudioObjectID = .unknown
         let aggStatus = AudioHardwareCreateAggregateDevice(aggDesc as CFDictionary, &aggID)
         guard aggStatus == noErr else {
-            print("CoreAudioTap: 建立 aggregate device 失敗，OSStatus = \(aggStatus)")
+            logger.error("Failed to create aggregate device, OSStatus = \(aggStatus)")
             return
         }
         aggregateDeviceID = aggID
-        print("CoreAudioTap: aggregate device 建立成功，ID = \(aggID)")
 
-        // 3. 等待 aggregate device 準備好
+        // 3. Wait for aggregate device to be ready
         waitForAggregateDevice(aggID) { [weak self] in
             guard let self else { return }
-            print("CoreAudioTap: aggregate device 已就緒")
             self.startIOProc(deviceID: aggID, app: app)
         }
     }
+    
+    // MARK: - Global Tap
     
     func startGlobal() {
         stop()
@@ -94,15 +96,15 @@ class CoreAudioTap {
         let tapDesc = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
         tapDesc.uuid = tapUID
         tapDesc.muteBehavior = .unmuted
-
+        
         var tapObjectID: AudioObjectID = .unknown
         let tapStatus = AudioHardwareCreateProcessTap(tapDesc, &tapObjectID)
         guard tapStatus == noErr else {
-            print("CoreAudioTap: 建立 global tap 失敗，OSStatus = \(tapStatus)")
+            logger.error("Failed to create global tap, OSStatus = \(tapStatus)")
             return
         }
         tapID = tapObjectID
-
+        
         let aggDesc: [String: Any] = [
             kAudioAggregateDeviceNameKey: "SpectraWallGlobalTap",
             kAudioAggregateDeviceUIDKey: "spectrawall-global-\(UUID().uuidString)",
@@ -110,15 +112,15 @@ class CoreAudioTap {
             kAudioAggregateDeviceTapAutoStartKey: true,
             kAudioAggregateDeviceIsPrivateKey: true
         ]
-
+        
         var aggID: AudioObjectID = .unknown
         let aggStatus = AudioHardwareCreateAggregateDevice(aggDesc as CFDictionary, &aggID)
         guard aggStatus == noErr else {
-            print("CoreAudioTap: 建立 global aggregate device 失敗，OSStatus = \(aggStatus)")
+            logger.error("Failed to create global aggregate device, OSStatus = \(aggStatus)")
             return
         }
         aggregateDeviceID = aggID
-
+        
         waitForAggregateDevice(aggID) { [weak self] in
             guard let self else { return }
             self.startIOProc(deviceID: aggID, app: AudioApp(pid: 0, objectIDs: [], name: "Global", bundleID: nil))
@@ -155,7 +157,7 @@ class CoreAudioTap {
     }
 
     // MARK: - IO Proc
-
+    
     private func startIOProc(deviceID: AudioObjectID, app: AudioApp) {
         
         var sampleRate: Float64 = 0
@@ -166,29 +168,26 @@ class CoreAudioTap {
             mElement: kAudioObjectPropertyElementMain
         )
         AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &sampleRate)
-        print("CoreAudioTap: sample rate = \(sampleRate)")
         
         var procID: AudioDeviceIOProcID?
-
+        
         let err = AudioDeviceCreateIOProcIDWithBlock(&procID, deviceID, nil) { [weak self] _, inInputData, _, _, _ in
             guard let self else { return }
             self.handleAudioBuffer(inInputData)
         }
-
+        
         guard err == noErr, let procID else {
-            print("CoreAudioTap: 建立 IO proc 失敗，OSStatus = \(err)")
+            logger.error("Failed to create IO proc, OSStatus = \(err)")
             return
         }
-
+        
         deviceProcID = procID
-
+        
         let startErr = AudioDeviceStart(deviceID, procID)
         guard startErr == noErr else {
-            print("CoreAudioTap: 啟動 device 失敗，OSStatus = \(startErr)")
+            logger.error("Failed to start device, OSStatus = \(startErr)")
             return
         }
-
-        print("CoreAudioTap: 開始擷取 \(app.name)")
     }
 
     // MARK: - Audio Buffer Handler
@@ -206,13 +205,13 @@ class CoreAudioTap {
             let samples = data.bindMemory(to: Float.self, capacity: frameCount * channelCount)
 
             if channelCount >= 2 {
-                // 交錯格式：L R L R L R...
+                // Interleaved format: L R L R L R...
                 for i in 0..<frameCount {
                     leftSamples.append(samples[i * 2])
                     rightSamples.append(samples[i * 2 + 1])
                 }
             } else {
-                // 單聲道，左右都用同一個
+                // Mono channel, use same data for both channels
                 for i in 0..<frameCount {
                     leftSamples.append(samples[i])
                     rightSamples.append(samples[i])

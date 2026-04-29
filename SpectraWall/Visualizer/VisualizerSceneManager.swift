@@ -65,7 +65,7 @@ class VisualizerSceneManager: ObservableObject {
 
         save()
 
-        // 回傳要自動選中的 scene
+        // Return the scene to auto-select
         if scenes.isEmpty { return nil }
         let newIndex = min(index, scenes.count - 1)
         return scenes[newIndex]
