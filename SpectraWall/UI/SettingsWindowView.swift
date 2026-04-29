@@ -132,6 +132,8 @@ struct SceneListColumn: View {
                 } header: {
                     HStack {
                         Text("場景")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
                         Spacer()
                         Button {
                             let scene = sceneManager.addScene()
@@ -147,6 +149,9 @@ struct SceneListColumn: View {
             .listStyle(.sidebar)
             .onChange(of: selectedSceneID) {
                 selectedLayerID = nil
+                if let scene = sceneManager.scenes.first(where: { $0.id == selectedSceneID }) {
+                    selectedLayerID = scene.layers.first?.id
+                }
             }
         }
         .confirmationDialog(
@@ -172,6 +177,8 @@ struct SceneRow: View {
     let isActive: Bool
     let onDuplicate: () -> Void
     let onDelete: () -> Void
+    @State private var isEditing = false
+    @State private var editingName = ""
 
     var body: some View {
         HStack(spacing: 6) {
@@ -184,8 +191,25 @@ struct SceneRow: View {
             }
             .buttonStyle(.plain)
 
-            Text(scene.name)
-                .lineLimit(1)
+            if isEditing {
+                TextField("", text: $editingName)
+                    .textFieldStyle(.plain)
+                    .onSubmit {
+                        scene.name = editingName
+                        VisualizerSceneManager.shared.save()
+                        isEditing = false
+                    }
+                    .onExitCommand {
+                        isEditing = false
+                    }
+            } else {
+                Text(scene.name)
+                    .lineLimit(1)
+                    .onTapGesture(count: 2) {
+                        editingName = scene.name
+                        isEditing = true
+                    }
+            }
             Spacer()
         }
         .padding(.vertical, 2)

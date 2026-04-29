@@ -12,6 +12,8 @@ struct PopoverView: View {
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
     @State private var sceneHoveredID: UUID? = nil
     @State private var footerHovered: String? = nil
+    
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -111,7 +113,7 @@ struct PopoverView: View {
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    AppWindowManager.shared.openSettings()
+                    try? openSettings()
                 }
                 .onHover { hovering in
                     footerHovered = hovering ? "settings" : nil

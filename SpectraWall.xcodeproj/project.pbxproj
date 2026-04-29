@@ -15,7 +15,6 @@
 		2473E24B8D10AFEAB8AE35F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C493ECCD719EE97E868F798C /* SettingsView.swift */; };
 		3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */; };
 		38E876BC3348A5FC7C3FCF6D /* OrbEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */; };
-		3E981161AB5A1E35C6F39812 /* AppWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B9788E3D100F20632264C8 /* AppWindowManager.swift */; };
 		434790673A0A2D87D51AE656 /* SceneSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50727C140006D5CA0FFA8B2E /* SceneSettings.swift */; };
 		45AA0DA4D71C679B96C2FC99 /* VisualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D70F274F572EBBA149E0D8 /* VisualizerSettings.swift */; };
 		4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */; };
@@ -68,7 +67,6 @@
 		02C20FAC3A0FC65520503ACF /* OrbSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbSettingsSection.swift; sourceTree = "<group>"; };
 		07FD4718E762F135F7734B47 /* SpectrumSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettingsSection.swift; sourceTree = "<group>"; };
 		09A9B079A3F70CFB8E67B0C4 /* VisualizerScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerScene.swift; sourceTree = "<group>"; };
-		09B9788E3D100F20632264C8 /* AppWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppWindowManager.swift; sourceTree = "<group>"; };
 		0EBC6A5F34345BEB68275FC1 /* SpectraWallTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpectraWallTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		13F23E9EDA5A5465E02F0214 /* SpectraWallUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		164A2CF78B7696D252577EE0 /* AudioAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAnalyzer.swift; sourceTree = "<group>"; };
@@ -194,7 +192,6 @@
 			isa = PBXGroup;
 			children = (
 				AF0CF5B0BE7364FCF80C3C98 /* AppDelegate.swift */,
-				09B9788E3D100F20632264C8 /* AppWindowManager.swift */,
 				E852366D3D44EDBFA021DC3D /* SpectraWallApp.swift */,
 			);
 			path = App;
@@ -372,7 +369,6 @@
 			files = (
 				9D6BC9D736F638ADA6CACEA1 /* AppDelegate.swift in Sources */,
 				E379D244C3CAE4DD85833E01 /* AppSettings.swift in Sources */,
-				3E981161AB5A1E35C6F39812 /* AppWindowManager.swift in Sources */,
 				A5E3A3405B9BF4691EFEC714 /* AudioAnalyzer.swift in Sources */,
 				5157423FC7027F0C4255DF36 /* AudioDataBus.swift in Sources */,
 				4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */,
