@@ -72,11 +72,15 @@ class VisualizerScene: SKScene {
     }
 
     private func syncActiveSceneLayers() {
-        guard let scene = VisualizerSceneManager.shared.activeScene,
-              scene.id == currentSceneID else {
-            reloadActiveScene()
+        guard let scene = VisualizerSceneManager.shared.activeScene else {
+            effectNodes.values.forEach { $0.removeFromParent() }
+            effectNodes = [:]
+            currentSceneID = nil
             return
         }
+
+        // If scene changed, reloadActiveScene() will be called by activeSceneID observer
+        guard scene.id == currentSceneID else { return }
 
         let newLayers = scene.layers
         let newIDs = Set(newLayers.map { $0.id })

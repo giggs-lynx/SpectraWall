@@ -45,10 +45,26 @@ class BorderEffect: SKNode {
     required init?(coder: NSCoder) { fatalError() }
 
     private func observeSettings() {
+        var lastCount = borderSettings.strokeCount
+        var lastRadius = borderSettings.cornerRadius
+        var lastWidth = borderSettings.baseWidth
+        
         settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.setupStrokes()
+                guard let self = self else { return }
+                
+                if self.borderSettings.strokeCount != lastCount ||
+                   self.borderSettings.cornerRadius != lastRadius ||
+                   self.borderSettings.baseWidth != lastWidth {
+                    
+                    lastCount = self.borderSettings.strokeCount
+                    lastRadius = self.borderSettings.cornerRadius
+                    lastWidth = self.borderSettings.baseWidth
+                    self.setupStrokes()
+                } else {
+                    self.updateVisuals()
+                }
             }
             .store(in: &cancellables)
     }
@@ -78,7 +94,13 @@ class BorderEffect: SKNode {
         }
 
         updatePerimeterLength()
+        updateVisuals()
+    }
+
+    private func updateVisuals() {
         alpha = CGFloat(settings.opacity)
+        // Perimeter length depends on baseWidth and cornerRadius
+        updatePerimeterLength()
     }
 
     private func updatePerimeterLength() {

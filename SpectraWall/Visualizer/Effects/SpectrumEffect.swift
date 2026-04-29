@@ -44,7 +44,32 @@ class SpectrumEffect: SKNode {
         case .left, .right:
             setupVerticalBars()
         }
+        updateLayout()
+    }
 
+    private func updateLayout() {
+        let ss = spectrumSettings
+        let totalWidth = sceneSize.width * CGFloat(ss.width)
+        let startX = (sceneSize.width - totalWidth) * CGFloat(settings.positionX)
+        let totalSpacing = barSpacing * CGFloat(binCount - 1)
+        let barWidth = (totalWidth - totalSpacing) / CGFloat(binCount)
+        let startY = sceneSize.height * CGFloat(settings.positionY)
+
+        let totalHeight = sceneSize.height * CGFloat(ss.width)
+        let startYVert = (sceneSize.height - totalHeight) * CGFloat(settings.positionY)
+        let totalSpacingVert = barSpacing * CGFloat(binCount - 1)
+        let barHeight = (totalHeight - totalSpacingVert) / CGFloat(binCount)
+        let startXVert = sceneSize.width * CGFloat(settings.positionX)
+
+        for (i, bar) in bars.enumerated() {
+            if ss.anchor == .bottom || ss.anchor == .top {
+                let x = startX + barWidth / 2 + CGFloat(i) * (barWidth + barSpacing)
+                bar.position = CGPoint(x: x, y: startY)
+            } else {
+                let y = startYVert + barHeight / 2 + CGFloat(i) * (barHeight + barSpacing)
+                bar.position = CGPoint(x: startXVert, y: y)
+            }
+        }
         alpha = CGFloat(settings.opacity)
     }
 
@@ -91,10 +116,24 @@ class SpectrumEffect: SKNode {
     // MARK: - Observe Settings
 
     private func observeSettings() {
+        var lastAnchor = spectrumSettings.anchor
+        var lastWidth = spectrumSettings.width
+        
         settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.setupBars()
+                guard let self = self else { return }
+                
+                let currentSettings = self.spectrumSettings
+                
+                if currentSettings.anchor != lastAnchor || 
+                   currentSettings.width != lastWidth {
+                    lastAnchor = currentSettings.anchor
+                    lastWidth = currentSettings.width
+                    self.setupBars()
+                } else {
+                    self.updateLayout()
+                }
             }
             .store(in: &cancellables)
     }

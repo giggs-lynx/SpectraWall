@@ -41,15 +41,10 @@ class OrbEffect: SKNode {
 
         let os = orbSettings
         let baseRadius = CGFloat(os.baseRadius)
-        let center = CGPoint(
-            x: sceneSize.width * CGFloat(settings.positionX),
-            y: sceneSize.height * CGFloat(settings.positionY)
-        )
-
+        
         let glow = SKShapeNode(circleOfRadius: baseRadius * CGFloat(os.outerRadiusMultiplier))
         glow.fillColor = os.outerColorLow.nsColor.withAlphaComponent(CGFloat(os.outerOpacity))
         glow.strokeColor = .clear
-        glow.position = center
         glow.blendMode = .add
         addChild(glow)
         glowOrb = glow
@@ -58,21 +53,41 @@ class OrbEffect: SKNode {
         main.fillColor = os.innerColorLow.nsColor
         main.strokeColor = os.innerColorLow.nsColor.withAlphaComponent(0.6)
         main.lineWidth = 2
-        main.position = center
         main.blendMode = .add
         addChild(main)
         orb = main
+        
+        updateLayout()
+    }
 
+    private func updateLayout() {
+        let center = CGPoint(
+            x: sceneSize.width * CGFloat(settings.positionX),
+            y: sceneSize.height * CGFloat(settings.positionY)
+        )
+        orb?.position = center
+        glowOrb?.position = center
         alpha = CGFloat(settings.opacity)
     }
 
     // MARK: - Observe Settings
 
     private func observeSettings() {
+        var lastBaseRadius = orbSettings.baseRadius
+        
         settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.setupOrb()
+                guard let self = self else { return }
+                
+                let currentSettings = self.orbSettings
+                
+                if currentSettings.baseRadius != lastBaseRadius {
+                    lastBaseRadius = currentSettings.baseRadius
+                    self.setupOrb()
+                } else {
+                    self.updateLayout()
+                }
             }
             .store(in: &cancellables)
     }
