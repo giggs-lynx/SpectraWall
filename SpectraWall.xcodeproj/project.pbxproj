@@ -6,341 +6,444 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		06A7302E6F876BF887BB19A1 /* OrbSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BECEFD6F19DCB0263A2B8EE4 /* OrbSettings.swift */; };
+		0EBC3D5A124D57CCA0F01BDC /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB269C347EEC1B09E924A27 /* AppSettings.swift */; };
+		0FA6DA1402159A4BC19E8B91 /* SpectraWallUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777E72E70C56BA7F3234CDBC /* SpectraWallUITests.swift */; };
+		10C5E63FB6617ABB1DE5DC4A /* AudioSourceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEDF0704C26481372E62FAEB /* AudioSourceRow.swift */; };
+		199CA9A55A4DCA4BF15F5892 /* VisualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B19F175CB1C06259973DAAB /* VisualizerSettings.swift */; };
+		1D23EBC2FB69A29AF8C9E6DA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D076AA890B568E28D54BB0AB /* Assets.xcassets */; };
+		2473E24B8D10AFEAB8AE35F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C493ECCD719EE97E868F798C /* SettingsView.swift */; };
+		3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */; };
+		38E876BC3348A5FC7C3FCF6D /* OrbEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */; };
+		3E981161AB5A1E35C6F39812 /* AppWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B9788E3D100F20632264C8 /* AppWindowManager.swift */; };
+		4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */; };
+		4F4DABB3B6FD4BCC8B476A33 /* SpectrumEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E72743D7A773D83695C08C6 /* SpectrumEffect.swift */; };
+		4FDFED8954114E93D7A6A3F5 /* AudioProcessMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC84C5BCACF58A512956233 /* AudioProcessMonitor.swift */; };
+		5157423FC7027F0C4255DF36 /* AudioDataBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80421407137E63E07D67DAE0 /* AudioDataBus.swift */; };
+		583ED825CE509BDD1FD1DC46 /* BorderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 094B0E3E2435CF80E5951036 /* BorderSettings.swift */; };
+		5A9AB759908AB1C5615B7FE4 /* SettingsSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C21F8B8BFA2A3C35DC9610F /* SettingsSlider.swift */; };
+		5B1D96051A9A440A3D35E45E /* EffectSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A931FFD507EABD55D221AA /* EffectSettings.swift */; };
+		616E6F8ED92DA625CDA7325A /* LayerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 497BA89A08FD7D95FDB0D6C5 /* LayerSettingsView.swift */; };
+		63AE2B56A8982B390D781DF1 /* SceneSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6AA06FC0ED07E7C592B6504 /* SceneSettings.swift */; };
+		6F6A2599A5D8473B9A0594B5 /* SpectraWallTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A427A8DE5DCB8A016E5326C2 /* SpectraWallTests.swift */; };
+		74660ECF8B6CE7F201E03985 /* CommonSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5343DED5166E7273A786FB4B /* CommonSettingsSection.swift */; };
+		7D63DD88377D234DB325DF72 /* VisualizerScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09A9B079A3F70CFB8E67B0C4 /* VisualizerScene.swift */; };
+		80AAD8EEC42188E7F6DE0D5E /* SettingsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62E77976195FA9C04A7BB3 /* SettingsWindowView.swift */; };
+		82013A880843844DBE3F8020 /* VisualizerLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722BE6D151A57174E0EBE2FC /* VisualizerLayer.swift */; };
+		84F4B25551533C0D03FF6183 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF6CC4D2AFC9353B75453DCA /* SectionHeader.swift */; };
+		9D6BC9D736F638ADA6CACEA1 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0CF5B0BE7364FCF80C3C98 /* AppDelegate.swift */; };
+		A0275C3BF6E3F5F4845AF8C5 /* SpectrumSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A43B208EFFB448922589B380 /* SpectrumSettings.swift */; };
+		A58221399614778BAD2212C2 /* OrbSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C20FAC3A0FC65520503ACF /* OrbSettingsSection.swift */; };
+		A5E3A3405B9BF4691EFEC714 /* AudioAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164A2CF78B7696D252577EE0 /* AudioAnalyzer.swift */; };
+		B086D3707650CAC6C8A870D8 /* SpectraWallApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E852366D3D44EDBFA021DC3D /* SpectraWallApp.swift */; };
+		B17127AF8C73C5E594950702 /* SpectraWallUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13F23E9EDA5A5465E02F0214 /* SpectraWallUITestsLaunchTests.swift */; };
+		C69FE214CD41108928135210 /* VisualizerSceneManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA0A5B488982A1E1F5821A9B /* VisualizerSceneManager.swift */; };
+		CCF9D6633179C3A1E36D6BBF /* LayerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F35CB6496F09323F9C21151F /* LayerSettings.swift */; };
+		D59207A6F54E1FF888EEB8D0 /* SpectrumSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FD4718E762F135F7734B47 /* SpectrumSettingsSection.swift */; };
+		D718742DF5741E602A43F2BB /* BorderSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0FE70777E0176527DEC0F56 /* BorderSettingsSection.swift */; };
+		DD1D743EAF9FB118F35DC94E /* CoreAudioTap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08CF9534424BEE67C57F99E7 /* CoreAudioTap.swift */; };
+		E324FC441EB1446A8D5A6D13 /* GlobalSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54957E641A0356C53F8F59B9 /* GlobalSettingsView.swift */; };
+		F6FAE711657F1827B5EEE363 /* BorderEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C90B5502739F4165FAAB05E /* BorderEffect.swift */; };
+		F8DBE95DD0AEB8B064601793 /* ChannelColorSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D897EA6BCBDAC8588A817D81 /* ChannelColorSettingsView.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
-		3DF3F6D82F9AC7DC0053AD10 /* PBXContainerItemProxy */ = {
+		61BAB70D66518229AB947C9B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 3DF3F6C22F9AC7DA0053AD10 /* Project object */;
+			containerPortal = DC25D5760A630EB7491D9DA0 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 3DF3F6C92F9AC7DA0053AD10;
+			remoteGlobalIDString = DCE73A2A124E3968DDEF0EDC;
 			remoteInfo = SpectraWall;
 		};
-		3DF3F6E22F9AC7DC0053AD10 /* PBXContainerItemProxy */ = {
+		70BAAE9EF2655764FF016C35 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 3DF3F6C22F9AC7DA0053AD10 /* Project object */;
+			containerPortal = DC25D5760A630EB7491D9DA0 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 3DF3F6C92F9AC7DA0053AD10;
+			remoteGlobalIDString = DCE73A2A124E3968DDEF0EDC;
 			remoteInfo = SpectraWall;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		3DF3F6CA2F9AC7DA0053AD10 /* SpectraWall.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpectraWall.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		3DF3F6D72F9AC7DC0053AD10 /* SpectraWallTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpectraWallTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		3DF3F6E12F9AC7DC0053AD10 /* SpectraWallUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpectraWallUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		02C20FAC3A0FC65520503ACF /* OrbSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbSettingsSection.swift; sourceTree = "<group>"; };
+		07FD4718E762F135F7734B47 /* SpectrumSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettingsSection.swift; sourceTree = "<group>"; };
+		08CF9534424BEE67C57F99E7 /* CoreAudioTap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreAudioTap.swift; sourceTree = "<group>"; };
+		094B0E3E2435CF80E5951036 /* BorderSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderSettings.swift; sourceTree = "<group>"; };
+		09A9B079A3F70CFB8E67B0C4 /* VisualizerScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerScene.swift; sourceTree = "<group>"; };
+		09B9788E3D100F20632264C8 /* AppWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppWindowManager.swift; sourceTree = "<group>"; };
+		0EBC6A5F34345BEB68275FC1 /* SpectraWallTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpectraWallTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		13F23E9EDA5A5465E02F0214 /* SpectraWallUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		164A2CF78B7696D252577EE0 /* AudioAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAnalyzer.swift; sourceTree = "<group>"; };
+		1C21F8B8BFA2A3C35DC9610F /* SettingsSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSlider.swift; sourceTree = "<group>"; };
+		497BA89A08FD7D95FDB0D6C5 /* LayerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerSettingsView.swift; sourceTree = "<group>"; };
+		5343DED5166E7273A786FB4B /* CommonSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonSettingsSection.swift; sourceTree = "<group>"; };
+		54957E641A0356C53F8F59B9 /* GlobalSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSettingsView.swift; sourceTree = "<group>"; };
+		57A931FFD507EABD55D221AA /* EffectSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectSettings.swift; sourceTree = "<group>"; };
+		5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPickerRow.swift; sourceTree = "<group>"; };
+		5D202B1CAC153AAF24A5BB42 /* SpectraWallUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpectraWallUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbEffect.swift; sourceTree = "<group>"; };
+		6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioObjectIDExt.swift; sourceTree = "<group>"; };
+		722BE6D151A57174E0EBE2FC /* VisualizerLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerLayer.swift; sourceTree = "<group>"; };
+		777E72E70C56BA7F3234CDBC /* SpectraWallUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallUITests.swift; sourceTree = "<group>"; };
+		80421407137E63E07D67DAE0 /* AudioDataBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDataBus.swift; sourceTree = "<group>"; };
+		89FFF9D3BF84BCE6535AA84F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		8E72743D7A773D83695C08C6 /* SpectrumEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumEffect.swift; sourceTree = "<group>"; };
+		9B19F175CB1C06259973DAAB /* VisualizerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerSettings.swift; sourceTree = "<group>"; };
+		9C90B5502739F4165FAAB05E /* BorderEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderEffect.swift; sourceTree = "<group>"; };
+		A427A8DE5DCB8A016E5326C2 /* SpectraWallTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallTests.swift; sourceTree = "<group>"; };
+		A43B208EFFB448922589B380 /* SpectrumSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettings.swift; sourceTree = "<group>"; };
+		AF0CF5B0BE7364FCF80C3C98 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B6AA06FC0ED07E7C592B6504 /* SceneSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSettings.swift; sourceTree = "<group>"; };
+		BECEFD6F19DCB0263A2B8EE4 /* OrbSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbSettings.swift; sourceTree = "<group>"; };
+		BF6CC4D2AFC9353B75453DCA /* SectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeader.swift; sourceTree = "<group>"; };
+		BFC84C5BCACF58A512956233 /* AudioProcessMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioProcessMonitor.swift; sourceTree = "<group>"; };
+		C493ECCD719EE97E868F798C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		D076AA890B568E28D54BB0AB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D897EA6BCBDAC8588A817D81 /* ChannelColorSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelColorSettingsView.swift; sourceTree = "<group>"; };
+		DAB269C347EEC1B09E924A27 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		DEDF0704C26481372E62FAEB /* AudioSourceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSourceRow.swift; sourceTree = "<group>"; };
+		E0FE70777E0176527DEC0F56 /* BorderSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderSettingsSection.swift; sourceTree = "<group>"; };
+		E82137B3D69BAAD00A4C0172 /* SpectraWall.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpectraWall.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E852366D3D44EDBFA021DC3D /* SpectraWallApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallApp.swift; sourceTree = "<group>"; };
+		EA0A5B488982A1E1F5821A9B /* VisualizerSceneManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerSceneManager.swift; sourceTree = "<group>"; };
+		F35CB6496F09323F9C21151F /* LayerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerSettings.swift; sourceTree = "<group>"; };
+		FC62E77976195FA9C04A7BB3 /* SettingsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		3DF3F6CC2F9AC7DA0053AD10 /* SpectraWall */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = SpectraWall;
+/* Begin PBXGroup section */
+		17DDAB516CCC8700B6C039C0 /* Visualizer */ = {
+			isa = PBXGroup;
+			children = (
+				722BE6D151A57174E0EBE2FC /* VisualizerLayer.swift */,
+				09A9B079A3F70CFB8E67B0C4 /* VisualizerScene.swift */,
+				EA0A5B488982A1E1F5821A9B /* VisualizerSceneManager.swift */,
+				560BEA8FA3ED90FDDBA60632 /* Effects */,
+			);
+			path = Visualizer;
 			sourceTree = "<group>";
 		};
-		3DF3F6DA2F9AC7DC0053AD10 /* SpectraWallTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = SpectraWallTests;
+		325F5DF63AC5D39E02E2362E /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				DAB269C347EEC1B09E924A27 /* AppSettings.swift */,
+				094B0E3E2435CF80E5951036 /* BorderSettings.swift */,
+				57A931FFD507EABD55D221AA /* EffectSettings.swift */,
+				F35CB6496F09323F9C21151F /* LayerSettings.swift */,
+				BECEFD6F19DCB0263A2B8EE4 /* OrbSettings.swift */,
+				B6AA06FC0ED07E7C592B6504 /* SceneSettings.swift */,
+				A43B208EFFB448922589B380 /* SpectrumSettings.swift */,
+				9B19F175CB1C06259973DAAB /* VisualizerSettings.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
-		3DF3F6E42F9AC7DC0053AD10 /* SpectraWallUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
+		3368E90532153F28F3D78979 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				54957E641A0356C53F8F59B9 /* GlobalSettingsView.swift */,
+				497BA89A08FD7D95FDB0D6C5 /* LayerSettingsView.swift */,
+				C493ECCD719EE97E868F798C /* SettingsView.swift */,
+				FC62E77976195FA9C04A7BB3 /* SettingsWindowView.swift */,
+				43B6E7E56FC58F8BF9863318 /* Components */,
+				33B20F1F37EA5E7670EB776E /* Effects */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		33B20F1F37EA5E7670EB776E /* Effects */ = {
+			isa = PBXGroup;
+			children = (
+				E0FE70777E0176527DEC0F56 /* BorderSettingsSection.swift */,
+				5343DED5166E7273A786FB4B /* CommonSettingsSection.swift */,
+				02C20FAC3A0FC65520503ACF /* OrbSettingsSection.swift */,
+				07FD4718E762F135F7734B47 /* SpectrumSettingsSection.swift */,
+			);
+			path = Effects;
+			sourceTree = "<group>";
+		};
+		43B6E7E56FC58F8BF9863318 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				DEDF0704C26481372E62FAEB /* AudioSourceRow.swift */,
+				D897EA6BCBDAC8588A817D81 /* ChannelColorSettingsView.swift */,
+				5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */,
+				BF6CC4D2AFC9353B75453DCA /* SectionHeader.swift */,
+				1C21F8B8BFA2A3C35DC9610F /* SettingsSlider.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		560BEA8FA3ED90FDDBA60632 /* Effects */ = {
+			isa = PBXGroup;
+			children = (
+				9C90B5502739F4165FAAB05E /* BorderEffect.swift */,
+				64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */,
+				8E72743D7A773D83695C08C6 /* SpectrumEffect.swift */,
+			);
+			path = Effects;
+			sourceTree = "<group>";
+		};
+		72908CDED45398B03F79BDD2 /* SpectraWallUITests */ = {
+			isa = PBXGroup;
+			children = (
+				777E72E70C56BA7F3234CDBC /* SpectraWallUITests.swift */,
+				13F23E9EDA5A5465E02F0214 /* SpectraWallUITestsLaunchTests.swift */,
+			);
 			path = SpectraWallUITests;
 			sourceTree = "<group>";
 		};
-/* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		3DF3F6C72F9AC7DA0053AD10 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3DF3F6D42F9AC7DC0053AD10 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3DF3F6DE2F9AC7DC0053AD10 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
-
-/* Begin PBXGroup section */
-		3DF3F6C12F9AC7DA0053AD10 = {
+		7ADBB4336D77981FF7111381 /* App */ = {
 			isa = PBXGroup;
 			children = (
-				3DF3F6CC2F9AC7DA0053AD10 /* SpectraWall */,
-				3DF3F6DA2F9AC7DC0053AD10 /* SpectraWallTests */,
-				3DF3F6E42F9AC7DC0053AD10 /* SpectraWallUITests */,
-				3DF3F6CB2F9AC7DA0053AD10 /* Products */,
+				AF0CF5B0BE7364FCF80C3C98 /* AppDelegate.swift */,
+				09B9788E3D100F20632264C8 /* AppWindowManager.swift */,
+				E852366D3D44EDBFA021DC3D /* SpectraWallApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		97F9943B02F38F64A1FFADF2 = {
+			isa = PBXGroup;
+			children = (
+				D7CA16D80A98AE35273837FF /* SpectraWall */,
+				A847EA7AB8C864FA1A2CCD8F /* SpectraWallTests */,
+				72908CDED45398B03F79BDD2 /* SpectraWallUITests */,
+				D45B9CB52963ADA44F4A9FCB /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		3DF3F6CB2F9AC7DA0053AD10 /* Products */ = {
+		A847EA7AB8C864FA1A2CCD8F /* SpectraWallTests */ = {
 			isa = PBXGroup;
 			children = (
-				3DF3F6CA2F9AC7DA0053AD10 /* SpectraWall.app */,
-				3DF3F6D72F9AC7DC0053AD10 /* SpectraWallTests.xctest */,
-				3DF3F6E12F9AC7DC0053AD10 /* SpectraWallUITests.xctest */,
+				A427A8DE5DCB8A016E5326C2 /* SpectraWallTests.swift */,
+			);
+			path = SpectraWallTests;
+			sourceTree = "<group>";
+		};
+		D45B9CB52963ADA44F4A9FCB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E82137B3D69BAAD00A4C0172 /* SpectraWall.app */,
+				0EBC6A5F34345BEB68275FC1 /* SpectraWallTests.xctest */,
+				5D202B1CAC153AAF24A5BB42 /* SpectraWallUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D7CA16D80A98AE35273837FF /* SpectraWall */ = {
+			isa = PBXGroup;
+			children = (
+				D076AA890B568E28D54BB0AB /* Assets.xcassets */,
+				89FFF9D3BF84BCE6535AA84F /* Info.plist */,
+				7ADBB4336D77981FF7111381 /* App */,
+				E750728AA859A8F01C74E243 /* Audio */,
+				325F5DF63AC5D39E02E2362E /* Settings */,
+				3368E90532153F28F3D78979 /* UI */,
+				17DDAB516CCC8700B6C039C0 /* Visualizer */,
+			);
+			path = SpectraWall;
+			sourceTree = "<group>";
+		};
+		E750728AA859A8F01C74E243 /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				164A2CF78B7696D252577EE0 /* AudioAnalyzer.swift */,
+				80421407137E63E07D67DAE0 /* AudioDataBus.swift */,
+				6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */,
+				BFC84C5BCACF58A512956233 /* AudioProcessMonitor.swift */,
+				08CF9534424BEE67C57F99E7 /* CoreAudioTap.swift */,
+			);
+			path = Audio;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3DF3F6C92F9AC7DA0053AD10 /* SpectraWall */ = {
+		A0F70D792D94E991F2438BA7 /* SpectraWallTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3DF3F6EB2F9AC7DC0053AD10 /* Build configuration list for PBXNativeTarget "SpectraWall" */;
+			buildConfigurationList = 43C48F3416B88F12D8D910A5 /* Build configuration list for PBXNativeTarget "SpectraWallTests" */;
 			buildPhases = (
-				3DF3F6C62F9AC7DA0053AD10 /* Sources */,
-				3DF3F6C72F9AC7DA0053AD10 /* Frameworks */,
-				3DF3F6C82F9AC7DA0053AD10 /* Resources */,
+				066FC727D01A44B581308DF1 /* Sources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				3DF3F6CC2F9AC7DA0053AD10 /* SpectraWall */,
-			);
-			name = SpectraWall;
-			packageProductDependencies = (
-			);
-			productName = SpectraWall;
-			productReference = 3DF3F6CA2F9AC7DA0053AD10 /* SpectraWall.app */;
-			productType = "com.apple.product-type.application";
-		};
-		3DF3F6D62F9AC7DC0053AD10 /* SpectraWallTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 3DF3F6EE2F9AC7DC0053AD10 /* Build configuration list for PBXNativeTarget "SpectraWallTests" */;
-			buildPhases = (
-				3DF3F6D32F9AC7DC0053AD10 /* Sources */,
-				3DF3F6D42F9AC7DC0053AD10 /* Frameworks */,
-				3DF3F6D52F9AC7DC0053AD10 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				3DF3F6D92F9AC7DC0053AD10 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				3DF3F6DA2F9AC7DC0053AD10 /* SpectraWallTests */,
+				EFBE4E24D9B2A4C17C988348 /* PBXTargetDependency */,
 			);
 			name = SpectraWallTests;
 			packageProductDependencies = (
 			);
 			productName = SpectraWallTests;
-			productReference = 3DF3F6D72F9AC7DC0053AD10 /* SpectraWallTests.xctest */;
+			productReference = 0EBC6A5F34345BEB68275FC1 /* SpectraWallTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		3DF3F6E02F9AC7DC0053AD10 /* SpectraWallUITests */ = {
+		A26FEF148B7867617F7F540F /* SpectraWallUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3DF3F6F12F9AC7DC0053AD10 /* Build configuration list for PBXNativeTarget "SpectraWallUITests" */;
+			buildConfigurationList = 39BC27276A0B7C7393E2C336 /* Build configuration list for PBXNativeTarget "SpectraWallUITests" */;
 			buildPhases = (
-				3DF3F6DD2F9AC7DC0053AD10 /* Sources */,
-				3DF3F6DE2F9AC7DC0053AD10 /* Frameworks */,
-				3DF3F6DF2F9AC7DC0053AD10 /* Resources */,
+				B6A08988107238500EA6FE7C /* Sources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				3DF3F6E32F9AC7DC0053AD10 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				3DF3F6E42F9AC7DC0053AD10 /* SpectraWallUITests */,
+				61D862D196FC86543F08C037 /* PBXTargetDependency */,
 			);
 			name = SpectraWallUITests;
 			packageProductDependencies = (
 			);
 			productName = SpectraWallUITests;
-			productReference = 3DF3F6E12F9AC7DC0053AD10 /* SpectraWallUITests.xctest */;
+			productReference = 5D202B1CAC153AAF24A5BB42 /* SpectraWallUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		DCE73A2A124E3968DDEF0EDC /* SpectraWall */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9C8FE154D7C2638CC96968E0 /* Build configuration list for PBXNativeTarget "SpectraWall" */;
+			buildPhases = (
+				2BE9BAB2FB24ACC3116F2689 /* Sources */,
+				3D4C9EB151E26747D8DE7D14 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SpectraWall;
+			packageProductDependencies = (
+			);
+			productName = SpectraWall;
+			productReference = E82137B3D69BAAD00A4C0172 /* SpectraWall.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		3DF3F6C22F9AC7DA0053AD10 /* Project object */ = {
+		DC25D5760A630EB7491D9DA0 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
-					3DF3F6C92F9AC7DA0053AD10 = {
-						CreatedOnToolsVersion = 26.2;
-					};
-					3DF3F6D62F9AC7DC0053AD10 = {
-						CreatedOnToolsVersion = 26.2;
-						TestTargetID = 3DF3F6C92F9AC7DA0053AD10;
-					};
-					3DF3F6E02F9AC7DC0053AD10 = {
-						CreatedOnToolsVersion = 26.2;
-						TestTargetID = 3DF3F6C92F9AC7DA0053AD10;
+					A26FEF148B7867617F7F540F = {
+						TestTargetID = DCE73A2A124E3968DDEF0EDC;
 					};
 				};
 			};
-			buildConfigurationList = 3DF3F6C52F9AC7DA0053AD10 /* Build configuration list for PBXProject "SpectraWall" */;
+			buildConfigurationList = 13C024A800708F5E86205285 /* Build configuration list for PBXProject "SpectraWall" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
 				Base,
+				en,
 			);
-			mainGroup = 3DF3F6C12F9AC7DA0053AD10;
+			mainGroup = 97F9943B02F38F64A1FFADF2;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 3DF3F6CB2F9AC7DA0053AD10 /* Products */;
+			productRefGroup = D45B9CB52963ADA44F4A9FCB /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				3DF3F6C92F9AC7DA0053AD10 /* SpectraWall */,
-				3DF3F6D62F9AC7DC0053AD10 /* SpectraWallTests */,
-				3DF3F6E02F9AC7DC0053AD10 /* SpectraWallUITests */,
+				DCE73A2A124E3968DDEF0EDC /* SpectraWall */,
+				A0F70D792D94E991F2438BA7 /* SpectraWallTests */,
+				A26FEF148B7867617F7F540F /* SpectraWallUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		3DF3F6C82F9AC7DA0053AD10 /* Resources */ = {
+		3D4C9EB151E26747D8DE7D14 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3DF3F6D52F9AC7DC0053AD10 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3DF3F6DF2F9AC7DC0053AD10 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
+				1D23EBC2FB69A29AF8C9E6DA /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		3DF3F6C62F9AC7DA0053AD10 /* Sources */ = {
+		066FC727D01A44B581308DF1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6F6A2599A5D8473B9A0594B5 /* SpectraWallTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3DF3F6D32F9AC7DC0053AD10 /* Sources */ = {
+		2BE9BAB2FB24ACC3116F2689 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9D6BC9D736F638ADA6CACEA1 /* AppDelegate.swift in Sources */,
+				0EBC3D5A124D57CCA0F01BDC /* AppSettings.swift in Sources */,
+				3E981161AB5A1E35C6F39812 /* AppWindowManager.swift in Sources */,
+				A5E3A3405B9BF4691EFEC714 /* AudioAnalyzer.swift in Sources */,
+				5157423FC7027F0C4255DF36 /* AudioDataBus.swift in Sources */,
+				4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */,
+				4FDFED8954114E93D7A6A3F5 /* AudioProcessMonitor.swift in Sources */,
+				10C5E63FB6617ABB1DE5DC4A /* AudioSourceRow.swift in Sources */,
+				F6FAE711657F1827B5EEE363 /* BorderEffect.swift in Sources */,
+				583ED825CE509BDD1FD1DC46 /* BorderSettings.swift in Sources */,
+				D718742DF5741E602A43F2BB /* BorderSettingsSection.swift in Sources */,
+				F8DBE95DD0AEB8B064601793 /* ChannelColorSettingsView.swift in Sources */,
+				3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */,
+				74660ECF8B6CE7F201E03985 /* CommonSettingsSection.swift in Sources */,
+				DD1D743EAF9FB118F35DC94E /* CoreAudioTap.swift in Sources */,
+				5B1D96051A9A440A3D35E45E /* EffectSettings.swift in Sources */,
+				E324FC441EB1446A8D5A6D13 /* GlobalSettingsView.swift in Sources */,
+				CCF9D6633179C3A1E36D6BBF /* LayerSettings.swift in Sources */,
+				616E6F8ED92DA625CDA7325A /* LayerSettingsView.swift in Sources */,
+				38E876BC3348A5FC7C3FCF6D /* OrbEffect.swift in Sources */,
+				06A7302E6F876BF887BB19A1 /* OrbSettings.swift in Sources */,
+				A58221399614778BAD2212C2 /* OrbSettingsSection.swift in Sources */,
+				63AE2B56A8982B390D781DF1 /* SceneSettings.swift in Sources */,
+				84F4B25551533C0D03FF6183 /* SectionHeader.swift in Sources */,
+				5A9AB759908AB1C5615B7FE4 /* SettingsSlider.swift in Sources */,
+				2473E24B8D10AFEAB8AE35F8 /* SettingsView.swift in Sources */,
+				80AAD8EEC42188E7F6DE0D5E /* SettingsWindowView.swift in Sources */,
+				B086D3707650CAC6C8A870D8 /* SpectraWallApp.swift in Sources */,
+				4F4DABB3B6FD4BCC8B476A33 /* SpectrumEffect.swift in Sources */,
+				A0275C3BF6E3F5F4845AF8C5 /* SpectrumSettings.swift in Sources */,
+				D59207A6F54E1FF888EEB8D0 /* SpectrumSettingsSection.swift in Sources */,
+				82013A880843844DBE3F8020 /* VisualizerLayer.swift in Sources */,
+				7D63DD88377D234DB325DF72 /* VisualizerScene.swift in Sources */,
+				C69FE214CD41108928135210 /* VisualizerSceneManager.swift in Sources */,
+				199CA9A55A4DCA4BF15F5892 /* VisualizerSettings.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3DF3F6DD2F9AC7DC0053AD10 /* Sources */ = {
+		B6A08988107238500EA6FE7C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0FA6DA1402159A4BC19E8B91 /* SpectraWallUITests.swift in Sources */,
+				B17127AF8C73C5E594950702 /* SpectraWallUITestsLaunchTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		3DF3F6D92F9AC7DC0053AD10 /* PBXTargetDependency */ = {
+		61D862D196FC86543F08C037 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 3DF3F6C92F9AC7DA0053AD10 /* SpectraWall */;
-			targetProxy = 3DF3F6D82F9AC7DC0053AD10 /* PBXContainerItemProxy */;
+			target = DCE73A2A124E3968DDEF0EDC /* SpectraWall */;
+			targetProxy = 70BAAE9EF2655764FF016C35 /* PBXContainerItemProxy */;
 		};
-		3DF3F6E32F9AC7DC0053AD10 /* PBXTargetDependency */ = {
+		EFBE4E24D9B2A4C17C988348 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 3DF3F6C92F9AC7DA0053AD10 /* SpectraWall */;
-			targetProxy = 3DF3F6E22F9AC7DC0053AD10 /* PBXContainerItemProxy */;
+			target = DCE73A2A124E3968DDEF0EDC /* SpectraWall */;
+			targetProxy = 61BAB70D66518229AB947C9B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		3DF3F6E92F9AC7DC0053AD10 /* Debug */ = {
+		1512F55A3CE17366679F4C73 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 4S3NCEBHL3;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = macosx;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-			};
-			name = Debug;
-		};
-		3DF3F6EA2F9AC7DC0053AD10 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -368,11 +471,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 4S3NCEBHL3;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -380,221 +482,264 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
-		3DF3F6EC2F9AC7DC0053AD10 /* Debug */ = {
+		32F2E0B426E2CF9A3F127883 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "";
-				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4S3NCEBHL3;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
-				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
-				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
-				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
-				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
-				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
-				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
-				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SpectraWall/Info.plist;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.giggs.SpectraWall;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.spectrawall.app;
 				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SDKROOT = macosx;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		4217E44004252C52E5034375 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spectrawall.appTests;
+				PRODUCT_NAME = SpectraWallTests;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpectraWall.app/Contents/MacOS/SpectraWall";
 			};
 			name = Debug;
 		};
-		3DF3F6ED2F9AC7DC0053AD10 /* Release */ = {
+		60F3AB39C472A0FD9C09A329 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spectrawall.appUITests;
+				PRODUCT_NAME = SpectraWallUITests;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				TEST_TARGET_NAME = SpectraWall;
+			};
+			name = Debug;
+		};
+		748EB7193A69757BE993AFE3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "";
-				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4S3NCEBHL3;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
-				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
-				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
-				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
-				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
-				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
-				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
-				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SpectraWall/Info.plist;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.giggs.SpectraWall;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.spectrawall.app;
 				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		3DF3F6EF2F9AC7DC0053AD10 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4S3NCEBHL3;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.giggs.SpectraWallTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpectraWall.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SpectraWall";
 			};
 			name = Debug;
 		};
-		3DF3F6F02F9AC7DC0053AD10 /* Release */ = {
+		D6459A373F795B3061BFE534 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4S3NCEBHL3;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.giggs.SpectraWallTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpectraWall.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SpectraWall";
+				PRODUCT_BUNDLE_IDENTIFIER = com.spectrawall.appUITests;
+				PRODUCT_NAME = SpectraWallUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = SpectraWall;
 			};
 			name = Release;
 		};
-		3DF3F6F22F9AC7DC0053AD10 /* Debug */ = {
+		D99B0C559AC17FF3000AD769 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4S3NCEBHL3;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.giggs.SpectraWallUITests;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = SpectraWall;
 			};
 			name = Debug;
 		};
-		3DF3F6F32F9AC7DC0053AD10 /* Release */ = {
+		F9C42638B7E00E0B0F33FA59 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4S3NCEBHL3;
 				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.giggs.SpectraWallUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = SpectraWall;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spectrawall.appTests;
+				PRODUCT_NAME = SpectraWallTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpectraWall.app/Contents/MacOS/SpectraWall";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		3DF3F6C52F9AC7DA0053AD10 /* Build configuration list for PBXProject "SpectraWall" */ = {
+		13C024A800708F5E86205285 /* Build configuration list for PBXProject "SpectraWall" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3DF3F6E92F9AC7DC0053AD10 /* Debug */,
-				3DF3F6EA2F9AC7DC0053AD10 /* Release */,
+				D99B0C559AC17FF3000AD769 /* Debug */,
+				1512F55A3CE17366679F4C73 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
-		3DF3F6EB2F9AC7DC0053AD10 /* Build configuration list for PBXNativeTarget "SpectraWall" */ = {
+		39BC27276A0B7C7393E2C336 /* Build configuration list for PBXNativeTarget "SpectraWallUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3DF3F6EC2F9AC7DC0053AD10 /* Debug */,
-				3DF3F6ED2F9AC7DC0053AD10 /* Release */,
+				60F3AB39C472A0FD9C09A329 /* Debug */,
+				D6459A373F795B3061BFE534 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
-		3DF3F6EE2F9AC7DC0053AD10 /* Build configuration list for PBXNativeTarget "SpectraWallTests" */ = {
+		43C48F3416B88F12D8D910A5 /* Build configuration list for PBXNativeTarget "SpectraWallTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3DF3F6EF2F9AC7DC0053AD10 /* Debug */,
-				3DF3F6F02F9AC7DC0053AD10 /* Release */,
+				4217E44004252C52E5034375 /* Debug */,
+				F9C42638B7E00E0B0F33FA59 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
-		3DF3F6F12F9AC7DC0053AD10 /* Build configuration list for PBXNativeTarget "SpectraWallUITests" */ = {
+		9C8FE154D7C2638CC96968E0 /* Build configuration list for PBXNativeTarget "SpectraWall" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3DF3F6F22F9AC7DC0053AD10 /* Debug */,
-				3DF3F6F32F9AC7DC0053AD10 /* Release */,
+				748EB7193A69757BE993AFE3 /* Debug */,
+				32F2E0B426E2CF9A3F127883 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 3DF3F6C22F9AC7DA0053AD10 /* Project object */;
+	rootObject = DC25D5760A630EB7491D9DA0 /* Project object */;
 }
