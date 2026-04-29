@@ -12,13 +12,13 @@ struct SettingsWindowView: View {
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
     @State private var selectedSceneID: UUID? = nil
     @State private var selectedLayerID: UUID? = nil
-
+    
     let globalID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
-
+    
     var selectedScene: SceneSettings? {
         sceneManager.scenes.first { $0.id == selectedSceneID }
     }
-
+    
     var body: some View {
         HStack(spacing: 0) {
             // MARK: - Left Column: Scene List
@@ -28,9 +28,9 @@ struct SettingsWindowView: View {
                 selectedLayerID: $selectedLayerID
             )
             .frame(width: 260)
-
+            
             Divider()
-
+            
             // MARK: - Middle Column: Effect List
             if selectedSceneID == globalID {
                 Spacer()
@@ -50,9 +50,9 @@ struct SettingsWindowView: View {
                 }
                 .frame(width: 260)
             }
-
+            
             Divider()
-
+            
             // MARK: - Right Column: Settings Content
             if selectedSceneID == globalID {
                 GlobalSettingsView()
@@ -96,7 +96,7 @@ struct SceneListColumn: View {
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
     @State private var showDeleteConfirm = false
     @State private var sceneToDelete: SceneSettings? = nil
-
+    
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $selectedSceneID) {
@@ -109,9 +109,9 @@ struct SceneListColumn: View {
                 }
                 .padding(.vertical, 2)
                 .tag(globalID)
-
+                
                 Divider()
-
+                
                 Section {
                     ForEach(sceneManager.scenes) { scene in
                         SceneRow(
@@ -179,7 +179,7 @@ struct SceneRow: View {
     let onDelete: () -> Void
     @State private var isEditing = false
     @State private var editingName = ""
-
+    
     var body: some View {
         HStack(spacing: 6) {
             Button {
@@ -190,34 +190,39 @@ struct SceneRow: View {
                     .frame(width: 14)
             }
             .buttonStyle(.plain)
-
+            
             if isEditing {
                 TextField("", text: $editingName)
                     .textFieldStyle(.plain)
-                    .onSubmit {
-                        scene.name = editingName
-                        VisualizerSceneManager.shared.save()
-                        isEditing = false
-                    }
-                    .onExitCommand {
-                        isEditing = false
-                    }
+                    .onSubmit { commitRename() }
+                    .onExitCommand { isEditing = false }
             } else {
                 Text(scene.name)
                     .lineLimit(1)
-                    .onTapGesture(count: 2) {
-                        editingName = scene.name
-                        isEditing = true
-                    }
             }
             Spacer()
         }
         .padding(.vertical, 2)
+        .contentShape(Rectangle())
         .contextMenu {
+            Button("重新命名") { startEditing() }
             Button("複製") { onDuplicate() }
             Divider()
             Button("刪除", role: .destructive) { onDelete() }
         }
+    }
+    
+    private func startEditing() {
+        editingName = scene.name
+        isEditing = true
+    }
+    
+    private func commitRename() {
+        if !editingName.trimmingCharacters(in: .whitespaces).isEmpty {
+            scene.name = editingName
+            VisualizerSceneManager.shared.save()
+        }
+        isEditing = false
     }
 }
 
@@ -299,7 +304,9 @@ struct EffectRow: View {
     @ObservedObject var layer: LayerSettings
     let onDuplicate: () -> Void
     let onDelete: () -> Void
-
+    @State private var isEditing = false
+    @State private var editingName = ""
+    
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: {
@@ -311,9 +318,20 @@ struct EffectRow: View {
             }())
             .foregroundColor(.secondary)
             .frame(width: 16)
-            Text(layer.name)
-                .lineLimit(1)
+            
+            if isEditing {
+                TextField("", text: $editingName)
+                    .textFieldStyle(.plain)
+                    .onSubmit { commitRename() }
+                    .onExitCommand { isEditing = false }
+            } else {
+                Text(layer.name)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
             Spacer()
+            
             Button {
                 layer.isVisible.toggle()
                 VisualizerSceneManager.shared.save()
@@ -324,10 +342,25 @@ struct EffectRow: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 2)
+        .contentShape(Rectangle())
         .contextMenu {
+            Button("重新命名") { startEditing() }
             Button("複製") { onDuplicate() }
             Divider()
             Button("刪除", role: .destructive) { onDelete() }
         }
+    }
+    
+    private func startEditing() {
+        editingName = layer.name
+        isEditing = true
+    }
+    
+    private func commitRename() {
+        if !editingName.trimmingCharacters(in: .whitespaces).isEmpty {
+            layer.name = editingName
+            VisualizerSceneManager.shared.save()
+        }
+        isEditing = false
     }
 }

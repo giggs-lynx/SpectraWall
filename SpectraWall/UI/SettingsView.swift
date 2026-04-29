@@ -117,6 +117,7 @@ struct PopoverView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     openSettings()
+                    NSApp.activate(ignoringOtherApps: true)
                 }
                 .onHover { hovering in
                     footerHovered = hovering ? "settings" : nil
