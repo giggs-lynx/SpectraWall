@@ -66,7 +66,7 @@ class BorderEffect: SKNode {
             var state = StrokeState()
             state.progress = count == 2 ? Double(i) * 0.5 : 0.0
 
-            for j in 0..<trailSegments {
+            for _ in 0..<trailSegments {
                 let node = SKShapeNode()
                 node.lineWidth = 0
                 node.lineCap = .round

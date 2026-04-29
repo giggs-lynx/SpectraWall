@@ -113,7 +113,7 @@ struct PopoverView: View {
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    try? openSettings()
+                    openSettings()
                 }
                 .onHover { hovering in
                     footerHovered = hovering ? "settings" : nil

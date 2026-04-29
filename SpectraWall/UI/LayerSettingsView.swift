@@ -67,7 +67,7 @@ struct LayerSettingsView: View {
                 if let scene = VisualizerSceneManager.shared.scenes.first(where: {
                     $0.layers.contains(where: { $0.id == layer.id })
                 }) {
-                    VisualizerSceneManager.shared.removeLayer(layer, from: scene)
+                    _ = VisualizerSceneManager.shared.removeLayer(layer, from: scene)
                 }
             }
             Button("取消", role: .cancel) {}
