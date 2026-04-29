@@ -12,7 +12,7 @@ import Combine
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var desktopWindows: [NSWindow] = []
     private var monitor: AudioProcessMonitor?
-    private var audioTap: CoreAudioTap?
+    private var tapManager: AudioTapManager?
     private var analyzer: AudioAnalyzer?
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
@@ -35,9 +35,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func switchAudioSource(to source: AudioSource) {
-        audioTap?.stop()
-        audioTap = nil
-
+        tapManager?.stop()
+        tapManager = nil
+        
         switch source {
         case .global:
             startGlobalTap()
@@ -47,7 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func startGlobalTap() {
-        let tap = CoreAudioTap()
+        let tap = AudioTapManager()
         tap.onAudioData = { [weak self] left, right in
             guard let self, let bins = self.analyzer?.analyze(left: left, right: right) else { return }
             let bassAmplitude = Float(bins.left.prefix(8).reduce(0, +) + bins.right.prefix(8).reduce(0, +)) / 16
@@ -55,7 +55,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AudioDataBus.shared.amplitudePublisher.send(bassAmplitude)
         }
         tap.startGlobal()
-        audioTap = tap
+        tapManager = tap
     }
     
     private func setupMenuBar() {
@@ -93,7 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             switch AppSettings.shared.audioSource {
             case .global:
                 // Global tap only needs to be created once
-                if self.audioTap == nil {
+                if self.tapManager == nil {
                     self.startGlobalTap()
                 }
             case .app(let selectedApp):
@@ -102,12 +102,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 })
 
                 if !isSelectedAppActive {
-                    self.audioTap?.stop()
-                    self.audioTap = nil
+                    self.tapManager?.stop()
+                    self.tapManager = nil
                     
                     AudioDataBus.shared.resetPublisher.send()
                     AudioDataBus.shared.amplitudePublisher.send(0)
-                } else if self.audioTap == nil {
+                } else if self.tapManager == nil {
                     if let match = apps.first(where: { $0.bundleID == selectedApp.bundleID }) {
                         // Update audioSource with new app (PID updated)
                         AppSettings.shared.audioSource = .app(match)
@@ -120,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startTap(for app: AudioApp) {
-        let tap = CoreAudioTap()
+        let tap = AudioTapManager()
         tap.onAudioData = { [weak self] left, right in
             guard let self, let bins = self.analyzer?.analyze(left: left, right: right) else { return }
             let bassAmplitude = Float(bins.left.prefix(8).reduce(0, +) + bins.right.prefix(8).reduce(0, +)) / 16
@@ -128,7 +128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AudioDataBus.shared.amplitudePublisher.send(bassAmplitude)
         }
         tap.start(app: app)
-        audioTap = tap
+        tapManager = tap
     }
 
     // MARK: - Windows

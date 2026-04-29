@@ -1,5 +1,5 @@
 //
-//  CoreAudioTap.swift
+//  AudioTapManager.swift
 //  SpectraWall
 //
 //  Created by Giggs Lynx on 2026/4/24.
@@ -8,10 +8,10 @@
 import AudioToolbox
 import os
 
-class CoreAudioTap {
+class AudioTapManager {
     var onAudioData: (([Float], [Float]) -> Void)?
     
-    private let logger = Logger(subsystem: "com.spectrawall.app", category: "CoreAudioTap")
+    private let logger = Logger(subsystem: "com.spectrawall.app", category: "AudioTapManager")
     
     private var tapID: AudioObjectID = .unknown
     private var aggregateDeviceID: AudioObjectID = .unknown

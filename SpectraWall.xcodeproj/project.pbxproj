@@ -7,43 +7,42 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		06A7302E6F876BF887BB19A1 /* OrbSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BECEFD6F19DCB0263A2B8EE4 /* OrbSettings.swift */; };
-		0EBC3D5A124D57CCA0F01BDC /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB269C347EEC1B09E924A27 /* AppSettings.swift */; };
 		0FA6DA1402159A4BC19E8B91 /* SpectraWallUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777E72E70C56BA7F3234CDBC /* SpectraWallUITests.swift */; };
 		10C5E63FB6617ABB1DE5DC4A /* AudioSourceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEDF0704C26481372E62FAEB /* AudioSourceRow.swift */; };
-		199CA9A55A4DCA4BF15F5892 /* VisualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B19F175CB1C06259973DAAB /* VisualizerSettings.swift */; };
+		1767E93E59537A567B1DED9A /* BorderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55367226EF0B8069F94DF810 /* BorderSettings.swift */; };
 		1D23EBC2FB69A29AF8C9E6DA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D076AA890B568E28D54BB0AB /* Assets.xcassets */; };
+		23DF99ABFC0FDBA92563EC9A /* SpectrumSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25DD316C2B3E0E9039209DAF /* SpectrumSettings.swift */; };
 		2473E24B8D10AFEAB8AE35F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C493ECCD719EE97E868F798C /* SettingsView.swift */; };
 		3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */; };
 		38E876BC3348A5FC7C3FCF6D /* OrbEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */; };
 		3E981161AB5A1E35C6F39812 /* AppWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B9788E3D100F20632264C8 /* AppWindowManager.swift */; };
+		434790673A0A2D87D51AE656 /* SceneSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50727C140006D5CA0FFA8B2E /* SceneSettings.swift */; };
+		45AA0DA4D71C679B96C2FC99 /* VisualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D70F274F572EBBA149E0D8 /* VisualizerSettings.swift */; };
 		4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */; };
 		4F4DABB3B6FD4BCC8B476A33 /* SpectrumEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E72743D7A773D83695C08C6 /* SpectrumEffect.swift */; };
 		4FDFED8954114E93D7A6A3F5 /* AudioProcessMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC84C5BCACF58A512956233 /* AudioProcessMonitor.swift */; };
 		5157423FC7027F0C4255DF36 /* AudioDataBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80421407137E63E07D67DAE0 /* AudioDataBus.swift */; };
-		583ED825CE509BDD1FD1DC46 /* BorderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 094B0E3E2435CF80E5951036 /* BorderSettings.swift */; };
 		5A9AB759908AB1C5615B7FE4 /* SettingsSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C21F8B8BFA2A3C35DC9610F /* SettingsSlider.swift */; };
-		5B1D96051A9A440A3D35E45E /* EffectSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A931FFD507EABD55D221AA /* EffectSettings.swift */; };
 		616E6F8ED92DA625CDA7325A /* LayerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 497BA89A08FD7D95FDB0D6C5 /* LayerSettingsView.swift */; };
-		63AE2B56A8982B390D781DF1 /* SceneSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6AA06FC0ED07E7C592B6504 /* SceneSettings.swift */; };
+		68C8498DC8808B2E02530F1F /* EffectSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B93C60F10911BC6D9A25C4 /* EffectSettings.swift */; };
 		6F6A2599A5D8473B9A0594B5 /* SpectraWallTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A427A8DE5DCB8A016E5326C2 /* SpectraWallTests.swift */; };
 		74660ECF8B6CE7F201E03985 /* CommonSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5343DED5166E7273A786FB4B /* CommonSettingsSection.swift */; };
+		7975A727F56D8686D759C120 /* OrbSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66F2944CB173201FA686F254 /* OrbSettings.swift */; };
 		7D63DD88377D234DB325DF72 /* VisualizerScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09A9B079A3F70CFB8E67B0C4 /* VisualizerScene.swift */; };
 		80AAD8EEC42188E7F6DE0D5E /* SettingsWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC62E77976195FA9C04A7BB3 /* SettingsWindowView.swift */; };
-		82013A880843844DBE3F8020 /* VisualizerLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722BE6D151A57174E0EBE2FC /* VisualizerLayer.swift */; };
 		84F4B25551533C0D03FF6183 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF6CC4D2AFC9353B75453DCA /* SectionHeader.swift */; };
 		9D6BC9D736F638ADA6CACEA1 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0CF5B0BE7364FCF80C3C98 /* AppDelegate.swift */; };
-		A0275C3BF6E3F5F4845AF8C5 /* SpectrumSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A43B208EFFB448922589B380 /* SpectrumSettings.swift */; };
 		A58221399614778BAD2212C2 /* OrbSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C20FAC3A0FC65520503ACF /* OrbSettingsSection.swift */; };
 		A5E3A3405B9BF4691EFEC714 /* AudioAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164A2CF78B7696D252577EE0 /* AudioAnalyzer.swift */; };
 		B086D3707650CAC6C8A870D8 /* SpectraWallApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E852366D3D44EDBFA021DC3D /* SpectraWallApp.swift */; };
 		B17127AF8C73C5E594950702 /* SpectraWallUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13F23E9EDA5A5465E02F0214 /* SpectraWallUITestsLaunchTests.swift */; };
+		B19CC9AA447CCDEA4C9713BF /* AudioTapManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70275A92F27BE62D1EF9AB98 /* AudioTapManager.swift */; };
+		C642E10836438FA38CB42B74 /* LayerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5C5768DADA6C2FBE8F5F4D6 /* LayerSettings.swift */; };
 		C69FE214CD41108928135210 /* VisualizerSceneManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA0A5B488982A1E1F5821A9B /* VisualizerSceneManager.swift */; };
-		CCF9D6633179C3A1E36D6BBF /* LayerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F35CB6496F09323F9C21151F /* LayerSettings.swift */; };
 		D59207A6F54E1FF888EEB8D0 /* SpectrumSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FD4718E762F135F7734B47 /* SpectrumSettingsSection.swift */; };
 		D718742DF5741E602A43F2BB /* BorderSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0FE70777E0176527DEC0F56 /* BorderSettingsSection.swift */; };
-		DD1D743EAF9FB118F35DC94E /* CoreAudioTap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08CF9534424BEE67C57F99E7 /* CoreAudioTap.swift */; };
 		E324FC441EB1446A8D5A6D13 /* GlobalSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54957E641A0356C53F8F59B9 /* GlobalSettingsView.swift */; };
+		E379D244C3CAE4DD85833E01 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EC19FFA3B30267A0F97C41 /* AppSettings.swift */; };
 		F6FAE711657F1827B5EEE363 /* BorderEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C90B5502739F4165FAAB05E /* BorderEffect.swift */; };
 		F8DBE95DD0AEB8B064601793 /* ChannelColorSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D897EA6BCBDAC8588A817D81 /* ChannelColorSettingsView.swift */; };
 /* End PBXBuildFile section */
@@ -68,46 +67,45 @@
 /* Begin PBXFileReference section */
 		02C20FAC3A0FC65520503ACF /* OrbSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbSettingsSection.swift; sourceTree = "<group>"; };
 		07FD4718E762F135F7734B47 /* SpectrumSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettingsSection.swift; sourceTree = "<group>"; };
-		08CF9534424BEE67C57F99E7 /* CoreAudioTap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreAudioTap.swift; sourceTree = "<group>"; };
-		094B0E3E2435CF80E5951036 /* BorderSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderSettings.swift; sourceTree = "<group>"; };
 		09A9B079A3F70CFB8E67B0C4 /* VisualizerScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerScene.swift; sourceTree = "<group>"; };
 		09B9788E3D100F20632264C8 /* AppWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppWindowManager.swift; sourceTree = "<group>"; };
 		0EBC6A5F34345BEB68275FC1 /* SpectraWallTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpectraWallTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		13F23E9EDA5A5465E02F0214 /* SpectraWallUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		164A2CF78B7696D252577EE0 /* AudioAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAnalyzer.swift; sourceTree = "<group>"; };
 		1C21F8B8BFA2A3C35DC9610F /* SettingsSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSlider.swift; sourceTree = "<group>"; };
+		25DD316C2B3E0E9039209DAF /* SpectrumSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettings.swift; sourceTree = "<group>"; };
 		497BA89A08FD7D95FDB0D6C5 /* LayerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerSettingsView.swift; sourceTree = "<group>"; };
+		50727C140006D5CA0FFA8B2E /* SceneSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSettings.swift; sourceTree = "<group>"; };
 		5343DED5166E7273A786FB4B /* CommonSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonSettingsSection.swift; sourceTree = "<group>"; };
 		54957E641A0356C53F8F59B9 /* GlobalSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSettingsView.swift; sourceTree = "<group>"; };
-		57A931FFD507EABD55D221AA /* EffectSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectSettings.swift; sourceTree = "<group>"; };
+		55367226EF0B8069F94DF810 /* BorderSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderSettings.swift; sourceTree = "<group>"; };
 		5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPickerRow.swift; sourceTree = "<group>"; };
 		5D202B1CAC153AAF24A5BB42 /* SpectraWallUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpectraWallUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		64D70F274F572EBBA149E0D8 /* VisualizerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerSettings.swift; sourceTree = "<group>"; };
 		64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbEffect.swift; sourceTree = "<group>"; };
+		66F2944CB173201FA686F254 /* OrbSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbSettings.swift; sourceTree = "<group>"; };
 		6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioObjectIDExt.swift; sourceTree = "<group>"; };
-		722BE6D151A57174E0EBE2FC /* VisualizerLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerLayer.swift; sourceTree = "<group>"; };
+		70275A92F27BE62D1EF9AB98 /* AudioTapManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTapManager.swift; sourceTree = "<group>"; };
 		777E72E70C56BA7F3234CDBC /* SpectraWallUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallUITests.swift; sourceTree = "<group>"; };
 		80421407137E63E07D67DAE0 /* AudioDataBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDataBus.swift; sourceTree = "<group>"; };
 		89FFF9D3BF84BCE6535AA84F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8E72743D7A773D83695C08C6 /* SpectrumEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumEffect.swift; sourceTree = "<group>"; };
-		9B19F175CB1C06259973DAAB /* VisualizerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerSettings.swift; sourceTree = "<group>"; };
 		9C90B5502739F4165FAAB05E /* BorderEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderEffect.swift; sourceTree = "<group>"; };
 		A427A8DE5DCB8A016E5326C2 /* SpectraWallTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallTests.swift; sourceTree = "<group>"; };
-		A43B208EFFB448922589B380 /* SpectrumSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettings.swift; sourceTree = "<group>"; };
+		A9B93C60F10911BC6D9A25C4 /* EffectSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectSettings.swift; sourceTree = "<group>"; };
 		AF0CF5B0BE7364FCF80C3C98 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		B6AA06FC0ED07E7C592B6504 /* SceneSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSettings.swift; sourceTree = "<group>"; };
-		BECEFD6F19DCB0263A2B8EE4 /* OrbSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbSettings.swift; sourceTree = "<group>"; };
+		B9EC19FFA3B30267A0F97C41 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		BF6CC4D2AFC9353B75453DCA /* SectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeader.swift; sourceTree = "<group>"; };
 		BFC84C5BCACF58A512956233 /* AudioProcessMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioProcessMonitor.swift; sourceTree = "<group>"; };
 		C493ECCD719EE97E868F798C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D076AA890B568E28D54BB0AB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D897EA6BCBDAC8588A817D81 /* ChannelColorSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelColorSettingsView.swift; sourceTree = "<group>"; };
-		DAB269C347EEC1B09E924A27 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		DEDF0704C26481372E62FAEB /* AudioSourceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSourceRow.swift; sourceTree = "<group>"; };
 		E0FE70777E0176527DEC0F56 /* BorderSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderSettingsSection.swift; sourceTree = "<group>"; };
+		E5C5768DADA6C2FBE8F5F4D6 /* LayerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerSettings.swift; sourceTree = "<group>"; };
 		E82137B3D69BAAD00A4C0172 /* SpectraWall.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpectraWall.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E852366D3D44EDBFA021DC3D /* SpectraWallApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallApp.swift; sourceTree = "<group>"; };
 		EA0A5B488982A1E1F5821A9B /* VisualizerSceneManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerSceneManager.swift; sourceTree = "<group>"; };
-		F35CB6496F09323F9C21151F /* LayerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerSettings.swift; sourceTree = "<group>"; };
 		FC62E77976195FA9C04A7BB3 /* SettingsWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -115,27 +113,11 @@
 		17DDAB516CCC8700B6C039C0 /* Visualizer */ = {
 			isa = PBXGroup;
 			children = (
-				722BE6D151A57174E0EBE2FC /* VisualizerLayer.swift */,
 				09A9B079A3F70CFB8E67B0C4 /* VisualizerScene.swift */,
 				EA0A5B488982A1E1F5821A9B /* VisualizerSceneManager.swift */,
 				560BEA8FA3ED90FDDBA60632 /* Effects */,
 			);
 			path = Visualizer;
-			sourceTree = "<group>";
-		};
-		325F5DF63AC5D39E02E2362E /* Settings */ = {
-			isa = PBXGroup;
-			children = (
-				DAB269C347EEC1B09E924A27 /* AppSettings.swift */,
-				094B0E3E2435CF80E5951036 /* BorderSettings.swift */,
-				57A931FFD507EABD55D221AA /* EffectSettings.swift */,
-				F35CB6496F09323F9C21151F /* LayerSettings.swift */,
-				BECEFD6F19DCB0263A2B8EE4 /* OrbSettings.swift */,
-				B6AA06FC0ED07E7C592B6504 /* SceneSettings.swift */,
-				A43B208EFFB448922589B380 /* SpectrumSettings.swift */,
-				9B19F175CB1C06259973DAAB /* VisualizerSettings.swift */,
-			);
-			path = Settings;
 			sourceTree = "<group>";
 		};
 		3368E90532153F28F3D78979 /* UI */ = {
@@ -182,6 +164,21 @@
 				8E72743D7A773D83695C08C6 /* SpectrumEffect.swift */,
 			);
 			path = Effects;
+			sourceTree = "<group>";
+		};
+		5B2880C82FCA13162A573D41 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				B9EC19FFA3B30267A0F97C41 /* AppSettings.swift */,
+				55367226EF0B8069F94DF810 /* BorderSettings.swift */,
+				A9B93C60F10911BC6D9A25C4 /* EffectSettings.swift */,
+				E5C5768DADA6C2FBE8F5F4D6 /* LayerSettings.swift */,
+				66F2944CB173201FA686F254 /* OrbSettings.swift */,
+				50727C140006D5CA0FFA8B2E /* SceneSettings.swift */,
+				25DD316C2B3E0E9039209DAF /* SpectrumSettings.swift */,
+				64D70F274F572EBBA149E0D8 /* VisualizerSettings.swift */,
+			);
+			path = Model;
 			sourceTree = "<group>";
 		};
 		72908CDED45398B03F79BDD2 /* SpectraWallUITests */ = {
@@ -238,7 +235,7 @@
 				89FFF9D3BF84BCE6535AA84F /* Info.plist */,
 				7ADBB4336D77981FF7111381 /* App */,
 				E750728AA859A8F01C74E243 /* Audio */,
-				325F5DF63AC5D39E02E2362E /* Settings */,
+				5B2880C82FCA13162A573D41 /* Model */,
 				3368E90532153F28F3D78979 /* UI */,
 				17DDAB516CCC8700B6C039C0 /* Visualizer */,
 			);
@@ -252,7 +249,7 @@
 				80421407137E63E07D67DAE0 /* AudioDataBus.swift */,
 				6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */,
 				BFC84C5BCACF58A512956233 /* AudioProcessMonitor.swift */,
-				08CF9534424BEE67C57F99E7 /* CoreAudioTap.swift */,
+				70275A92F27BE62D1EF9AB98 /* AudioTapManager.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -374,40 +371,39 @@
 			buildActionMask = 2147483647;
 			files = (
 				9D6BC9D736F638ADA6CACEA1 /* AppDelegate.swift in Sources */,
-				0EBC3D5A124D57CCA0F01BDC /* AppSettings.swift in Sources */,
+				E379D244C3CAE4DD85833E01 /* AppSettings.swift in Sources */,
 				3E981161AB5A1E35C6F39812 /* AppWindowManager.swift in Sources */,
 				A5E3A3405B9BF4691EFEC714 /* AudioAnalyzer.swift in Sources */,
 				5157423FC7027F0C4255DF36 /* AudioDataBus.swift in Sources */,
 				4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */,
 				4FDFED8954114E93D7A6A3F5 /* AudioProcessMonitor.swift in Sources */,
 				10C5E63FB6617ABB1DE5DC4A /* AudioSourceRow.swift in Sources */,
+				B19CC9AA447CCDEA4C9713BF /* AudioTapManager.swift in Sources */,
 				F6FAE711657F1827B5EEE363 /* BorderEffect.swift in Sources */,
-				583ED825CE509BDD1FD1DC46 /* BorderSettings.swift in Sources */,
+				1767E93E59537A567B1DED9A /* BorderSettings.swift in Sources */,
 				D718742DF5741E602A43F2BB /* BorderSettingsSection.swift in Sources */,
 				F8DBE95DD0AEB8B064601793 /* ChannelColorSettingsView.swift in Sources */,
 				3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */,
 				74660ECF8B6CE7F201E03985 /* CommonSettingsSection.swift in Sources */,
-				DD1D743EAF9FB118F35DC94E /* CoreAudioTap.swift in Sources */,
-				5B1D96051A9A440A3D35E45E /* EffectSettings.swift in Sources */,
+				68C8498DC8808B2E02530F1F /* EffectSettings.swift in Sources */,
 				E324FC441EB1446A8D5A6D13 /* GlobalSettingsView.swift in Sources */,
-				CCF9D6633179C3A1E36D6BBF /* LayerSettings.swift in Sources */,
+				C642E10836438FA38CB42B74 /* LayerSettings.swift in Sources */,
 				616E6F8ED92DA625CDA7325A /* LayerSettingsView.swift in Sources */,
 				38E876BC3348A5FC7C3FCF6D /* OrbEffect.swift in Sources */,
-				06A7302E6F876BF887BB19A1 /* OrbSettings.swift in Sources */,
+				7975A727F56D8686D759C120 /* OrbSettings.swift in Sources */,
 				A58221399614778BAD2212C2 /* OrbSettingsSection.swift in Sources */,
-				63AE2B56A8982B390D781DF1 /* SceneSettings.swift in Sources */,
+				434790673A0A2D87D51AE656 /* SceneSettings.swift in Sources */,
 				84F4B25551533C0D03FF6183 /* SectionHeader.swift in Sources */,
 				5A9AB759908AB1C5615B7FE4 /* SettingsSlider.swift in Sources */,
 				2473E24B8D10AFEAB8AE35F8 /* SettingsView.swift in Sources */,
 				80AAD8EEC42188E7F6DE0D5E /* SettingsWindowView.swift in Sources */,
 				B086D3707650CAC6C8A870D8 /* SpectraWallApp.swift in Sources */,
 				4F4DABB3B6FD4BCC8B476A33 /* SpectrumEffect.swift in Sources */,
-				A0275C3BF6E3F5F4845AF8C5 /* SpectrumSettings.swift in Sources */,
+				23DF99ABFC0FDBA92563EC9A /* SpectrumSettings.swift in Sources */,
 				D59207A6F54E1FF888EEB8D0 /* SpectrumSettingsSection.swift in Sources */,
-				82013A880843844DBE3F8020 /* VisualizerLayer.swift in Sources */,
 				7D63DD88377D234DB325DF72 /* VisualizerScene.swift in Sources */,
 				C69FE214CD41108928135210 /* VisualizerSceneManager.swift in Sources */,
-				199CA9A55A4DCA4BF15F5892 /* VisualizerSettings.swift in Sources */,
+				45AA0DA4D71C679B96C2FC99 /* VisualizerSettings.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
