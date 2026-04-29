@@ -20,7 +20,7 @@ class AudioProcessMonitor {
     var onAppsChanged: (([AudioApp]) -> Void)?
     private(set) var activeApps: [AudioApp] = []
     
-    private let logger = Logger(subsystem: "com.spectrawall.app", category: "AudioProcessMonitor")
+    private let logger = Logger(subsystem: AppConstants.bundleId, category: "AudioProcessMonitor")
     
     private var processListListenerBlock: AudioObjectPropertyListenerBlock?
     private var processListenerBlocks: [AudioObjectID: AudioObjectPropertyListenerBlock] = [:]

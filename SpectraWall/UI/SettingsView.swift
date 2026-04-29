@@ -17,8 +17,11 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("SpectraWall")
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "waveform")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Text(AppConstants.appName)
                     .font(.headline)
                 Spacer()
             }

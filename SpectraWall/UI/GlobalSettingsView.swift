@@ -13,7 +13,7 @@ struct GlobalSettingsView: View {
     @ObservedObject var visualizerSettings = VisualizerSettings.shared
     @State private var launchAtLogin: Bool = SMAppService.mainApp.status == .enabled
     
-    private let logger = Logger(subsystem: "com.spectrawall.app", category: "GlobalSettingsView")
+    private let logger = Logger(subsystem: AppConstants.bundleId, category: "GlobalSettingsView")
     
     var body: some View {
         ScrollView {

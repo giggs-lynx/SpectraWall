@@ -11,7 +11,7 @@ import os
 class AudioTapManager {
     var onAudioData: (([Float], [Float]) -> Void)?
     
-    private let logger = Logger(subsystem: "com.spectrawall.app", category: "AudioTapManager")
+    private let logger = Logger(subsystem: AppConstants.bundleId, category: "AudioTapManager")
     
     private var tapID: AudioObjectID = .unknown
     private var aggregateDeviceID: AudioObjectID = .unknown
@@ -62,8 +62,8 @@ class AudioTapManager {
 
         // 2. Create Aggregate Device
         let aggDesc: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "SpectraWallTap",
-            kAudioAggregateDeviceUIDKey: "spectrawall-\(UUID().uuidString)",
+            kAudioAggregateDeviceNameKey: "\(AppConstants.appName)Tap",
+            kAudioAggregateDeviceUIDKey: "\(AppConstants.bundleId)-\(UUID().uuidString)",
             kAudioAggregateDeviceTapListKey: [[kAudioSubTapUIDKey: tapUID.uuidString]],
             kAudioAggregateDeviceTapAutoStartKey: true,
             kAudioAggregateDeviceIsPrivateKey: true
@@ -106,8 +106,8 @@ class AudioTapManager {
         tapID = tapObjectID
         
         let aggDesc: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "SpectraWallGlobalTap",
-            kAudioAggregateDeviceUIDKey: "spectrawall-global-\(UUID().uuidString)",
+            kAudioAggregateDeviceNameKey: "\(AppConstants.appName)GlobalTap",
+            kAudioAggregateDeviceUIDKey: "\(AppConstants.bundleId)-global-\(UUID().uuidString)",
             kAudioAggregateDeviceTapListKey: [[kAudioSubTapUIDKey: tapUID.uuidString]],
             kAudioAggregateDeviceTapAutoStartKey: true,
             kAudioAggregateDeviceIsPrivateKey: true

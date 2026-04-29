@@ -10,6 +10,7 @@
 		0FA6DA1402159A4BC19E8B91 /* SpectraWallUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777E72E70C56BA7F3234CDBC /* SpectraWallUITests.swift */; };
 		10C5E63FB6617ABB1DE5DC4A /* AudioSourceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEDF0704C26481372E62FAEB /* AudioSourceRow.swift */; };
 		1767E93E59537A567B1DED9A /* BorderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55367226EF0B8069F94DF810 /* BorderSettings.swift */; };
+		189CC6BEBAF1DEAF6FC8B1C6 /* AppConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9621BF4FF27AB0283CAD7051 /* AppConstants.swift */; };
 		1D23EBC2FB69A29AF8C9E6DA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D076AA890B568E28D54BB0AB /* Assets.xcassets */; };
 		23DF99ABFC0FDBA92563EC9A /* SpectrumSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25DD316C2B3E0E9039209DAF /* SpectrumSettings.swift */; };
 		2473E24B8D10AFEAB8AE35F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C493ECCD719EE97E868F798C /* SettingsView.swift */; };
@@ -88,6 +89,7 @@
 		80421407137E63E07D67DAE0 /* AudioDataBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDataBus.swift; sourceTree = "<group>"; };
 		89FFF9D3BF84BCE6535AA84F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8E72743D7A773D83695C08C6 /* SpectrumEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumEffect.swift; sourceTree = "<group>"; };
+		9621BF4FF27AB0283CAD7051 /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
 		9C90B5502739F4165FAAB05E /* BorderEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderEffect.swift; sourceTree = "<group>"; };
 		A427A8DE5DCB8A016E5326C2 /* SpectraWallTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectraWallTests.swift; sourceTree = "<group>"; };
 		A9B93C60F10911BC6D9A25C4 /* EffectSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectSettings.swift; sourceTree = "<group>"; };
@@ -191,6 +193,7 @@
 		7ADBB4336D77981FF7111381 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				9621BF4FF27AB0283CAD7051 /* AppConstants.swift */,
 				AF0CF5B0BE7364FCF80C3C98 /* AppDelegate.swift */,
 				E852366D3D44EDBFA021DC3D /* SpectraWallApp.swift */,
 			);
@@ -367,6 +370,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				189CC6BEBAF1DEAF6FC8B1C6 /* AppConstants.swift in Sources */,
 				9D6BC9D736F638ADA6CACEA1 /* AppDelegate.swift in Sources */,
 				E379D244C3CAE4DD85833E01 /* AppSettings.swift in Sources */,
 				A5E3A3405B9BF4691EFEC714 /* AudioAnalyzer.swift in Sources */,

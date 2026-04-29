@@ -15,7 +15,7 @@ struct SpectraWallApp: App {
         Settings {
             SettingsWindowView()
                 .frame(width: 1200, height: 560)
-                .navigationTitle("SpectraWall 設定")
+                .navigationTitle(AppConstants.appName)
         }
     }
 }

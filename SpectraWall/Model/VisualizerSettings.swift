@@ -13,7 +13,7 @@ import os.log
 class VisualizerSettings: ObservableObject {
     static let shared = VisualizerSettings()
     
-    private let logger = Logger(subsystem: "com.spectrawall.app", category: "VisualizerSettings")
+    private let logger = Logger(subsystem: AppConstants.bundleId, category: "VisualizerSettings")
     
     // MARK: - Shared (Analyzer layer)
     @AppStorage("bassAttenuation") var bassAttenuation: Double = 30.0
