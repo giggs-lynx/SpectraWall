@@ -11,7 +11,7 @@ import SwiftUI
 struct SpectraWallApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
-    var body: some Scene {      
+    var body: some Scene {
         Settings {
             SettingsWindowView()
                 .navigationTitle(AppConstants.appName)

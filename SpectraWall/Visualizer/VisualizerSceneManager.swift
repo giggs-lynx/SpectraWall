@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import OSLog
 
 class VisualizerSceneManager: ObservableObject {
     static let shared = VisualizerSceneManager()
@@ -17,13 +18,15 @@ class VisualizerSceneManager: ObservableObject {
     private let scenesKey = "visualizerScenes"
     private let activeSceneKey = "activeSceneID"
     
-    // Combine cancellable for debounced saving
+    private let logger = Logger(subsystem: "com.giggs.SpectraWall", category: "Persistence")
+    
+    private let saveSubject = PassthroughSubject<Void, Never>()
     private var saveCancellable: AnyCancellable?
 
-    init() {
+    private init() {
         load()
+        setupSavePipeline()
         ensureDefaultScene()
-        setupAutoSave()
     }
 
     var activeScene: SceneSettings? {
@@ -35,6 +38,7 @@ class VisualizerSceneManager: ObservableObject {
     func addScene(name: String = "New Scene") -> SceneSettings {
         let scene = SceneSettings(name: name)
         scenes.append(scene)
+        save()
         return scene
     }
 
@@ -45,6 +49,7 @@ class VisualizerSceneManager: ObservableObject {
         } else {
             scenes.append(copy)
         }
+        save()
         return copy
     }
 
@@ -56,6 +61,8 @@ class VisualizerSceneManager: ObservableObject {
             activeSceneID = scenes.first?.id
         }
 
+        save()
+
         if scenes.isEmpty { return nil }
         let newIndex = min(index, scenes.count - 1)
         return scenes[newIndex]
@@ -63,13 +70,16 @@ class VisualizerSceneManager: ObservableObject {
 
     func setActiveScene(_ scene: SceneSettings) {
         activeSceneID = scene.id
+        save()
     }
 
     // MARK: - Layer Operations
 
+    @discardableResult
     func addLayer(to scene: SceneSettings, effectType: EffectType) -> LayerSettings {
         let layer = LayerSettings(effectType: effectType)
         scene.layers.append(layer)
+        save()
         return layer
     }
 
@@ -80,12 +90,14 @@ class VisualizerSceneManager: ObservableObject {
         } else {
             scene.layers.append(copy)
         }
+        save()
         return copy
     }
 
     func removeLayer(_ layer: LayerSettings, from scene: SceneSettings) -> LayerSettings? {
         guard let index = scene.layers.firstIndex(where: { $0.id == layer.id }) else { return nil }
         scene.layers.remove(at: index)
+        save()
 
         if scene.layers.isEmpty { return nil }
         let newIndex = min(index, scene.layers.count - 1)
@@ -94,21 +106,21 @@ class VisualizerSceneManager: ObservableObject {
 
     func moveLayer(in scene: SceneSettings, from source: IndexSet, to destination: Int) {
         scene.layers.move(fromOffsets: source, toOffset: destination)
+        save()
     }
 
     // MARK: - Persistence Logic
 
-    /// Explicitly trigger a save (can be called by UI)
     func save() {
-        // We use a debounce mechanism for efficiency,
-        // but this allows manual forced saving.
+        saveSubject.send()
+    }
+    
+    func saveImmediately() {
         performSave()
     }
 
-    private func setupAutoSave() {
-        // Observe scenes and activeSceneID, throttle to 1 second
-        // to avoid excessive disk I/O during slider adjustments.
-        saveCancellable = Publishers.CombineLatest($scenes, $activeSceneID)
+    private func setupSavePipeline() {
+        saveCancellable = saveSubject
             .debounce(for: .seconds(1.0), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 self?.performSave()
@@ -123,31 +135,33 @@ class VisualizerSceneManager: ObservableObject {
             if let activeID = activeSceneID {
                 UserDefaults.standard.set(activeID.uuidString, forKey: activeSceneKey)
             }
+            
+            logger.info("Successfully persisted scenes to UserDefaults")
         } catch {
-            print("Failed to save scenes: \(error)")
+            logger.error("Failed to encode scenes: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     func load() {
         if let data = UserDefaults.standard.data(forKey: scenesKey),
            let saved = try? JSONDecoder().decode([SceneSettings].self, from: data) {
-            scenes = saved
+            self.scenes = saved
         }
         
         if let idString = UserDefaults.standard.string(forKey: activeSceneKey),
            let id = UUID(uuidString: idString) {
-            activeSceneID = id
+            self.activeSceneID = id
         }
     }
 
     private func ensureDefaultScene() {
         if scenes.isEmpty {
-            let defaultScene = SceneSettings(name: "Scene 1")
+            let defaultScene = SceneSettings(name: "Default Scene")
             defaultScene.layers = [LayerSettings(effectType: .spectrum)]
             scenes = [defaultScene]
             activeSceneID = defaultScene.id
-            performSave()
-        } else if activeSceneID == nil {
+            saveImmediately()
+        } else if activeSceneID == nil || activeScene == nil {
             activeSceneID = scenes.first?.id
         }
     }

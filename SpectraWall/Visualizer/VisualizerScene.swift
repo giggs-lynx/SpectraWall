@@ -50,7 +50,7 @@ class VisualizerScene: SKScene {
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self, weak layer] _ in
                     guard let self = self, let layer = layer else { return }
-                    self.effectNodes[layer.id]?.isHidden = !layer.isVisible
+                    self.updateNodeVisuals(for: layer)
                 }
                 .store(in: &perLayerCancellables)
         }
@@ -61,6 +61,7 @@ class VisualizerScene: SKScene {
     private func reloadActiveScene() {
         effectNodes.values.forEach { $0.removeFromParent() }
         effectNodes.removeAll()
+        perLayerCancellables.removeAll()
 
         guard let scene = VisualizerSceneManager.shared.activeScene else {
             currentSceneID = nil
@@ -70,11 +71,7 @@ class VisualizerScene: SKScene {
         currentSceneID = scene.id
 
         // Initial setup
-        for (index, layer) in scene.layers.enumerated() {
-            addEffectNode(for: layer, zPosition: CGFloat(index))
-        }
-
-        observeLayerProperties(scene.layers)
+        syncActiveSceneLayers()
 
         // Observe internal layer list changes (Add/Remove/Move)
         scene.$layers
@@ -113,8 +110,18 @@ class VisualizerScene: SKScene {
             
             // Sync dynamic properties
             node.zPosition = CGFloat(index)
-            node.isHidden = !layer.isVisible
+            updateNodeVisuals(for: layer)
         }
+    }
+
+    private func updateNodeVisuals(for layer: LayerSettings) {
+        guard let node = effectNodes[layer.id] else { return }
+        node.isHidden = !layer.isVisible
+        node.alpha = CGFloat(layer.opacity)
+        node.position = CGPoint(
+            x: size.width * CGFloat(layer.positionX),
+            y: size.height * CGFloat(layer.positionY)
+        )
     }
 
     // MARK: - Node Factory
@@ -122,7 +129,7 @@ class VisualizerScene: SKScene {
     private func addEffectNode(for layer: LayerSettings, zPosition: CGFloat) {
         let node = createNode(for: layer)
         node.zPosition = zPosition
-        node.isHidden = !layer.isVisible
+        updateNodeVisuals(for: layer)
         addChild(node)
         effectNodes[layer.id] = node
     }

@@ -89,7 +89,7 @@ struct SpectrumSettingsSection: View {
     // MARK: - Helper Functions
 
     private func applyAnchorPosition(_ anchor: SpectrumAnchor) {
-        // 將座標邏輯封裝，保持 onChange 簡潔
+        // Encapsulate coordinate logic to keep onChange clean
         switch anchor {
         case .bottom:
             layer.positionX = 0.5

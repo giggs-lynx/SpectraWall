@@ -19,6 +19,7 @@ struct CommonSettingsSection: View {
         SectionHeader(title: "General")
         
         VStack(spacing: 10) {
+            // MARK: - Audio Configuration
             Picker("Channel", selection: $channelMode) {
                 ForEach(ChannelMode.allCases, id: \.self) { mode in
                     Text(mode.localized).tag(mode)
@@ -26,6 +27,9 @@ struct CommonSettingsSection: View {
             }
             .pickerStyle(.segmented)
 
+            Divider()
+
+            // MARK: - Transform & Opacity
             SettingsSlider(label: "Opacity", value: $opacity, range: 0.0...1.0, step: 0.05)
             SettingsSlider(label: "Position X", value: $positionX, range: 0.0...1.0, step: 0.01)
             SettingsSlider(label: "Position Y", value: $positionY, range: 0.0...1.0, step: 0.01)
@@ -38,17 +42,22 @@ struct CommonSettingsSection: View {
             positionX = layer.positionX
             positionY = layer.positionY
         }
+        // MARK: - State Sync & Persistence
         .onChange(of: channelMode) { _, newValue in
             layer.channelMode = newValue
+            VisualizerSceneManager.shared.save()
         }
         .onChange(of: opacity) { _, newValue in
             layer.opacity = newValue
+            VisualizerSceneManager.shared.save()
         }
         .onChange(of: positionX) { _, newValue in
             layer.positionX = newValue
+            VisualizerSceneManager.shared.save()
         }
         .onChange(of: positionY) { _, newValue in
             layer.positionY = newValue
+            VisualizerSceneManager.shared.save()
         }
     }
 }

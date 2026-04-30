@@ -13,12 +13,17 @@ struct OrbSettingsSection: View {
 
     var body: some View {
         SectionHeader(title: "Orb")
+        
         VStack(spacing: 10) {
+            // MARK: - Audio Dynamics
             SettingsSlider(label: "Sensitivity", value: $settings.boost, range: 1.0...6.0, step: 0.1)
             SettingsSlider(label: "Attack", value: $settings.attack, range: 0.3...1.0, step: 0.05)
             SettingsSlider(label: "Release", value: $settings.release, range: 0.1...0.5, step: 0.05)
-            SettingsSlider(label: "Base Radius", value: $settings.baseRadius, range: 40...300, step: 5)
             
+            Divider()
+            
+            // MARK: - Geometric Settings
+            SettingsSlider(label: "Base Radius", value: $settings.baseRadius, range: 40...300, step: 5)
             SettingsSlider(
                 label: "Outer Radius Multiplier",
                 value: $settings.outerRadiusMultiplier,
@@ -28,12 +33,14 @@ struct OrbSettingsSection: View {
 
             Divider()
 
+            // MARK: - Appearance: Inner
             SectionHeader(title: "Inner Color")
             ColorPickerRow(label: "Low Frequency", colorData: $settings.innerColorLow)
             ColorPickerRow(label: "High Frequency", colorData: $settings.innerColorHigh)
 
             Divider()
 
+            // MARK: - Appearance: Outer
             SectionHeader(title: "Outer Color")
             ColorPickerRow(label: "Low Frequency", colorData: $settings.outerColorLow)
             ColorPickerRow(label: "High Frequency", colorData: $settings.outerColorHigh)
