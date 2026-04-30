@@ -11,6 +11,16 @@ options:
     ogl:
       buildPhase: sources
 
+schemes:
+  SpectraWall:
+    build:
+      targets:
+        SpectraWall: all
+    test:
+      targets:
+        - SpectraWallTests
+        - SpectraWallUITests
+
 settings:
   base:
     SWIFT_VERSION: "5.0"
