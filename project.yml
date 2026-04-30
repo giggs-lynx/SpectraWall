@@ -38,6 +38,7 @@ targets:
     postCompileScripts:
       - name: SwiftLint
         shell: /bin/bash
+        basedOnDependencyAnalysis: false
         script: |
           if test -d "/opt/homebrew/bin/"; then
             PATH="/opt/homebrew/bin/:${PATH}"
