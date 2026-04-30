@@ -37,8 +37,8 @@ struct CommonSettingsSection: View {
             positionY = layer.positionY
         }
         .onChange(of: channelMode) { _, v in layer.channelMode = v }
-        .onChange(of: opacity)     { _, v in layer.opacity = v }
-        .onChange(of: positionX)   { _, v in layer.positionX = v }
-        .onChange(of: positionY)   { _, v in layer.positionY = v }
+        .onChange(of: opacity) { _, v in layer.opacity = v }
+        .onChange(of: positionX) { _, v in layer.positionX = v }
+        .onChange(of: positionY) { _, v in layer.positionY = v }
     }
 }

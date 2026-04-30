@@ -10,8 +10,8 @@ import ServiceManagement
 
 struct SettingsWindowView: View {
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
-    @State private var selectedSceneID: UUID? = nil
-    @State private var selectedLayerID: UUID? = nil
+    @State private var selectedSceneID: UUID?
+    @State private var selectedLayerID: UUID?
     
     let globalID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
     
@@ -95,7 +95,7 @@ struct SceneListColumn: View {
     @Binding var selectedLayerID: UUID?
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
     @State private var showDeleteConfirm = false
-    @State private var sceneToDelete: SceneSettings? = nil
+    @State private var sceneToDelete: SceneSettings?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -232,7 +232,7 @@ struct EffectListColumn: View {
     @ObservedObject var scene: SceneSettings
     @Binding var selectedLayerID: UUID?
     @State private var showDeleteConfirm = false
-    @State private var layerToDelete: LayerSettings? = nil
+    @State private var layerToDelete: LayerSettings?
 
     var body: some View {
         VStack(spacing: 0) {

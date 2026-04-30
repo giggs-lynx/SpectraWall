@@ -60,7 +60,7 @@ extension AudioObjectID {
             mElement: kAudioObjectPropertyElementMain
         )
         
-        var unmanagedString: Unmanaged<CFString>? = nil
+        var unmanagedString: Unmanaged<CFString>?
         var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         let err = withUnsafeMutablePointer(to: &unmanagedString) { pointer in
             AudioObjectGetPropertyData(self, &address, 0, nil, &size, pointer)

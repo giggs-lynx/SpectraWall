@@ -31,5 +31,5 @@ class AppSettings: ObservableObject {
     
     @Published var audioSource: AudioSource = .global
     @Published var activeApps: [AudioApp] = []
-    @Published var lastSelectedApp: AudioApp? = nil
+    @Published var lastSelectedApp: AudioApp?
 }

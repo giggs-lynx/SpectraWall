@@ -10,8 +10,8 @@ import SwiftUI
 struct PopoverView: View {
     @ObservedObject var settings = AppSettings.shared
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
-    @State private var sceneHoveredID: UUID? = nil
-    @State private var footerHovered: String? = nil
+    @State private var sceneHoveredID: UUID?
+    @State private var footerHovered: String?
     
     @Environment(\.openSettings) private var openSettings
 

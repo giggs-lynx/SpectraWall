@@ -27,7 +27,7 @@ class BorderEffect: SKNode {
     private var lastUpdateTime: TimeInterval = 0
     private var perimeterLength: CGFloat = 0
 
-    private var segmentCache: [BorderSegment]? = nil
+    private var segmentCache: [BorderSegment]?
     private var cachedSceneSize: CGSize = .zero
     private var cachedCornerRadius: Double = -1
 
