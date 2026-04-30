@@ -7,57 +7,7 @@
 
 import SwiftUI
 import Combine
-
-struct ColorData: Codable, Equatable {
-    var red: Double
-    var green: Double
-    var blue: Double
-    var alpha: Double
-
-    init(_ color: NSColor) {
-        let c = color.usingColorSpace(.deviceRGB) ?? color
-        red = c.redComponent
-        green = c.greenComponent
-        blue = c.blueComponent
-        alpha = c.alphaComponent
-    }
-
-    init(red: Double, green: Double, blue: Double, alpha: Double = 1.0) {
-        self.red = red
-        self.green = green
-        self.blue = blue
-        self.alpha = alpha
-    }
-
-    var nsColor: NSColor {
-        NSColor(red: red, green: green, blue: blue, alpha: alpha)
-    }
-
-    var color: Color {
-        Color(nsColor)
-    }
-}
-
-enum ChannelColorMode: String, Codable, CaseIterable {
-    case rainbow = "rainbow"
-    case gradient = "gradient"
-    case solid = "solid"
-
-    var localized: LocalizedStringResource {
-        switch self {
-        case .rainbow:  return "Rainbow"
-        case .gradient: return "Gradient"
-        case .solid:    return "Solid"
-        }
-    }
-}
-
-struct ChannelColorSettings: Codable, Equatable {
-    var colorMode: ChannelColorMode = .rainbow
-    var gradientColorLow: ColorData = ColorData(red: 0.0, green: 0.4, blue: 1.0)
-    var gradientColorHigh: ColorData = ColorData(red: 1.0, green: 0.2, blue: 0.8)
-    var solidColor: ColorData = ColorData(red: 1.0, green: 1.0, blue: 1.0)
-}
+import Foundation
 
 enum EffectType: String, Codable, CaseIterable {
     case spectrum = "Spectrum"
@@ -74,29 +24,13 @@ enum ChannelMode: String, Codable, CaseIterable {
     case left = "left"
     case right = "right"
     case mono = "mono"
-
+    
     var localized: LocalizedStringResource {
         switch self {
         case .stereo: return "Stereo"
         case .left:   return "Left Channel"
         case .right:  return "Right Channel"
         case .mono:   return "Mono"
-        }
-    }
-}
-
-enum SpectrumAnchor: String, Codable, CaseIterable {
-    case bottom = "bottom"
-    case top = "top"
-    case left = "left"
-    case right = "right"
-
-    var localized: LocalizedStringResource {
-        switch self {
-        case .bottom: return "Bottom"
-        case .top:    return "Top"
-        case .left:   return "Left"
-        case .right:  return "Right"
         }
     }
 }

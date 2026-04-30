@@ -5,7 +5,6 @@
 //  Created by Giggs Lynx on 2026/4/25.
 //
 
-// SpectraWall/Audio/AudioAnalyzer.swift
 import Accelerate
 
 class AudioAnalyzer {

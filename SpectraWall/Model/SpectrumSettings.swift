@@ -7,6 +7,22 @@
 
 import Foundation
 
+enum SpectrumAnchor: String, Codable, CaseIterable {
+    case bottom = "bottom"
+    case top = "top"
+    case left = "left"
+    case right = "right"
+
+    var localized: LocalizedStringResource {
+        switch self {
+        case .bottom: return "Bottom"
+        case .top:    return "Top"
+        case .left:   return "Left"
+        case .right:  return "Right"
+        }
+    }
+}
+
 struct SpectrumSettings: EffectSettings, Equatable {
     var gain: Double
     var powerCurve: Double
