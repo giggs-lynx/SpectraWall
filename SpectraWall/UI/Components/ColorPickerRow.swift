@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ColorPickerRow: View {
-    let label: String
+    let label: LocalizedStringKey
     @Binding var colorData: ColorData
 
     var body: some View {

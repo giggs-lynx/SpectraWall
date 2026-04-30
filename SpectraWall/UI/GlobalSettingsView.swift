@@ -20,7 +20,7 @@ struct GlobalSettingsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 SectionHeader(title: "System")
                 VStack(spacing: 10) {
-                    Toggle("Launch at login", isOn: $launchAtLogin)
+                    Toggle("Launch at Login", isOn: $launchAtLogin)
                         .onChange(of: launchAtLogin) {
                             do {
                                 if launchAtLogin {
@@ -40,10 +40,10 @@ struct GlobalSettingsView: View {
 
                 Divider()
                 
-                SectionHeader(title: "音訊分析")
+                SectionHeader(title: "Audio")
                 VStack(spacing: 10) {
                     SettingsSlider(
-                        label: "低頻壓制",
+                        label: "Bass Suppression",
                         value: $visualizerSettings.bassAttenuation,
                         range: 0...40,
                         step: 1
@@ -56,7 +56,7 @@ struct GlobalSettingsView: View {
 
                 HStack {
                     Spacer()
-                    Button("恢復預設值") {
+                    Button("Reset to Defaults") {
                         visualizerSettings.resetToDefaults()
                     }
                     .foregroundColor(.secondary)

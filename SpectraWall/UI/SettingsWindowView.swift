@@ -43,7 +43,7 @@ struct SettingsWindowView: View {
             } else {
                 VStack {
                     Spacer()
-                    Text("選擇一個場景")
+                    Text("No Scene Selected")
                         .foregroundColor(.secondary)
                         .font(.caption)
                     Spacer()
@@ -62,7 +62,7 @@ struct SettingsWindowView: View {
             } else if selectedScene != nil {
                 VStack {
                     Spacer()
-                    Text("按 + 新增一個 Effect")
+                    Text("Click + to add an effect")
                         .foregroundColor(.secondary)
                         .font(.caption)
                     Spacer()
@@ -71,7 +71,7 @@ struct SettingsWindowView: View {
             } else {
                 VStack {
                     Spacer()
-                    Text("選擇一個場景來編輯")
+                    Text("No Scene Selected")
                         .foregroundColor(.secondary)
                         .font(.caption)
                     Spacer()
@@ -105,7 +105,7 @@ struct SceneListColumn: View {
                     Image(systemName: "slider.horizontal.3")
                         .foregroundColor(.secondary)
                         .frame(width: 16)
-                    Text("全局設定")
+                    Text("General")
                 }
                 .padding(.vertical, 2)
                 .tag(globalID)
@@ -131,7 +131,7 @@ struct SceneListColumn: View {
                     }
                 } header: {
                     HStack {
-                        Text("場景")
+                        Text("Scenes")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.secondary)
                         Spacer()
@@ -155,17 +155,17 @@ struct SceneListColumn: View {
             }
         }
         .confirmationDialog(
-            "確定要刪除「\(sceneToDelete?.name ?? "")」嗎？",
+            "Are you sure you want to delete \"\(sceneToDelete?.name ?? "")\"?",
             isPresented: $showDeleteConfirm
         ) {
-            Button("刪除", role: .destructive) {
+            Button("Delete", role: .destructive) {
                 if let scene = sceneToDelete {
                     let next = sceneManager.removeScene(scene)
                     selectedSceneID = next?.id ?? globalID
                     selectedLayerID = nil
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
     }
 }
@@ -205,10 +205,10 @@ struct SceneRow: View {
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("重新命名") { startEditing() }
-            Button("複製") { onDuplicate() }
+            Button("Rename") { startEditing() }
+            Button("Duplicate") { onDuplicate() }
             Divider()
-            Button("刪除", role: .destructive) { onDelete() }
+            Button("Delete", role: .destructive) { onDelete() }
         }
     }
     
@@ -284,16 +284,16 @@ struct EffectListColumn: View {
             .listStyle(.sidebar)
         }
         .confirmationDialog(
-            "確定要刪除「\(layerToDelete?.name ?? "")」嗎？",
+            "Are you sure you want to delete \"\(layerToDelete?.name ?? "")\"?",
             isPresented: $showDeleteConfirm
         ) {
-            Button("刪除", role: .destructive) {
+            Button("Delete", role: .destructive) {
                 if let layer = layerToDelete {
                     let next = VisualizerSceneManager.shared.removeLayer(layer, from: scene)
                     selectedLayerID = next?.id
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
     }
 }
@@ -344,10 +344,10 @@ struct EffectRow: View {
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("重新命名") { startEditing() }
-            Button("複製") { onDuplicate() }
+            Button("Rename") { startEditing() }
+            Button("Duplicate") { onDuplicate() }
             Divider()
-            Button("刪除", role: .destructive) { onDelete() }
+            Button("Delete", role: .destructive) { onDelete() }
         }
     }
     

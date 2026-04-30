@@ -16,6 +16,7 @@
 		2473E24B8D10AFEAB8AE35F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C493ECCD719EE97E868F798C /* SettingsView.swift */; };
 		3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */; };
 		38E876BC3348A5FC7C3FCF6D /* OrbEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */; };
+		3DF4F37D2FA30E7B00CF0214 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 3DF4F37C2FA30E7B00CF0214 /* Localizable.xcstrings */; };
 		434790673A0A2D87D51AE656 /* SceneSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50727C140006D5CA0FFA8B2E /* SceneSettings.swift */; };
 		45AA0DA4D71C679B96C2FC99 /* VisualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D70F274F572EBBA149E0D8 /* VisualizerSettings.swift */; };
 		4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */; };
@@ -73,6 +74,7 @@
 		164A2CF78B7696D252577EE0 /* AudioAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAnalyzer.swift; sourceTree = "<group>"; };
 		1C21F8B8BFA2A3C35DC9610F /* SettingsSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSlider.swift; sourceTree = "<group>"; };
 		25DD316C2B3E0E9039209DAF /* SpectrumSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettings.swift; sourceTree = "<group>"; };
+		3DF4F37C2FA30E7B00CF0214 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		497BA89A08FD7D95FDB0D6C5 /* LayerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerSettingsView.swift; sourceTree = "<group>"; };
 		50727C140006D5CA0FFA8B2E /* SceneSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSettings.swift; sourceTree = "<group>"; };
 		5343DED5166E7273A786FB4B /* CommonSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonSettingsSection.swift; sourceTree = "<group>"; };
@@ -238,6 +240,7 @@
 				5B2880C82FCA13162A573D41 /* Model */,
 				3368E90532153F28F3D78979 /* UI */,
 				17DDAB516CCC8700B6C039C0 /* Visualizer */,
+				3DF4F37C2FA30E7B00CF0214 /* Localizable.xcstrings */,
 			);
 			path = SpectraWall;
 			sourceTree = "<group>";
@@ -351,6 +354,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3DF4F37D2FA30E7B00CF0214 /* Localizable.xcstrings in Resources */,
 				1D23EBC2FB69A29AF8C9E6DA /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -485,6 +489,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
 			};
@@ -682,6 +687,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};

@@ -14,8 +14,8 @@ struct LayerSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                SectionHeader(title: "名稱")
-                TextField("Layer 名稱", text: $layer.name)
+                SectionHeader(title: "Name")
+                TextField("Layer Name", text: $layer.name)
                     .textFieldStyle(.roundedBorder)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
@@ -45,13 +45,13 @@ struct LayerSettingsView: View {
                 Divider()
 
                 HStack {
-                    Button("刪除此 Layer") {
+                    Button("Delete Layer") {
                         showDeleteConfirm = true
                     }
                     .foregroundColor(.red)
                     .padding(.leading, 20)
                     Spacer()
-                    Button("恢復預設值") {
+                    Button("Reset to Defaults") {
                         layer.resetToDefaults()
                         VisualizerSceneManager.shared.save()
                     }
@@ -62,15 +62,15 @@ struct LayerSettingsView: View {
             }
         }
         .id(layer.id)
-        .confirmationDialog("確定要刪除「\(layer.name)」嗎？", isPresented: $showDeleteConfirm) {
-            Button("刪除", role: .destructive) {
+        .confirmationDialog("Are you sure you want to delete \"\(layer.name)\"?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) {
                 if let scene = VisualizerSceneManager.shared.scenes.first(where: {
                     $0.layers.contains(where: { $0.id == layer.id })
                 }) {
                     _ = VisualizerSceneManager.shared.removeLayer(layer, from: scene)
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
     }
 }

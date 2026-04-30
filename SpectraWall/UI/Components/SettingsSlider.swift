@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SettingsSlider: View {
-    let label: String
+    let label: LocalizedStringKey
     @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double

@@ -14,9 +14,9 @@ struct SpectrumSettingsSection: View {
     var body: some View {
         SectionHeader(title: "Spectrum")
         VStack(spacing: 10) {
-            Picker("貼邊方向", selection: $settings.anchor) {
+            Picker("Anchor", selection: $settings.anchor) {
                 ForEach(SpectrumAnchor.allCases, id: \.self) { anchor in
-                    Text(anchor.rawValue).tag(anchor)
+                    Text(anchor.localized).tag(anchor)
                 }
             }
             .pickerStyle(.segmented)
@@ -38,24 +38,24 @@ struct SpectrumSettingsSection: View {
                 VisualizerSceneManager.shared.save()
             }
 
-            SettingsSlider(label: "高度", value: $settings.gain, range: 0.5...3.0, step: 0.1)
-            SettingsSlider(label: "高度上限", value: $settings.maxHeight, range: 0.1...1.0, step: 0.05)
-            SettingsSlider(label: "寬度", value: $settings.width, range: 0.1...1.0, step: 0.05)
-            SettingsSlider(label: "差異化", value: $settings.powerCurve, range: 1.0...3.0, step: 0.1)
-            SettingsSlider(label: "反應速度", value: $settings.attack, range: 0.5...1.0, step: 0.05)
-            SettingsSlider(label: "衰減速度", value: $settings.release, range: 0.1...0.5, step: 0.05)
+            SettingsSlider(label: "Height", value: $settings.gain, range: 0.5...3.0, step: 0.1)
+            SettingsSlider(label: "Max Height", value: $settings.maxHeight, range: 0.1...1.0, step: 0.05)
+            SettingsSlider(label: "Width", value: $settings.width, range: 0.1...1.0, step: 0.05)
+            SettingsSlider(label: "Dynamics", value: $settings.powerCurve, range: 1.0...3.0, step: 0.1)
+            SettingsSlider(label: "Attack", value: $settings.attack, range: 0.5...1.0, step: 0.05)
+            SettingsSlider(label: "Release", value: $settings.release, range: 0.1...0.5, step: 0.05)
 
             Divider()
 
             if layer.channelMode == .stereo {
-                Toggle("左右聲道同步顏色", isOn: $settings.colorSync)
+                Toggle("Sync Colors", isOn: $settings.colorSync)
 
                 if settings.colorSync {
                     ChannelColorSettingsView(colorSettings: $settings.colorSettings)
                 } else {
-                    SectionHeader(title: "左聲道")
+                    SectionHeader(title: "Left Channel")
                     ChannelColorSettingsView(colorSettings: $settings.leftColorSettings)
-                    SectionHeader(title: "右聲道")
+                    SectionHeader(title: "Right Channel")
                     ChannelColorSettingsView(colorSettings: $settings.rightColorSettings)
                 }
             } else {

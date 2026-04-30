@@ -25,7 +25,7 @@ struct AudioSourceRow: View {
                     .foregroundColor(isDisabled ? .secondary : .primary)
                 Spacer()
                 if isDisabled {
-                    Text("無音訊")
+                    Text("Inactive")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

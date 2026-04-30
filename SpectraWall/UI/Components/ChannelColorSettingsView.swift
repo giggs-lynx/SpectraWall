@@ -11,9 +11,9 @@ struct ChannelColorSettingsView: View {
     @Binding var colorSettings: ChannelColorSettings
 
     var body: some View {
-        Picker("顏色模式", selection: $colorSettings.colorMode) {
+        Picker("Color Mode", selection: $colorSettings.colorMode) {
             ForEach(ChannelColorMode.allCases, id: \.self) { mode in
-                Text(mode.rawValue).tag(mode)
+                Text(mode.localized).tag(mode)
             }
         }
         .pickerStyle(.segmented)
@@ -22,10 +22,10 @@ struct ChannelColorSettingsView: View {
         case .rainbow:
             EmptyView()
         case .gradient:
-            ColorPickerRow(label: "起始色", colorData: $colorSettings.gradientColorLow)
-            ColorPickerRow(label: "結束色", colorData: $colorSettings.gradientColorHigh)
+            ColorPickerRow(label: "Start Color", colorData: $colorSettings.gradientColorLow)
+            ColorPickerRow(label: "End Color", colorData: $colorSettings.gradientColorHigh)
         case .solid:
-            ColorPickerRow(label: "顏色", colorData: $colorSettings.solidColor)
+            ColorPickerRow(label: "Color", colorData: $colorSettings.solidColor)
         }
     }
 }

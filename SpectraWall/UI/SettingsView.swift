@@ -30,11 +30,11 @@ struct PopoverView: View {
 
             Divider()
 
-            SectionHeader(title: "音訊來源")
+            SectionHeader(title: "Audio Source")
 
             VStack(alignment: .leading, spacing: 6) {
                 AudioSourceRow(
-                    title: "Global（所有音訊）",
+                    title: String(localized: "System Audio"),
                     isSelected: settings.audioSource == .global,
                     isDisabled: false
                 ) {
@@ -65,7 +65,7 @@ struct PopoverView: View {
 
             Divider()
 
-            SectionHeader(title: "場景")
+            SectionHeader(title: "Scenes")
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(sceneManager.scenes) { scene in
@@ -104,7 +104,7 @@ struct PopoverView: View {
                     Image(systemName: "gearshape")
                         .foregroundColor(.secondary)
                         .frame(width: 16)
-                    Text("設定")
+                    Text("Settings")
                         .foregroundColor(.primary)
                     Spacer()
                 }
@@ -127,7 +127,7 @@ struct PopoverView: View {
                     Image(systemName: "power")
                         .foregroundColor(.secondary)
                         .frame(width: 16)
-                    Text("結束 SpectraWall")
+                    Text("Quit SpectraWall")
                         .foregroundColor(.primary)
                     Spacer()
                 }

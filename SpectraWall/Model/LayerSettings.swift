@@ -39,9 +39,17 @@ struct ColorData: Codable, Equatable {
 }
 
 enum ChannelColorMode: String, Codable, CaseIterable {
-    case rainbow = "彩虹漸層"
-    case gradient = "自訂漸層"
-    case solid = "單色"
+    case rainbow = "rainbow"
+    case gradient = "gradient"
+    case solid = "solid"
+
+    var localized: LocalizedStringResource {
+        switch self {
+        case .rainbow:  return "Rainbow"
+        case .gradient: return "Gradient"
+        case .solid:    return "Solid"
+        }
+    }
 }
 
 struct ChannelColorSettings: Codable, Equatable {
@@ -55,20 +63,42 @@ enum EffectType: String, Codable, CaseIterable {
     case spectrum = "Spectrum"
     case orb = "Orb"
     case border = "Border"
+    
+    var localized: LocalizedStringResource {
+        LocalizedStringResource(stringLiteral: rawValue)
+    }
 }
 
 enum ChannelMode: String, Codable, CaseIterable {
-    case stereo = "立體聲"
-    case left = "左聲道"
-    case right = "右聲道"
-    case mono = "單聲道（混音）"
+    case stereo = "stereo"
+    case left = "left"
+    case right = "right"
+    case mono = "mono"
+
+    var localized: LocalizedStringResource {
+        switch self {
+        case .stereo: return "Stereo"
+        case .left:   return "Left Channel"
+        case .right:  return "Right Channel"
+        case .mono:   return "Mono"
+        }
+    }
 }
 
 enum SpectrumAnchor: String, Codable, CaseIterable {
-    case bottom = "下"
-    case top = "上"
-    case left = "左"
-    case right = "右"
+    case bottom = "bottom"
+    case top = "top"
+    case left = "left"
+    case right = "right"
+
+    var localized: LocalizedStringResource {
+        switch self {
+        case .bottom: return "Bottom"
+        case .top:    return "Top"
+        case .left:   return "Left"
+        case .right:  return "Right"
+        }
+    }
 }
 
 class LayerSettings: ObservableObject, Identifiable {
@@ -95,7 +125,7 @@ class LayerSettings: ObservableObject, Identifiable {
     }
 
     convenience init(copying source: LayerSettings) {
-        self.init(effectType: source.effectType, name: source.name + " 副本")
+        self.init(effectType: source.effectType, name: source.name + " Copy")
         self.isVisible = source.isVisible
         self.channelMode = source.channelMode
         self.positionX = source.positionX

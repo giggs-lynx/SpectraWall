@@ -14,24 +14,24 @@ struct OrbSettingsSection: View {
     var body: some View {
         SectionHeader(title: "Orb")
         VStack(spacing: 10) {
-            SettingsSlider(label: "靈敏度", value: $settings.boost, range: 1.0...6.0, step: 0.1)
-            SettingsSlider(label: "反應速度", value: $settings.attack, range: 0.3...1.0, step: 0.05)
-            SettingsSlider(label: "衰減速度", value: $settings.release, range: 0.1...0.5, step: 0.05)
-            SettingsSlider(label: "基礎半徑", value: $settings.baseRadius, range: 40...300, step: 5)
-            SettingsSlider(label: "外圈倍數", value: $settings.outerRadiusMultiplier, range: 1.0...3.0, step: 0.1)
+            SettingsSlider(label: "Sensitivity", value: $settings.boost, range: 1.0...6.0, step: 0.1)
+            SettingsSlider(label: "Attack", value: $settings.attack, range: 0.3...1.0, step: 0.05)
+            SettingsSlider(label: "Release", value: $settings.release, range: 0.1...0.5, step: 0.05)
+            SettingsSlider(label: "Base Radius", value: $settings.baseRadius, range: 40...300, step: 5)
+            SettingsSlider(label: "Outer Radius Multiplier", value: $settings.outerRadiusMultiplier, range: 1.0...3.0, step: 0.1)
 
             Divider()
 
-            SectionHeader(title: "內圈顏色")
-            ColorPickerRow(label: "低頻色", colorData: $settings.innerColorLow)
-            ColorPickerRow(label: "高頻色", colorData: $settings.innerColorHigh)
+            SectionHeader(title: "Inner Color")
+            ColorPickerRow(label: "Low Frequency", colorData: $settings.innerColorLow)
+            ColorPickerRow(label: "High Frequency", colorData: $settings.innerColorHigh)
 
             Divider()
 
-            SectionHeader(title: "外圈顏色")
-            ColorPickerRow(label: "低頻色", colorData: $settings.outerColorLow)
-            ColorPickerRow(label: "高頻色", colorData: $settings.outerColorHigh)
-            SettingsSlider(label: "外圈透明度", value: $settings.outerOpacity, range: 0.0...1.0, step: 0.05)
+            SectionHeader(title: "Outer Color")
+            ColorPickerRow(label: "Low Frequency", colorData: $settings.outerColorLow)
+            ColorPickerRow(label: "High Frequency", colorData: $settings.outerColorHigh)
+            SettingsSlider(label: "Outer Opacity", value: $settings.outerOpacity, range: 0.0...1.0, step: 0.05)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)

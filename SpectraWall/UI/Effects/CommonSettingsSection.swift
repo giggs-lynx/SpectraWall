@@ -15,18 +15,18 @@ struct CommonSettingsSection: View {
     @State private var positionY: Double = 0.0
 
     var body: some View {
-        SectionHeader(title: "共用設定")
+        SectionHeader(title: "General")
         VStack(spacing: 10) {
-            Picker("聲道", selection: $channelMode) {
+            Picker("Channel", selection: $channelMode) {
                 ForEach(ChannelMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
+                    Text(mode.localized).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
 
-            SettingsSlider(label: "透明度", value: $opacity, range: 0.0...1.0, step: 0.05)
-            SettingsSlider(label: "位置 X", value: $positionX, range: 0.0...1.0, step: 0.01)
-            SettingsSlider(label: "位置 Y", value: $positionY, range: 0.0...1.0, step: 0.01)
+            SettingsSlider(label: "Opacity", value: $opacity, range: 0.0...1.0, step: 0.05)
+            SettingsSlider(label: "Position X", value: $positionX, range: 0.0...1.0, step: 0.01)
+            SettingsSlider(label: "Position Y", value: $positionY, range: 0.0...1.0, step: 0.01)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
