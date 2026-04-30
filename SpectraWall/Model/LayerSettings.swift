@@ -9,8 +9,6 @@ import SwiftUI
 import Combine
 import Foundation
 
-// MARK: - Types
-
 enum EffectType: String, Codable, CaseIterable {
     case spectrum = "Spectrum"
     case orb = "Orb"
@@ -56,8 +54,6 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
         case effectType, effectSettings
     }
 
-    // MARK: - Initialization
-
     init(effectType: EffectType = .spectrum, name: String? = nil) {
         self.id = UUID()
         self.effectType = effectType
@@ -80,8 +76,6 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
         self.effectSettings = source.effectSettings
     }
     
-    // MARK: Decodable (Must be in class body)
-
     required convenience init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let effectType = try container.decode(EffectType.self, forKey: .effectType)
@@ -106,8 +100,6 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
         }
     }
 
-    // MARK: - Methods
-
     static func defaultSettings(for effectType: EffectType) -> any EffectSettings {
         switch effectType {
         case .spectrum: return SpectrumSettings.defaults
@@ -124,8 +116,6 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
         opacity = 1.0
         effectSettings.resetToDefaults()
     }
-    
-    // MARK: Encodable
     
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)

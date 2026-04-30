@@ -13,13 +13,9 @@ class SceneSettings: ObservableObject, Codable, Identifiable {
     @Published var name: String
     @Published var layers: [LayerSettings]
 
-    // MARK: - CodingKeys
-
     enum CodingKeys: String, CodingKey {
         case id, name, layers
     }
-
-    // MARK: - Initialization
 
     init(name: String = "Scene") {
         self.id = UUID()
@@ -32,16 +28,12 @@ class SceneSettings: ObservableObject, Codable, Identifiable {
         self.layers = source.layers.map { LayerSettings(copying: $0) }
     }
 
-    // MARK: - Codable (Decodable must be in class body)
-
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.layers = try container.decode([LayerSettings].self, forKey: .layers)
     }
-
-    // MARK: - Encodable
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)

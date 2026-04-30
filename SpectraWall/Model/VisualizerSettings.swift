@@ -15,10 +15,10 @@ class VisualizerSettings: ObservableObject {
     
     private let logger = Logger(subsystem: AppConstants.bundleId, category: "VisualizerSettings")
     
-    // MARK: - Shared (Analyzer layer)
     @AppStorage("bassAttenuation") var bassAttenuation: Double = 30.0
     
-    // MARK: - Reset
+    private init() {}
+
     func resetToDefaults() {
         bassAttenuation = 30.0
     }
@@ -36,8 +36,9 @@ extension VisualizerSettings {
                 } else {
                     try SMAppService.mainApp.unregister()
                 }
+                objectWillChange.send()
             } catch {
-                logger.error("LaunchAtLogin error: \(error)")
+                logger.error("LaunchAtLogin error: \(error.localizedDescription)")
             }
         }
     }

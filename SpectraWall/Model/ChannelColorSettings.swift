@@ -17,7 +17,6 @@ struct ColorData: Codable, Equatable {
     var alpha: Double
 
     init(_ color: NSColor) {
-        // 使用更具語意化的變數名 'convertedColor' 取代 'c'
         let convertedColor = color.usingColorSpace(.deviceRGB) ?? color
         red = Double(convertedColor.redComponent)
         green = Double(convertedColor.greenComponent)
