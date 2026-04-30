@@ -10,7 +10,7 @@ import Accelerate
 class AudioAnalyzer {
     private let fftSize: Int
     private let binCount: Int
-    private var fftSetup: FFTSetup
+    private var fftSetup: FFTSetup?
     private var window: [Float]
     private var leftBuffer: [Float] = []
     private var rightBuffer: [Float] = []
@@ -18,13 +18,22 @@ class AudioAnalyzer {
     init(fftSize: Int = 4096, binCount: Int = 96) {
         self.fftSize = fftSize
         self.binCount = binCount
-        self.fftSetup = vDSP_create_fftsetup(vDSP_Length(log2(Float(fftSize))), FFTRadix(kFFTRadix2))!
+        
+        let log2Size = vDSP_Length(log2(Float(fftSize)))
+        if let setup = vDSP_create_fftsetup(log2Size, FFTRadix(kFFTRadix2)) {
+            self.fftSetup = setup
+        } else {
+            fatalError("Failed to create FFT setup")
+        }
+        
         self.window = [Float](repeating: 0, count: fftSize)
         vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
     }
 
     deinit {
-        vDSP_destroy_fftsetup(fftSetup)
+        if let setup = fftSetup {
+            vDSP_destroy_fftsetup(setup)
+        }
     }
 
     func analyze(left: [Float], right: [Float]) -> StereoBins? {
@@ -46,6 +55,8 @@ class AudioAnalyzer {
     }
 
     private func process(_ samples: [Float]) -> [Float] {
+        guard let setup = fftSetup else { return [Float](repeating: 0, count: binCount) }
+        
         var windowed = samples
         vDSP_vmul(windowed, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
 
@@ -55,8 +66,11 @@ class AudioAnalyzer {
 
         realPart.withUnsafeMutableBufferPointer { realBuf in
             imagPart.withUnsafeMutableBufferPointer { imagBuf in
-                var complex = DSPSplitComplex(realp: realBuf.baseAddress!, imagp: imagBuf.baseAddress!)
-                vDSP_fft_zrip(fftSetup, &complex, 1, vDSP_Length(log2(Float(fftSize))), FFTDirection(FFT_FORWARD))
+                guard let realAddress = realBuf.baseAddress,
+                      let imagAddress = imagBuf.baseAddress else { return }
+                
+                var complex = DSPSplitComplex(realp: realAddress, imagp: imagAddress)
+                vDSP_fft_zrip(setup, &complex, 1, vDSP_Length(log2(Float(fftSize))), FFTDirection(FFT_FORWARD))
                 vDSP_zvabs(&complex, 1, &magnitudes, 1, vDSP_Length(fftSize / 2))
             }
         }
@@ -77,8 +91,8 @@ class AudioAnalyzer {
         for i in 0..<binCount {
             let freqLow  = baseFreq * pow(2, Float(i) / 12)
             let freqHigh = baseFreq * pow(2, Float(i + 1) / 12)
-            let idxLow  = max(0, Int(freqLow  / freqPerBin))
-            let idxHigh = min(magnitudes.count - 1, Int(freqHigh / freqPerBin))
+            let idxLow   = max(0, Int(freqLow  / freqPerBin))
+            let idxHigh  = min(magnitudes.count - 1, Int(freqHigh / freqPerBin))
 
             if idxHigh <= idxLow {
                 bins[i] = magnitudes[max(0, idxLow)]

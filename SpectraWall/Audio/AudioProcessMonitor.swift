@@ -38,15 +38,17 @@ class AudioProcessMonitor {
     func start() {
         guard processListListenerBlock == nil else { return }
         
-        processListListenerBlock = { [weak self] _, _ in
+        let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             DispatchQueue.main.async { self?.refresh() }
         }
+        
+        processListListenerBlock = listener
         
         AudioObjectAddPropertyListenerBlock(
             .system,
             &processListAddress,
             .main,
-            processListListenerBlock!
+            listener
         )
         
         refresh()
@@ -105,7 +107,13 @@ class AudioProcessMonitor {
             if let existing = result[pid] {
                 var mergedIDs = existing.objectIDs
                 if !mergedIDs.contains(objectID) { mergedIDs.append(objectID) }
-                result[pid] = AudioApp(pid: existing.pid, objectIDs: mergedIDs, name: existing.name, bundleID: existing.bundleID)
+                
+                result[pid] = AudioApp(
+                    pid: existing.pid,
+                    objectIDs: mergedIDs,
+                    name: existing.name,
+                    bundleID: existing.bundleID
+                )
             } else {
                 result[pid] = AudioApp(pid: pid, objectIDs: [objectID], name: name, bundleID: bundleID)
             }
@@ -114,7 +122,9 @@ class AudioProcessMonitor {
         // Add isRunning listeners for all processes (including those not currently playing audio)
         updateProcessListeners(for: processIDs)
         
-        let sorted = result.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let sorted = result.values.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
         
         let oldIDs = Set(activeApps.map { $0.pid })
         let newIDs = Set(sorted.map { $0.pid })

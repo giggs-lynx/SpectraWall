@@ -20,7 +20,11 @@ extension AudioObjectID {
 // MARK: - Single Value
 
 extension AudioObjectID {
-    func read<T>(_ selector: AudioObjectPropertySelector, scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal, defaultValue: T) throws -> T {
+    func read<T>(
+        _ selector: AudioObjectPropertySelector,
+        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+        defaultValue: T
+    ) throws -> T {
         var address = AudioObjectPropertyAddress(
             mSelector: selector,
             mScope: scope,
@@ -30,7 +34,8 @@ extension AudioObjectID {
         var value = defaultValue
         var size  = UInt32(MemoryLayout<T>.size)
         let err = withUnsafeMutableBytes(of: &value) { buffer in
-            AudioObjectGetPropertyData(self, &address, 0, nil, &size, buffer.baseAddress!)
+            guard let baseAddress = buffer.baseAddress else { return kAudioHardwareUnspecifiedError }
+            return AudioObjectGetPropertyData(self, &address, 0, nil, &size, baseAddress)
         }
         
         guard err == noErr else {
@@ -44,7 +49,10 @@ extension AudioObjectID {
 // MARK: - Bool
 
 extension AudioObjectID {
-    func readBool(_ selector: AudioObjectPropertySelector, scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) throws -> Bool {
+    func readBool(
+        _ selector: AudioObjectPropertySelector,
+        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal
+    ) throws -> Bool {
         let value: UInt32 = try read(selector, scope: scope, defaultValue: 0)
         return value != 0
     }
@@ -53,7 +61,10 @@ extension AudioObjectID {
 // MARK: - String
 
 extension AudioObjectID {
-    func readString(_ selector: AudioObjectPropertySelector, scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) throws -> String {
+    func readString(
+        _ selector: AudioObjectPropertySelector,
+        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal
+    ) throws -> String {
         var address = AudioObjectPropertyAddress(
             mSelector: selector,
             mScope: scope,
@@ -77,7 +88,11 @@ extension AudioObjectID {
 // MARK: - Array
 
 extension AudioObjectID {
-    func readArray<T>(_ selector: AudioObjectPropertySelector, scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal, defaultValue: T) throws -> [T] {
+    func readArray<T>(
+        _ selector: AudioObjectPropertySelector,
+        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+        defaultValue: T
+    ) throws -> [T] {
         var address = AudioObjectPropertyAddress(
             mSelector: selector,
             mScope: scope,
@@ -94,7 +109,8 @@ extension AudioObjectID {
         let count = Int(size) / MemoryLayout<T>.size
         var items = [T](repeating: defaultValue, count: count)
         err = items.withUnsafeMutableBufferPointer { buffer in
-            AudioObjectGetPropertyData(self, &address, 0, nil, &size, buffer.baseAddress!)
+            guard let baseAddress = buffer.baseAddress else { return kAudioHardwareUnspecifiedError }
+            return AudioObjectGetPropertyData(self, &address, 0, nil, &size, baseAddress)
         }
         
         guard err == noErr else {

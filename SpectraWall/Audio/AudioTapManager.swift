@@ -144,8 +144,8 @@ class AudioTapManager {
             return
         }
 
-        deviceReadyListenerBlock = { [weak self] _, _ in
-            guard let self else { return }
+        let listenerBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            guard let self = self else { return }
             if let block = self.deviceReadyListenerBlock {
                 AudioObjectRemovePropertyListenerBlock(deviceID, &address, .main, block)
                 self.deviceReadyListenerBlock = nil
@@ -153,7 +153,8 @@ class AudioTapManager {
             completion()
         }
 
-        AudioObjectAddPropertyListenerBlock(deviceID, &address, .main, deviceReadyListenerBlock!)
+        self.deviceReadyListenerBlock = listenerBlock
+        AudioObjectAddPropertyListenerBlock(deviceID, &address, .main, listenerBlock)
     }
 
     // MARK: - IO Proc
