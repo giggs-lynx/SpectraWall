@@ -1,0 +1,60 @@
+excluded:
+  - SpectraWall.xcodeproj
+  - .build
+  - Pods
+  - Carthage
+
+disabled_rules:
+  - trailing_whitespace # Handled by editor/formatter
+  - vertical_whitespace # Handled by editor/formatter
+  - unused_optional_binding # Redundant with modern `if let x { }` syntax
+
+opt_in_rules:
+  - let_var_whitespace
+  - empty_count
+  - modifier_order
+  - force_unwrapping # Avoid force unwraps; use guard/if-let instead
+  - force_cast # Avoid force casts; use conditional casting
+  - fatal_error_message # Require a message with fatalError()
+  - implicit_return # Prefer implicit returns in closures and functions
+  - empty_string # Prefer isEmpty over == ""
+  - first_where # Prefer .first(where:) over .filter { }.first
+  - contains_over_filter_count # Prefer .contains over .filter { }.count > 0
+  - unowned_variable_capture # Avoid unowned captures; prefer weak
+  - private_action # IBActions should be private
+  - private_outlet # IBOutlets should be private
+
+# Rule thresholds
+line_length:
+  warning: 120
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+function_body_length:
+  warning: 60
+  error: 100
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 1000
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+
+identifier_name:
+  min_length:
+    warning: 2 # Allow short names like id, x, y
+  excluded:
+    - id
+    - x
+    - y
+    - i
+    - j
+    - to
+    - in
