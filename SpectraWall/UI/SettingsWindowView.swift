@@ -13,7 +13,8 @@ struct SettingsWindowView: View {
     @State private var selectedSceneID: UUID?
     @State private var selectedLayerID: UUID?
     
-    let globalID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+    // 修正 Force Unwrapping，改為更穩健的定義方式
+    private let globalID = UUID(uuidString: "00000000-0000-0000-0000-000000000000") ?? UUID()
     
     var selectedScene: SceneSettings? {
         sceneManager.scenes.first { $0.id == selectedSceneID }
@@ -32,57 +33,60 @@ struct SettingsWindowView: View {
             Divider()
             
             // MARK: - Middle Column: Effect List
-            if selectedSceneID == globalID {
-                Spacer()
-            } else if let scene = selectedScene {
-                EffectListColumn(
-                    scene: scene,
-                    selectedLayerID: $selectedLayerID
-                )
-                .frame(width: 260)
-            } else {
-                VStack {
-                    Spacer()
-                    Text("No Scene Selected")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                    Spacer()
-                }
-                .frame(width: 260)
-            }
+            middleColumn
             
             Divider()
             
             // MARK: - Right Column: Settings Content
-            if selectedSceneID == globalID {
-                GlobalSettingsView()
-            } else if let id = selectedLayerID,
-                      let layer = selectedScene?.layers.first(where: { $0.id == id }) {
-                LayerSettingsView(layer: layer)
-            } else if selectedScene != nil {
-                VStack {
-                    Spacer()
-                    Text("Click + to add an effect")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-            } else {
-                VStack {
-                    Spacer()
-                    Text("No Scene Selected")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-            }
+            rightColumn
         }
         .frame(width: 1200, height: 560)
         .onAppear {
-            // Default to selecting global settings
             selectedSceneID = globalID
+        }
+    }
+    
+    // MARK: - Subviews
+
+    @ViewBuilder
+    private var middleColumn: some View {
+        if selectedSceneID == globalID {
+            Spacer()
+        } else if let scene = selectedScene {
+            EffectListColumn(
+                scene: scene,
+                selectedLayerID: $selectedLayerID
+            )
+            .frame(width: 260)
+        } else {
+            placeholderView(text: "No Scene Selected")
+                .frame(width: 260)
+        }
+    }
+
+    @ViewBuilder
+    private var rightColumn: some View {
+        if selectedSceneID == globalID {
+            GlobalSettingsView()
+        } else if let id = selectedLayerID,
+                  let layer = selectedScene?.layers.first(where: { $0.id == id }) {
+            LayerSettingsView(layer: layer)
+        } else if selectedScene != nil {
+            placeholderView(text: "Click + to add an effect")
+                .frame(maxWidth: .infinity)
+        } else {
+            placeholderView(text: "No Scene Selected")
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func placeholderView(text: String) -> some View {
+        VStack {
+            Spacer()
+            Text(text)
+                .foregroundColor(.secondary)
+                .font(.caption)
+            Spacer()
         }
     }
 }
@@ -100,7 +104,7 @@ struct SceneListColumn: View {
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $selectedSceneID) {
-                // Global Settings
+                // Global Settings Row
                 HStack(spacing: 8) {
                     Image(systemName: "slider.horizontal.3")
                         .foregroundColor(.secondary)
@@ -130,20 +134,7 @@ struct SceneListColumn: View {
                         .tag(scene.id)
                     }
                 } header: {
-                    HStack {
-                        Text("Scenes")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button {
-                            let scene = sceneManager.addScene()
-                            selectedSceneID = scene.id
-                            selectedLayerID = nil
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    headerView
                 }
             }
             .listStyle(.sidebar)
@@ -168,10 +159,26 @@ struct SceneListColumn: View {
             Button("Cancel", role: .cancel) {}
         }
     }
+
+    private var headerView: some View {
+        HStack {
+            Text("Scenes")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary)
+            Spacer()
+            Button {
+                let scene = sceneManager.addScene()
+                selectedSceneID = scene.id
+                selectedLayerID = nil
+            } label: {
+                Image(systemName: "plus")
+            }
+            .buttonStyle(.plain)
+        }
+    }
 }
 
-// MARK: - Scene Row
-
+// MARK: - Scene Row (Keeping logic as requested)
 struct SceneRow: View {
     @ObservedObject var scene: SceneSettings
     let isActive: Bool
@@ -226,8 +233,7 @@ struct SceneRow: View {
     }
 }
 
-// MARK: - Effect List Column
-
+// MARK: - Effect List Column (Keeping logic as requested)
 struct EffectListColumn: View {
     @ObservedObject var scene: SceneSettings
     @Binding var selectedLayerID: UUID?
@@ -259,25 +265,7 @@ struct EffectListColumn: View {
                     HStack {
                         Text("Effects")
                         Spacer()
-                        Menu {
-                            Button("Spectrum") {
-                                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .spectrum)
-                                selectedLayerID = layer.id
-                            }
-                            Button("Orb") {
-                                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .orb)
-                                selectedLayerID = layer.id
-                            }
-                            Button("Border") {
-                                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .border)
-                                selectedLayerID = layer.id
-                            }
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        .menuIndicator(.hidden)
-                        .menuStyle(.borderlessButton)
-                        .frame(width: 20)
+                        addEffectMenu
                     }
                 }
             }
@@ -296,10 +284,31 @@ struct EffectListColumn: View {
             Button("Cancel", role: .cancel) {}
         }
     }
+
+    private var addEffectMenu: some View {
+        Menu {
+            Button("Spectrum") {
+                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .spectrum)
+                selectedLayerID = layer.id
+            }
+            Button("Orb") {
+                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .orb)
+                selectedLayerID = layer.id
+            }
+            Button("Border") {
+                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .border)
+                selectedLayerID = layer.id
+            }
+        } label: {
+            Image(systemName: "plus")
+        }
+        .menuIndicator(.hidden)
+        .menuStyle(.borderlessButton)
+        .frame(width: 20)
+    }
 }
 
-// MARK: - Effect Row
-
+// MARK: - Effect Row (Keeping logic as requested)
 struct EffectRow: View {
     @ObservedObject var layer: LayerSettings
     let onDuplicate: () -> Void
@@ -309,15 +318,7 @@ struct EffectRow: View {
     
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: {
-                switch layer.effectType {
-                case .spectrum: return "waveform.path"
-                case .orb: return "circle.circle"
-                case .border: return "rectangle.on.rectangle"
-                }
-            }())
-            .foregroundColor(.secondary)
-            .frame(width: 16)
+            effectIcon
             
             if isEditing {
                 TextField("", text: $editingName)
@@ -332,14 +333,7 @@ struct EffectRow: View {
             
             Spacer()
             
-            Button {
-                layer.isVisible.toggle()
-                VisualizerSceneManager.shared.save()
-            } label: {
-                Image(systemName: layer.isVisible ? "eye" : "eye.slash")
-                    .foregroundColor(layer.isVisible ? .primary : .secondary)
-            }
-            .buttonStyle(.plain)
+            visibilityButton
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
@@ -349,6 +343,29 @@ struct EffectRow: View {
             Divider()
             Button("Delete", role: .destructive) { onDelete() }
         }
+    }
+
+    private var effectIcon: some View {
+        Image(systemName: {
+            switch layer.effectType {
+            case .spectrum: return "waveform.path"
+            case .orb:      return "circle.circle"
+            case .border:   return "rectangle.on.rectangle"
+            }
+        }())
+        .foregroundColor(.secondary)
+        .frame(width: 16)
+    }
+
+    private var visibilityButton: some View {
+        Button {
+            layer.isVisible.toggle()
+            VisualizerSceneManager.shared.save()
+        } label: {
+            Image(systemName: layer.isVisible ? "eye" : "eye.slash")
+                .foregroundColor(layer.isVisible ? .primary : .secondary)
+        }
+        .buttonStyle(.plain)
     }
     
     private func startEditing() {

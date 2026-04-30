@@ -7,11 +7,13 @@
 
 import Foundation
 
+// MARK: - Spectrum Anchor Type
+
 enum SpectrumAnchor: String, Codable, CaseIterable {
-    case bottom = "bottom"
-    case top = "top"
-    case left = "left"
-    case right = "right"
+    case bottom
+    case top
+    case left
+    case right
 
     var localized: LocalizedStringResource {
         switch self {
@@ -23,18 +25,28 @@ enum SpectrumAnchor: String, Codable, CaseIterable {
     }
 }
 
+// MARK: - Spectrum Settings Structure
+
 struct SpectrumSettings: EffectSettings, Equatable {
+    
+    // MARK: Audio Processing
     var gain: Double
     var powerCurve: Double
     var attack: Double
     var release: Double
+    
+    // MARK: Layout
     var width: Double
     var maxHeight: Double
     var anchor: SpectrumAnchor
+    
+    // MARK: Appearance & Color
     var colorSync: Bool
     var colorSettings: ChannelColorSettings
     var leftColorSettings: ChannelColorSettings
     var rightColorSettings: ChannelColorSettings
+
+    // MARK: - Defaults
 
     static var defaults: SpectrumSettings {
         SpectrumSettings(
@@ -51,6 +63,8 @@ struct SpectrumSettings: EffectSettings, Equatable {
             rightColorSettings: .init()
         )
     }
+
+    // MARK: - Methods
 
     mutating func resetToDefaults() {
         self = Self.defaults

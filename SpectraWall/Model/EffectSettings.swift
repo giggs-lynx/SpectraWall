@@ -9,5 +9,6 @@ import Foundation
 
 protocol EffectSettings: Codable {
     static var defaults: Self { get }
+
     mutating func resetToDefaults()
 }

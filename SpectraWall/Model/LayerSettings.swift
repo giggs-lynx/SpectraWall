@@ -9,6 +9,8 @@ import SwiftUI
 import Combine
 import Foundation
 
+// MARK: - Types
+
 enum EffectType: String, Codable, CaseIterable {
     case spectrum = "Spectrum"
     case orb = "Orb"
@@ -20,10 +22,7 @@ enum EffectType: String, Codable, CaseIterable {
 }
 
 enum ChannelMode: String, Codable, CaseIterable {
-    case stereo = "stereo"
-    case left = "left"
-    case right = "right"
-    case mono = "mono"
+    case stereo, left, right, mono
     
     var localized: LocalizedStringResource {
         switch self {
@@ -35,8 +34,11 @@ enum ChannelMode: String, Codable, CaseIterable {
     }
 }
 
-class LayerSettings: ObservableObject, Identifiable {
+// MARK: - Main Layer Settings
+
+class LayerSettings: ObservableObject, Identifiable, Codable {
     var id: UUID
+    
     @Published var name: String
     @Published var isVisible: Bool
     @Published var channelMode: ChannelMode
@@ -45,6 +47,16 @@ class LayerSettings: ObservableObject, Identifiable {
     @Published var opacity: Double
     @Published var effectType: EffectType
     @Published var effectSettings: any EffectSettings
+
+    // MARK: CodingKeys
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, isVisible, channelMode
+        case positionX, positionY, opacity
+        case effectType, effectSettings
+    }
+
+    // MARK: - Initialization
 
     init(effectType: EffectType = .spectrum, name: String? = nil) {
         self.id = UUID()
@@ -68,28 +80,33 @@ class LayerSettings: ObservableObject, Identifiable {
         self.effectSettings = source.effectSettings
     }
     
+    // MARK: Decodable (Must be in class body)
+
     required convenience init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let effectType = try c.decode(EffectType.self, forKey: .effectType)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let effectType = try container.decode(EffectType.self, forKey: .effectType)
+        
         self.init(effectType: effectType)
 
-        id = try c.decode(UUID.self, forKey: .id) // id is let, need to handle here
-        name = try c.decode(String.self, forKey: .name)
-        isVisible = try c.decode(Bool.self, forKey: .isVisible)
-        channelMode = try c.decode(ChannelMode.self, forKey: .channelMode)
-        positionX = try c.decode(Double.self, forKey: .positionX)
-        positionY = try c.decode(Double.self, forKey: .positionY)
-        opacity = try c.decode(Double.self, forKey: .opacity)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.isVisible = try container.decode(Bool.self, forKey: .isVisible)
+        self.channelMode = try container.decode(ChannelMode.self, forKey: .channelMode)
+        self.positionX = try container.decode(Double.self, forKey: .positionX)
+        self.positionY = try container.decode(Double.self, forKey: .positionY)
+        self.opacity = try container.decode(Double.self, forKey: .opacity)
 
         switch effectType {
         case .spectrum:
-            effectSettings = try c.decode(SpectrumSettings.self, forKey: .effectSettings)
+            self.effectSettings = try container.decode(SpectrumSettings.self, forKey: .effectSettings)
         case .orb:
-            effectSettings = try c.decode(OrbSettings.self, forKey: .effectSettings)
+            self.effectSettings = try container.decode(OrbSettings.self, forKey: .effectSettings)
         case .border:
-            effectSettings = try c.decode(BorderSettings.self, forKey: .effectSettings)
+            self.effectSettings = try container.decode(BorderSettings.self, forKey: .effectSettings)
         }
     }
+
+    // MARK: - Methods
 
     static func defaultSettings(for effectType: EffectType) -> any EffectSettings {
         switch effectType {
@@ -107,35 +124,28 @@ class LayerSettings: ObservableObject, Identifiable {
         opacity = 1.0
         effectSettings.resetToDefaults()
     }
-}
-
-// MARK: - Codable
-
-extension LayerSettings: Codable {
-    enum CodingKeys: String, CodingKey {
-        case id, name, isVisible, channelMode
-        case positionX, positionY, opacity
-        case effectType, effectSettings
-    }
-
+    
+    // MARK: Encodable
+    
     func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(id, forKey: .id)
-        try c.encode(name, forKey: .name)
-        try c.encode(isVisible, forKey: .isVisible)
-        try c.encode(channelMode, forKey: .channelMode)
-        try c.encode(positionX, forKey: .positionX)
-        try c.encode(positionY, forKey: .positionY)
-        try c.encode(opacity, forKey: .opacity)
-        try c.encode(effectType, forKey: .effectType)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(isVisible, forKey: .isVisible)
+        try container.encode(channelMode, forKey: .channelMode)
+        try container.encode(positionX, forKey: .positionX)
+        try container.encode(positionY, forKey: .positionY)
+        try container.encode(opacity, forKey: .opacity)
+        try container.encode(effectType, forKey: .effectType)
 
         switch effectSettings {
-        case let s as SpectrumSettings:
-            try c.encode(s, forKey: .effectSettings)
-        case let s as OrbSettings:
-            try c.encode(s, forKey: .effectSettings)
-        case let s as BorderSettings:
-            try c.encode(s, forKey: .effectSettings)
+        case let spectrum as SpectrumSettings:
+            try container.encode(spectrum, forKey: .effectSettings)
+        case let orb as OrbSettings:
+            try container.encode(orb, forKey: .effectSettings)
+        case let border as BorderSettings:
+            try container.encode(border, forKey: .effectSettings)
         default:
             break
         }

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CommonSettingsSection: View {
     @ObservedObject var layer: LayerSettings
+    
     @State private var channelMode: ChannelMode = .stereo
     @State private var opacity: Double = 1.0
     @State private var positionX: Double = 0.5
@@ -16,6 +17,7 @@ struct CommonSettingsSection: View {
 
     var body: some View {
         SectionHeader(title: "General")
+        
         VStack(spacing: 10) {
             Picker("Channel", selection: $channelMode) {
                 ForEach(ChannelMode.allCases, id: \.self) { mode in
@@ -36,9 +38,17 @@ struct CommonSettingsSection: View {
             positionX = layer.positionX
             positionY = layer.positionY
         }
-        .onChange(of: channelMode) { _, v in layer.channelMode = v }
-        .onChange(of: opacity) { _, v in layer.opacity = v }
-        .onChange(of: positionX) { _, v in layer.positionX = v }
-        .onChange(of: positionY) { _, v in layer.positionY = v }
+        .onChange(of: channelMode) { _, newValue in
+            layer.channelMode = newValue
+        }
+        .onChange(of: opacity) { _, newValue in
+            layer.opacity = newValue
+        }
+        .onChange(of: positionX) { _, newValue in
+            layer.positionX = newValue
+        }
+        .onChange(of: positionY) { _, newValue in
+            layer.positionY = newValue
+        }
     }
 }

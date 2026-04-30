@@ -2,10 +2,13 @@
   "sourceLanguage" : "en",
   "strings" : {
     "" : {
+
     },
     "1" : {
+
     },
     "2" : {
+
     },
     "Anchor" : {
       "localizations" : {
@@ -111,6 +114,7 @@
       }
     },
     "Click + to add an effect" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hant" : {
           "stringUnit" : {
@@ -391,6 +395,7 @@
       }
     },
     "No Scene Selected" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hant" : {
           "stringUnit" : {

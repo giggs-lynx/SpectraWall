@@ -18,7 +18,13 @@ struct OrbSettingsSection: View {
             SettingsSlider(label: "Attack", value: $settings.attack, range: 0.3...1.0, step: 0.05)
             SettingsSlider(label: "Release", value: $settings.release, range: 0.1...0.5, step: 0.05)
             SettingsSlider(label: "Base Radius", value: $settings.baseRadius, range: 40...300, step: 5)
-            SettingsSlider(label: "Outer Radius Multiplier", value: $settings.outerRadiusMultiplier, range: 1.0...3.0, step: 0.1)
+            
+            SettingsSlider(
+                label: "Outer Radius Multiplier",
+                value: $settings.outerRadiusMultiplier,
+                range: 1.0...3.0,
+                step: 0.1
+            )
 
             Divider()
 
@@ -36,7 +42,9 @@ struct OrbSettingsSection: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
         .onAppear {
-            settings = layer.effectSettings as? OrbSettings ?? .defaults
+            if let orbSettings = layer.effectSettings as? OrbSettings {
+                settings = orbSettings
+            }
         }
         .onChange(of: settings) { _, newValue in
             layer.effectSettings = newValue

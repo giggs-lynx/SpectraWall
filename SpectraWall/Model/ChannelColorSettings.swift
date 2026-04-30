@@ -8,6 +8,8 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Color Data Container
+
 struct ColorData: Codable, Equatable {
     var red: Double
     var green: Double
@@ -15,11 +17,12 @@ struct ColorData: Codable, Equatable {
     var alpha: Double
 
     init(_ color: NSColor) {
-        let c = color.usingColorSpace(.deviceRGB) ?? color
-        red = c.redComponent
-        green = c.greenComponent
-        blue = c.blueComponent
-        alpha = c.alphaComponent
+        // 使用更具語意化的變數名 'convertedColor' 取代 'c'
+        let convertedColor = color.usingColorSpace(.deviceRGB) ?? color
+        red = Double(convertedColor.redComponent)
+        green = Double(convertedColor.greenComponent)
+        blue = Double(convertedColor.blueComponent)
+        alpha = Double(convertedColor.alphaComponent)
     }
 
     init(red: Double, green: Double, blue: Double, alpha: Double = 1.0) {
@@ -38,10 +41,12 @@ struct ColorData: Codable, Equatable {
     }
 }
 
+// MARK: - Color Mode Type
+
 enum ChannelColorMode: String, Codable, CaseIterable {
-    case rainbow = "rainbow"
-    case gradient = "gradient"
-    case solid = "solid"
+    case rainbow
+    case gradient
+    case solid
 
     var localized: LocalizedStringResource {
         switch self {
@@ -51,6 +56,8 @@ enum ChannelColorMode: String, Codable, CaseIterable {
         }
     }
 }
+
+// MARK: - Channel Color Settings
 
 struct ChannelColorSettings: Codable, Equatable {
     var colorMode: ChannelColorMode = .rainbow
