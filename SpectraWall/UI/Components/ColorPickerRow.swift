@@ -12,19 +12,38 @@ struct ColorPickerRow: View {
     @Binding var colorData: ColorData
 
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             Text(label)
-                .font(.caption)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
             Spacer()
-            ColorPicker("", selection: Binding(
-                get: { colorData.color },
-                set: { newColor in
-                    if let nsColor = NSColor(newColor).usingColorSpace(.deviceRGB) {
-                        colorData = ColorData(nsColor)
-                    }
-                }
-            ))
+            
+            colorPicker
+        }
+        .frame(height: 24)
+    }
+
+    // MARK: - Subviews
+
+    private var colorPicker: some View {
+        ColorPicker("", selection: colorBinding)
             .labelsHidden()
+            .fixedSize()
+    }
+
+    // MARK: - Helpers
+
+    private var colorBinding: Binding<Color> {
+        Binding(
+            get: { colorData.color },
+            set: { updateColor($0) }
+        )
+    }
+
+    private func updateColor(_ newColor: Color) {
+        if let nsColor = NSColor(newColor).usingColorSpace(.deviceRGB) {
+            colorData = ColorData(nsColor)
         }
     }
 }
