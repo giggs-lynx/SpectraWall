@@ -7,35 +7,34 @@
 
 import SwiftUI
 import SpriteKit
-import Combine
 import OSLog
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+
     // MARK: - Properties
+
     private var desktopWindows: [NSWindow] = []
-    private var monitor: AudioProcessMonitor?
-    private var tapManager: AudioTapManager?
-    private var analyzer: AudioAnalyzer?
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
-    private var settingsCancellable: AnyCancellable?
-    
-    private let logger = Logger(subsystem: "com.giggs.SpectraWall", category: "AppLifecycle")
+
+    private let logger = Logger(subsystem: AppConstants.bundleId, category: "AppLifecycle")
 
     // MARK: - Lifecycle
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
-        setupAudioSystem()
+        AudioEngine.shared.start()
         setupDesktopWindows()
         startObservingScreenChanges()
     }
-    
+
     func applicationWillTerminate(_ notification: Notification) {
-        // Ensure data is persisted before the app closes
+        AudioEngine.shared.stop()
         VisualizerSceneManager.shared.saveImmediately()
     }
 
     // MARK: - Menu Bar & UI
+
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
@@ -61,84 +60,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: - Audio Logic
-    private func setupAudioSystem() {
-        analyzer = AudioAnalyzer(fftSize: 4096, binCount: 96)
-        
-        settingsCancellable = AppSettings.shared.$audioSource
-            .dropFirst()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] source in
-                self?.switchAudioSource(to: source)
-            }
-        
-        startAudioMonitor()
-    }
+    // MARK: - Desktop Windows
 
-    private func switchAudioSource(to source: AudioSource) {
-        tapManager?.stop()
-        tapManager = nil
-        
-        switch source {
-        case .global:
-            startGlobalTap()
-        case .app(let app):
-            startTap(for: app)
-        }
-    }
-
-    private func startAudioMonitor() {
-        monitor = AudioProcessMonitor()
-        monitor?.onAppsChanged = { [weak self] apps in
-            guard let self else { return }
-            AppSettings.shared.activeApps = apps
-            self.handleAudioSourceAutoSwitch(apps: apps)
-        }
-        monitor?.start()
-    }
-
-    private func handleAudioSourceAutoSwitch(apps: [AudioApp]) {
-        switch AppSettings.shared.audioSource {
-        case .global:
-            if tapManager == nil { startGlobalTap() }
-        case .app(let selectedApp):
-            let isSelectedAppActive = apps.contains { $0.bundleID == selectedApp.bundleID }
-
-            if !isSelectedAppActive {
-                tapManager?.stop()
-                tapManager = nil
-                AudioDataBus.shared.resetPublisher.send()
-                AudioDataBus.shared.amplitudePublisher.send(0)
-            } else if tapManager == nil {
-                if let match = apps.first(where: { $0.bundleID == selectedApp.bundleID }) {
-                    AppSettings.shared.audioSource = .app(match)
-                    startTap(for: match)
-                }
-            }
-        }
-    }
-
-    private func startGlobalTap() {
-        setupTap { $0.startGlobal() }
-    }
-
-    private func startTap(for app: AudioApp) {
-        setupTap { $0.start(app: app) }
-    }
-
-    private func setupTap(_ activationBlock: (AudioTapManager) -> Void) {
-        let tap = AudioTapManager()
-        tap.onAudioData = { [weak self] left, right in
-            guard let self, let bins = self.analyzer?.analyze(left: left, right: right) else { return }
-            let bassAmplitude = Float(bins.left.prefix(8).reduce(0, +) + bins.right.prefix(8).reduce(0, +)) / 16
-            AudioDataBus.shared.spectrumPublisher.send(bins)
-            AudioDataBus.shared.amplitudePublisher.send(bassAmplitude)
-        }
-        activationBlock(tap)
-        tapManager = tap
-    }
-
-    // MARK: - Windows Management
     private func setupDesktopWindows() {
         desktopWindows.forEach { $0.close() }
         desktopWindows = []

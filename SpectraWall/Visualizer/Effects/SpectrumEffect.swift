@@ -9,15 +9,15 @@ import SpriteKit
 import Combine
 
 class SpectrumEffect: SKNode {
-    
+
     // MARK: - Properties (Nodes & State)
-    
+
     private var bars: [SKSpriteNode] = []
     private var smoothed: [Float] = Array(repeating: 0, count: 96)
     private var cancellables = Set<AnyCancellable>()
-    
+
     // MARK: - Properties (Configuration)
-    
+
     private let binCount = 96
     private let barSpacing: CGFloat = 4
     private var sceneSize: CGSize = .zero
@@ -33,7 +33,7 @@ class SpectrumEffect: SKNode {
         self.sceneSize = size
         self.settings = settings
         super.init()
-        
+
         setupBars()
         subscribeToAudio()
         observeSettings()
@@ -47,18 +47,16 @@ class SpectrumEffect: SKNode {
 
     private func observeSettings() {
         var lastAnchor = spectrumSettings.anchor
-        var lastWidth = spectrumSettings.width
-        
+        var lastWidth  = spectrumSettings.width
+
         settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let self = self else { return }
-                
-                let currentSettings = self.spectrumSettings
-                if currentSettings.anchor != lastAnchor ||
-                   currentSettings.width != lastWidth {
-                    lastAnchor = currentSettings.anchor
-                    lastWidth = currentSettings.width
+                guard let self else { return }
+                let current = self.spectrumSettings
+                if current.anchor != lastAnchor || current.width != lastWidth {
+                    lastAnchor = current.anchor
+                    lastWidth  = current.width
                     self.setupBars()
                 } else {
                     self.updateLayout()
@@ -95,51 +93,45 @@ class SpectrumEffect: SKNode {
         case .left, .right:
             setupVerticalBars()
         }
-        
+
         updateLayout()
     }
 
     private func updateLayout() {
-        let ss = spectrumSettings
+        let ss  = spectrumSettings
         let pos = settings
-        
-        // Horizontal parameters
-        let totalWidth = sceneSize.width * CGFloat(ss.width)
-        let startX = (sceneSize.width - totalWidth) * CGFloat(pos.positionX)
-        let totalSpacingH = barSpacing * CGFloat(binCount - 1)
-        let barWidth = (totalWidth - totalSpacingH) / CGFloat(binCount)
-        let startY = sceneSize.height * CGFloat(pos.positionY)
 
-        // Vertical parameters
+        let totalWidth  = sceneSize.width  * CGFloat(ss.width)
+        let startX      = (sceneSize.width - totalWidth) * CGFloat(pos.positionX)
+        let startY      = sceneSize.height * CGFloat(pos.positionY)
+
         let totalHeight = sceneSize.height * CGFloat(ss.width)
-        let startYVert = (sceneSize.height - totalHeight) * CGFloat(pos.positionY)
-        let totalSpacingV = barSpacing * CGFloat(binCount - 1)
-        let barHeight = (totalHeight - totalSpacingV) / CGFloat(binCount)
-        let startXVert = sceneSize.width * CGFloat(pos.positionX)
+        let startYVert  = (sceneSize.height - totalHeight) * CGFloat(pos.positionY)
+        let startXVert  = sceneSize.width * CGFloat(pos.positionX)
 
         for (i, bar) in bars.enumerated() {
             if ss.anchor == .bottom || ss.anchor == .top {
+                let barWidth = bar.size.width
                 let x = startX + barWidth / 2 + CGFloat(i) * (barWidth + barSpacing)
                 bar.position = CGPoint(x: x, y: startY)
             } else {
+                let barHeight = bar.size.height
                 let y = startYVert + barHeight / 2 + CGFloat(i) * (barHeight + barSpacing)
                 bar.position = CGPoint(x: startXVert, y: y)
             }
         }
-        
+
         alpha = CGFloat(settings.opacity)
     }
 
     private func setupHorizontalBars() {
-        let ss = spectrumSettings
-        let totalWidth = sceneSize.width * CGFloat(ss.width)
-        let barWidth = (totalWidth - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount)
+        let ss       = spectrumSettings
+        let total    = sceneSize.width * CGFloat(ss.width)
+        let barWidth = max(1, (total - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
 
         bars = (0..<binCount).map { _ in
             let bar = SKSpriteNode(color: .white, size: CGSize(width: barWidth, height: 2))
-            bar.anchorPoint = ss.anchor == .bottom
-                ? CGPoint(x: 0.5, y: 0)
-                : CGPoint(x: 0.5, y: 1)
+            bar.anchorPoint = ss.anchor == .bottom ? CGPoint(x: 0.5, y: 0) : CGPoint(x: 0.5, y: 1)
             bar.position = .zero
             addChild(bar)
             return bar
@@ -147,38 +139,32 @@ class SpectrumEffect: SKNode {
     }
 
     private func setupVerticalBars() {
-        let ss = spectrumSettings
-        let totalHeight = sceneSize.height * CGFloat(ss.width)
-        let barHeight = (totalHeight - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount)
+        let ss        = spectrumSettings
+        let total     = sceneSize.height * CGFloat(ss.width)
+        let barHeight = max(1, (total - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
 
         bars = (0..<binCount).map { _ in
             let bar = SKSpriteNode(color: .white, size: CGSize(width: 2, height: barHeight))
-            bar.anchorPoint = ss.anchor == .left
-                ? CGPoint(x: 0, y: 0.5)
-                : CGPoint(x: 1, y: 0.5)
+            bar.anchorPoint = ss.anchor == .left ? CGPoint(x: 0, y: 0.5) : CGPoint(x: 1, y: 0.5)
             bar.position = .zero
             addChild(bar)
-            bars.append(bar)
-            return bar
+            return bar  // 移除多餘的 bars.append(bar)
         }
     }
 
-    // MARK: - Audio Processing Logic
+    // MARK: - Audio Processing
 
     private func selectedBins(from stereo: StereoBins) -> [Float] {
         switch settings.channelMode {
         case .stereo:
-            let half = binCount / 2
-            let leftBins = Array(stereo.left.prefix(half))
+            let half      = binCount / 2
+            let leftBins  = Array(stereo.left.prefix(half))
             let rightBins = Array(stereo.right.prefix(half).reversed())
             return leftBins + rightBins
-            
         case .left:
             return stereo.left
-            
         case .right:
             return stereo.right
-            
         case .mono:
             return zip(stereo.left, stereo.right).map { ($0 + $1) / 2 }
         }
@@ -186,55 +172,50 @@ class SpectrumEffect: SKNode {
 
     private func updateBars(bins: StereoBins) {
         guard !isHidden else { return }
-        
-        let ss = spectrumSettings
+
+        let ss       = spectrumSettings
         let selected = selectedBins(from: bins)
 
         for i in 0..<smoothed.count {
             guard i < selected.count else { break }
-            let coeff = selected[i] > smoothed[i]
-                ? Float(ss.attack)
-                : Float(ss.release)
-            
-            smoothed[i] = smoothed[i] * (1 - coeff) + selected[i] * coeff
+            let coeff    = selected[i] > smoothed[i] ? Float(ss.attack) : Float(ss.release)
+            smoothed[i]  = smoothed[i] * (1 - coeff) + selected[i] * coeff
         }
 
-        let curvedValues = smoothed.map { pow($0, Float(ss.powerCurve)) }
+        let curved = smoothed.map { pow($0, Float(ss.powerCurve)) }
 
         switch ss.anchor {
         case .bottom, .top:
-            updateHorizontalBars(curved: curvedValues)
+            updateHorizontalBars(curved: curved)
         case .left, .right:
-            updateVerticalBars(curved: curvedValues)
+            updateVerticalBars(curved: curved)
         }
     }
 
     private func updateHorizontalBars(curved: [Float]) {
-        let ss = spectrumSettings
+        let ss        = spectrumSettings
         let maxHeight = sceneSize.height * CGFloat(ss.maxHeight)
-        let gain = CGFloat(ss.gain)
-        let half = binCount / 2
+        let gain      = CGFloat(ss.gain)
+        let half      = binCount / 2
 
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
-            let targetHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
-            
-            bar.run(.resize(toHeight: targetHeight, duration: 0.05))
+            let h = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
+            bar.run(.resize(toHeight: h, duration: 0.05))
             bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
 
     private func updateVerticalBars(curved: [Float]) {
-        let ss = spectrumSettings
+        let ss       = spectrumSettings
         let maxWidth = sceneSize.width * CGFloat(ss.maxHeight)
-        let gain = CGFloat(ss.gain)
-        let half = binCount / 2
+        let gain     = CGFloat(ss.gain)
+        let half     = binCount / 2
 
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
-            let targetWidth = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
-            
-            bar.run(.resize(toWidth: targetWidth, duration: 0.05))
+            let w = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
+            bar.run(.resize(toWidth: w, duration: 0.05))
             bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
@@ -253,34 +234,11 @@ class SpectrumEffect: SKNode {
 
         switch colorSettings.colorMode {
         case .rainbow:
-            let ratio: CGFloat
-            if settings.channelMode == .stereo {
-                let half = binCount / 2
-                if index < half {
-                    ratio = CGFloat(index) / CGFloat(half - 1)
-                } else {
-                    let originalRatio = CGFloat(index - half) / CGFloat(half - 1)
-                    ratio = 1.0 - originalRatio
-                }
-            } else {
-                ratio = CGFloat(index) / CGFloat(binCount)
-            }
+            let ratio = rainbowRatio(for: index)
             return NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
 
         case .gradient:
-            let ratio: CGFloat
-            if settings.channelMode == .stereo {
-                let half = binCount / 2
-                if index < half {
-                    ratio = CGFloat(index) / CGFloat(half - 1)
-                } else {
-                    let originalRatio = CGFloat(index - half) / CGFloat(half - 1)
-                    ratio = 1.0 - originalRatio
-                }
-            } else {
-                ratio = CGFloat(index) / CGFloat(binCount - 1)
-            }
-            
+            let ratio = gradientRatio(for: index)
             return interpolateColor(
                 from: colorSettings.gradientColorLow.nsColor,
                 to: colorSettings.gradientColorHigh.nsColor,
@@ -292,12 +250,33 @@ class SpectrumEffect: SKNode {
         }
     }
 
+    private func rainbowRatio(for index: Int) -> CGFloat {
+        if settings.channelMode == .stereo {
+            let half = binCount / 2
+            return index < half
+                ? CGFloat(index) / CGFloat(half - 1)
+                : 1.0 - CGFloat(index - half) / CGFloat(half - 1)
+        }
+        return CGFloat(index) / CGFloat(binCount)
+    }
+
+    private func gradientRatio(for index: Int) -> CGFloat {
+        if settings.channelMode == .stereo {
+            let half = binCount / 2
+            return index < half
+                ? CGFloat(index) / CGFloat(half - 1)
+                : 1.0 - CGFloat(index - half) / CGFloat(half - 1)
+        }
+        return CGFloat(index) / CGFloat(binCount - 1)
+    }
+
     private func interpolateColor(from: NSColor, to: NSColor, progress: CGFloat) -> NSColor {
-        let red = from.redComponent + (to.redComponent - from.redComponent) * progress
-        let green = from.greenComponent + (to.greenComponent - from.greenComponent) * progress
-        let blue = from.blueComponent + (to.blueComponent - from.blueComponent) * progress
-        
-        return NSColor(red: red, green: green, blue: blue, alpha: 1.0)
+        NSColor(
+            red:   from.redComponent   + (to.redComponent   - from.redComponent)   * progress,
+            green: from.greenComponent + (to.greenComponent - from.greenComponent) * progress,
+            blue:  from.blueComponent  + (to.blueComponent  - from.blueComponent)  * progress,
+            alpha: 1.0
+        )
     }
 
     // MARK: - Control

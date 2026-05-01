@@ -15,6 +15,7 @@
 		23DF99ABFC0FDBA92563EC9A /* SpectrumSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25DD316C2B3E0E9039209DAF /* SpectrumSettings.swift */; };
 		3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */; };
 		38E876BC3348A5FC7C3FCF6D /* OrbEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */; };
+		3D40F3B52FA48A7E0063CDA3 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D40F3B42FA48A7E0063CDA3 /* AudioEngine.swift */; };
 		434790673A0A2D87D51AE656 /* SceneSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50727C140006D5CA0FFA8B2E /* SceneSettings.swift */; };
 		45AA0DA4D71C679B96C2FC99 /* VisualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D70F274F572EBBA149E0D8 /* VisualizerSettings.swift */; };
 		4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */; };
@@ -77,6 +78,7 @@
 		1C21F8B8BFA2A3C35DC9610F /* SettingsSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSlider.swift; sourceTree = "<group>"; };
 		25DD316C2B3E0E9039209DAF /* SpectrumSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettings.swift; sourceTree = "<group>"; };
 		396D85DF64231696AB87650B /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
+		3D40F3B42FA48A7E0063CDA3 /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
 		497BA89A08FD7D95FDB0D6C5 /* LayerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerSettingsView.swift; sourceTree = "<group>"; };
 		50727C140006D5CA0FFA8B2E /* SceneSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSettings.swift; sourceTree = "<group>"; };
 		5343DED5166E7273A786FB4B /* CommonSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonSettingsSection.swift; sourceTree = "<group>"; };
@@ -256,6 +258,7 @@
 				6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */,
 				BFC84C5BCACF58A512956233 /* AudioProcessMonitor.swift */,
 				70275A92F27BE62D1EF9AB98 /* AudioTapManager.swift */,
+				3D40F3B42FA48A7E0063CDA3 /* AudioEngine.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -401,6 +404,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3D40F3B52FA48A7E0063CDA3 /* AudioEngine.swift in Sources */,
 				189CC6BEBAF1DEAF6FC8B1C6 /* AppConstants.swift in Sources */,
 				9D6BC9D736F638ADA6CACEA1 /* AppDelegate.swift in Sources */,
 				E379D244C3CAE4DD85833E01 /* AppSettings.swift in Sources */,

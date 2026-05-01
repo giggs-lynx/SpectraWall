@@ -9,19 +9,23 @@ import SpriteKit
 import Combine
 
 class OrbEffect: SKNode {
-    
+
     // MARK: - Nodes
-    
+
     private var orb: SKShapeNode?
     private var glowOrb: SKShapeNode?
-    
+
     // MARK: - Properties (State & Settings)
-    
+
     private var settings: LayerSettings
     private var cancellables = Set<AnyCancellable>()
-    private var smoothedAmplitude: Float = 0
+
+    // Separate smoothed amplitudes for left/right channels
+    private var smoothedLeft: Float = 0
+    private var smoothedRight: Float = 0
+
     private var sceneSize: CGSize = .zero
-    
+
     private var orbSettings: OrbSettings {
         settings.effectSettings as? OrbSettings ?? .defaults
     }
@@ -34,7 +38,7 @@ class OrbEffect: SKNode {
         self.sceneSize = size
         self.settings = settings
         super.init()
-        
+
         setupOrb()
         subscribeToAudio()
         observeSettings()
@@ -48,15 +52,14 @@ class OrbEffect: SKNode {
 
     private func observeSettings() {
         var lastBaseRadius = orbSettings.baseRadius
-        
+
         settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let self = self else { return }
-                
-                let currentSettings = self.orbSettings
-                if currentSettings.baseRadius != lastBaseRadius {
-                    lastBaseRadius = currentSettings.baseRadius
+                guard let self else { return }
+                let current = self.orbSettings
+                if current.baseRadius != lastBaseRadius {
+                    lastBaseRadius = current.baseRadius
                     self.setupOrb()
                 } else {
                     self.updateLayout()
@@ -66,16 +69,10 @@ class OrbEffect: SKNode {
     }
 
     private func subscribeToAudio() {
-        AudioDataBus.shared.amplitudePublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] amplitude in
-                self?.updateOrb(amplitude: amplitude)
-            }
-            .store(in: &cancellables)
-
         AudioDataBus.shared.spectrumPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bins in
+                self?.updateOrb(bins: bins)
                 self?.updateColor(bins: bins)
             }
             .store(in: &cancellables)
@@ -96,7 +93,7 @@ class OrbEffect: SKNode {
 
         let os = orbSettings
         let radius = CGFloat(os.baseRadius)
-        
+
         // Setup Outer Glow
         let glow = SKShapeNode(circleOfRadius: radius * CGFloat(os.outerRadiusMultiplier))
         glow.fillColor = os.outerColorLow.nsColor.withAlphaComponent(CGFloat(os.outerOpacity))
@@ -113,7 +110,7 @@ class OrbEffect: SKNode {
         main.blendMode = .add
         addChild(main)
         orb = main
-        
+
         updateLayout()
     }
 
@@ -122,7 +119,7 @@ class OrbEffect: SKNode {
             x: sceneSize.width * CGFloat(settings.positionX),
             y: sceneSize.height * CGFloat(settings.positionY)
         )
-        
+
         orb?.position = center
         glowOrb?.position = center
         alpha = CGFloat(settings.opacity)
@@ -130,36 +127,43 @@ class OrbEffect: SKNode {
 
     // MARK: - Audio Driven Updates
 
-    private func updateOrb(amplitude: Float) {
+    private func updateOrb(bins: StereoBins) {
         guard !isHidden else { return }
-        
+
         let os = orbSettings
-        let coeff = amplitude > smoothedAmplitude
-            ? Float(os.attack)
-            : Float(os.release)
-            
-        smoothedAmplitude = smoothedAmplitude * (1 - coeff) + amplitude * coeff
+        let leftAmp  = bins.leftAmplitude()
+        let rightAmp = bins.rightAmplitude()
 
-        let boost = CGFloat(os.boost)
-        let targetScale = 1.0 + CGFloat(smoothedAmplitude) * boost
-        let clampedScale = min(targetScale, 2.5)
+        let leftCoeff  = leftAmp  > smoothedLeft  ? Float(os.attack) : Float(os.release)
+        let rightCoeff = rightAmp > smoothedRight ? Float(os.attack) : Float(os.release)
 
-        orb?.run(SKAction.scale(to: clampedScale, duration: 0.05))
-        glowOrb?.run(SKAction.scale(to: clampedScale, duration: 0.08))
+        smoothedLeft  = smoothedLeft  * (1 - leftCoeff)  + leftAmp  * leftCoeff
+        smoothedRight = smoothedRight * (1 - rightCoeff) + rightAmp * rightCoeff
+
+        let amplitude: Float
+        switch settings.channelMode {
+        case .stereo, .mono:
+            amplitude = (smoothedLeft + smoothedRight) / 2
+        case .left:
+            amplitude = smoothedLeft
+        case .right:
+            amplitude = smoothedRight
+        }
+
+        let targetScale = min(1.0 + CGFloat(amplitude) * CGFloat(os.boost), 2.5)
+        orb?.run(SKAction.scale(to: targetScale, duration: 0.05))
+        glowOrb?.run(SKAction.scale(to: targetScale, duration: 0.08))
     }
 
     private func updateColor(bins: StereoBins) {
         let os = orbSettings
-        let leftLow = bins.left.prefix(4).reduce(0, +) / 4
-        let rightLow = bins.right.prefix(4).reduce(0, +) / 4
-        let intensity = CGFloat((leftLow + rightLow) / 2)
+        let intensity = CGFloat(bins.amplitude(for: settings.channelMode, binRange: 0..<4))
 
         let innerColor = interpolateColor(
             from: os.innerColorLow.nsColor,
             to: os.innerColorHigh.nsColor,
             progress: intensity
         )
-        
         let outerColor = interpolateColor(
             from: os.outerColorLow.nsColor,
             to: os.outerColorHigh.nsColor,
@@ -174,16 +178,17 @@ class OrbEffect: SKNode {
     // MARK: - Helper Methods
 
     private func interpolateColor(from: NSColor, to: NSColor, progress: CGFloat) -> NSColor {
-        let red = from.redComponent + (to.redComponent - from.redComponent) * progress
+        let red   = from.redComponent   + (to.redComponent   - from.redComponent)   * progress
         let green = from.greenComponent + (to.greenComponent - from.greenComponent) * progress
-        let blue = from.blueComponent + (to.blueComponent - from.blueComponent) * progress
+        let blue  = from.blueComponent  + (to.blueComponent  - from.blueComponent)  * progress
         let alpha = from.alphaComponent + (to.alphaComponent - from.alphaComponent) * progress
-        
+
         return NSColor(red: red, green: green, blue: blue, alpha: alpha)
     }
 
     func reset() {
-        smoothedAmplitude = 0
+        smoothedLeft  = 0
+        smoothedRight = 0
         orb?.run(SKAction.scale(to: 1.0, duration: 0.3))
         glowOrb?.run(SKAction.scale(to: 1.0, duration: 0.3))
     }
