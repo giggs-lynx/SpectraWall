@@ -106,6 +106,7 @@ class VisualizerSceneManager: ObservableObject {
 
     func moveLayer(in scene: SceneSettings, from source: IndexSet, to destination: Int) {
         scene.layers.move(fromOffsets: source, toOffset: destination)
+        scene.objectWillChange.send()
         save()
     }
 

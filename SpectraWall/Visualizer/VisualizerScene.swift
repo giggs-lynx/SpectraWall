@@ -17,6 +17,7 @@ class VisualizerScene: SKScene {
     private var effectNodes: [UUID: SKNode] = [:]
     private var cancellables = Set<AnyCancellable>()
     private var perLayerCancellables = Set<AnyCancellable>()
+    private var sceneStructureCancellables = Set<AnyCancellable>()
     private var currentSceneID: UUID?
 
     override func didMove(to view: SKView) {
@@ -62,6 +63,7 @@ class VisualizerScene: SKScene {
         effectNodes.values.forEach { $0.removeFromParent() }
         effectNodes.removeAll()
         perLayerCancellables.removeAll()
+        sceneStructureCancellables.removeAll()
 
         guard let scene = VisualizerSceneManager.shared.activeScene else {
             currentSceneID = nil
@@ -69,8 +71,6 @@ class VisualizerScene: SKScene {
         }
         
         currentSceneID = scene.id
-
-        // Initial setup
         syncActiveSceneLayers()
 
         // Observe internal layer list changes (Add/Remove/Move)
@@ -80,7 +80,7 @@ class VisualizerScene: SKScene {
                 self?.syncActiveSceneLayers()
                 self?.observeLayerProperties(newLayers)
             }
-            .store(in: &perLayerCancellables)
+            .store(in: &sceneStructureCancellables)
     }
 
     private func syncActiveSceneLayers() {
