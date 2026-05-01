@@ -20,6 +20,7 @@ struct BorderSettings: EffectSettings, Equatable {
     var stroke2ColorEnd: ColorData
     var pulseAttack: Double
     var pulseRelease: Double
+    var pulseThreshold: Double
 
     static var defaults: BorderSettings {
         BorderSettings(
@@ -34,7 +35,8 @@ struct BorderSettings: EffectSettings, Equatable {
             stroke2ColorStart: ColorData(red: 1.0, green: 0.3, blue: 0.0),
             stroke2ColorEnd: ColorData(red: 1.0, green: 0.8, blue: 0.0),
             pulseAttack: 0.9,
-            pulseRelease: 0.15
+            pulseRelease: 0.15,
+            pulseThreshold: 0.01
         )
     }
 
