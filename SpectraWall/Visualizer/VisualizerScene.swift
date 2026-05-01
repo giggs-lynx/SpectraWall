@@ -118,10 +118,6 @@ class VisualizerScene: SKScene {
         guard let node = effectNodes[layer.id] else { return }
         node.isHidden = !layer.isVisible
         node.alpha = CGFloat(layer.opacity)
-        node.position = CGPoint(
-            x: size.width * CGFloat(layer.positionX),
-            y: size.height * CGFloat(layer.positionY)
-        )
     }
 
     // MARK: - Node Factory

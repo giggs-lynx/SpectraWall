@@ -133,19 +133,14 @@ class SpectrumEffect: SKNode {
     private func setupHorizontalBars() {
         let ss = spectrumSettings
         let totalWidth = sceneSize.width * CGFloat(ss.width)
-        let startX = (sceneSize.width - totalWidth) * CGFloat(settings.positionX)
         let barWidth = (totalWidth - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount)
-        let startY = sceneSize.height * CGFloat(settings.positionY)
 
         for i in 0..<binCount {
             let bar = SKSpriteNode(color: .white, size: CGSize(width: barWidth, height: 2))
-            let x = startX + barWidth / 2 + CGFloat(i) * (barWidth + barSpacing)
-            
             bar.anchorPoint = ss.anchor == .bottom
                 ? CGPoint(x: 0.5, y: 0)
                 : CGPoint(x: 0.5, y: 1)
-            
-            bar.position = CGPoint(x: x, y: startY)
+            bar.position = .zero
             addChild(bar)
             bars.append(bar)
         }
@@ -154,19 +149,14 @@ class SpectrumEffect: SKNode {
     private func setupVerticalBars() {
         let ss = spectrumSettings
         let totalHeight = sceneSize.height * CGFloat(ss.width)
-        let startY = (sceneSize.height - totalHeight) * CGFloat(settings.positionY)
         let barHeight = (totalHeight - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount)
-        let startX = sceneSize.width * CGFloat(settings.positionX)
 
         for i in 0..<binCount {
             let bar = SKSpriteNode(color: .white, size: CGSize(width: 2, height: barHeight))
-            let y = startY + barHeight / 2 + CGFloat(i) * (barHeight + barSpacing)
-            
             bar.anchorPoint = ss.anchor == .left
                 ? CGPoint(x: 0, y: 0.5)
                 : CGPoint(x: 1, y: 0.5)
-            
-            bar.position = CGPoint(x: startX, y: y)
+            bar.position = .zero
             addChild(bar)
             bars.append(bar)
         }
