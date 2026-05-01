@@ -30,7 +30,6 @@ struct GlobalSettingsView: View {
                                 }
                             } catch {
                                 logger.error("LaunchAtLogin error: \(error)")
-                                // Restore UI on failure
                                 launchAtLogin = SMAppService.mainApp.status == .enabled
                             }
                         }
@@ -64,6 +63,9 @@ struct GlobalSettingsView: View {
                 }
                 .padding(.vertical, 16)
             }
+        }
+        .onAppear {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
         }
     }
 }

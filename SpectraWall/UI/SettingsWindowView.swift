@@ -13,7 +13,6 @@ struct SettingsWindowView: View {
     @State private var selectedSceneID: UUID?
     @State private var selectedLayerID: UUID?
     
-    // 修正 Force Unwrapping，改為更穩健的定義方式
     private let globalID = UUID(uuidString: "00000000-0000-0000-0000-000000000000") ?? UUID()
     
     var selectedScene: SceneSettings? {

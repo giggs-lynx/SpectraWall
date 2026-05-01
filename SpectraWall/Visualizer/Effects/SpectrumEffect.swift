@@ -135,14 +135,14 @@ class SpectrumEffect: SKNode {
         let totalWidth = sceneSize.width * CGFloat(ss.width)
         let barWidth = (totalWidth - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount)
 
-        for i in 0..<binCount {
+        bars = (0..<binCount).map { _ in
             let bar = SKSpriteNode(color: .white, size: CGSize(width: barWidth, height: 2))
             bar.anchorPoint = ss.anchor == .bottom
                 ? CGPoint(x: 0.5, y: 0)
                 : CGPoint(x: 0.5, y: 1)
             bar.position = .zero
             addChild(bar)
-            bars.append(bar)
+            return bar
         }
     }
 
@@ -151,7 +151,7 @@ class SpectrumEffect: SKNode {
         let totalHeight = sceneSize.height * CGFloat(ss.width)
         let barHeight = (totalHeight - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount)
 
-        for i in 0..<binCount {
+        bars = (0..<binCount).map { _ in
             let bar = SKSpriteNode(color: .white, size: CGSize(width: 2, height: barHeight))
             bar.anchorPoint = ss.anchor == .left
                 ? CGPoint(x: 0, y: 0.5)
@@ -159,6 +159,7 @@ class SpectrumEffect: SKNode {
             bar.position = .zero
             addChild(bar)
             bars.append(bar)
+            return bar
         }
     }
 
