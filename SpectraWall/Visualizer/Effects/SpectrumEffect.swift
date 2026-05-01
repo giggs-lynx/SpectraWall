@@ -148,7 +148,7 @@ class SpectrumEffect: SKNode {
             bar.anchorPoint = ss.anchor == .left ? CGPoint(x: 0, y: 0.5) : CGPoint(x: 1, y: 0.5)
             bar.position = .zero
             addChild(bar)
-            return bar  // 移除多餘的 bars.append(bar)
+            return bar
         }
     }
 
@@ -200,8 +200,8 @@ class SpectrumEffect: SKNode {
 
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
-            let h = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
-            bar.run(.resize(toHeight: h, duration: 0.05))
+            let barHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
+            bar.run(.resize(toHeight: barHeight, duration: 0.05))
             bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
@@ -214,8 +214,8 @@ class SpectrumEffect: SKNode {
 
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
-            let w = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
-            bar.run(.resize(toWidth: w, duration: 0.05))
+            let barWidth = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
+            bar.run(.resize(toWidth: barWidth, duration: 0.05))
             bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
@@ -272,9 +272,9 @@ class SpectrumEffect: SKNode {
 
     private func interpolateColor(from: NSColor, to: NSColor, progress: CGFloat) -> NSColor {
         NSColor(
-            red:   from.redComponent   + (to.redComponent   - from.redComponent)   * progress,
+            red: from.redComponent + (to.redComponent - from.redComponent) * progress,
             green: from.greenComponent + (to.greenComponent - from.greenComponent) * progress,
-            blue:  from.blueComponent  + (to.blueComponent  - from.blueComponent)  * progress,
+            blue: from.blueComponent + (to.blueComponent - from.blueComponent) * progress,
             alpha: 1.0
         )
     }

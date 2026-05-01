@@ -182,7 +182,7 @@ class BorderEffect: SKNode {
         let clockwise = bs.clockwise
 
         let colorStart = index == 0 ? bs.stroke1ColorStart : bs.stroke2ColorStart
-        let colorEnd   = index == 0 ? bs.stroke1ColorEnd   : bs.stroke2ColorEnd
+        let colorEnd   = index == 0 ? bs.stroke1ColorEnd : bs.stroke2ColorEnd
 
         // stroke 0 → left channel, stroke 1 → right channel
         // When only 1 stroke, fall back to combined amplitude
@@ -206,9 +206,9 @@ class BorderEffect: SKNode {
 
             let offset = clockwise
                 ? -(1.0 - tProgress) * tailLength
-                :  (1.0 - tProgress) * tailLength
+                : (1.0 - tProgress) * tailLength
 
-            let segProgress    = (stroke.progress + offset).truncatingRemainder(dividingBy: 1.0)
+            let segProgress = (stroke.progress + offset).truncatingRemainder(dividingBy: 1.0)
             let adjustedProgress = segProgress < 0 ? segProgress + 1.0 : segProgress
 
             let segLength = perimeterLength * CGFloat(tailLength) / CGFloat(trailSegments)
@@ -286,8 +286,8 @@ class BorderEffect: SKNode {
         let segs: [BorderSegment] = [
             // Bottom
             BorderSegment(length: width - 2 * radius, isArc: false,
-                startPoint: CGPoint(x: inset + radius,         y: inset),
-                endPoint:   CGPoint(x: inset + width - radius, y: inset)),
+                startPoint: CGPoint(x: inset + radius, y: inset),
+                endPoint: CGPoint(x: inset + width - radius, y: inset)),
             // Bottom-Right
             BorderSegment(length: pi / 2 * radius, isArc: true,
                 center: CGPoint(x: inset + width - radius, y: inset + radius),
@@ -295,7 +295,7 @@ class BorderEffect: SKNode {
             // Right
             BorderSegment(length: height - 2 * radius, isArc: false,
                 startPoint: CGPoint(x: inset + width, y: inset + radius),
-                endPoint:   CGPoint(x: inset + width, y: inset + height - radius)),
+                endPoint: CGPoint(x: inset + width, y: inset + height - radius)),
             // Top-Right
             BorderSegment(length: pi / 2 * radius, isArc: true,
                 center: CGPoint(x: inset + width - radius, y: inset + height - radius),
@@ -303,7 +303,7 @@ class BorderEffect: SKNode {
             // Top
             BorderSegment(length: width - 2 * radius, isArc: false,
                 startPoint: CGPoint(x: inset + width - radius, y: inset + height),
-                endPoint:   CGPoint(x: inset + radius,         y: inset + height)),
+                endPoint: CGPoint(x: inset + radius, y: inset + height)),
             // Top-Left
             BorderSegment(length: pi / 2 * radius, isArc: true,
                 center: CGPoint(x: inset + radius, y: inset + height - radius),
@@ -311,11 +311,11 @@ class BorderEffect: SKNode {
             // Left
             BorderSegment(length: height - 2 * radius, isArc: false,
                 startPoint: CGPoint(x: inset, y: inset + height - radius),
-                endPoint:   CGPoint(x: inset, y: inset + radius)),
+                endPoint: CGPoint(x: inset, y: inset + radius)),
             // Bottom-Left
             BorderSegment(length: pi / 2 * radius, isArc: true,
                 center: CGPoint(x: inset + radius, y: inset + radius),
-                radius: radius, startAngle: pi, endAngle: 3 * pi / 2),
+                radius: radius, startAngle: pi, endAngle: 3 * pi / 2)
         ]
 
         segmentCache       = segs
@@ -341,11 +341,11 @@ class BorderEffect: SKNode {
         var length: CGFloat
         var isArc: Bool
         var startPoint: CGPoint = .zero
-        var endPoint:   CGPoint = .zero
-        var center:     CGPoint = .zero
-        var radius:     CGFloat = 0
+        var endPoint: CGPoint = .zero
+        var center: CGPoint = .zero
+        var radius: CGFloat = 0
         var startAngle: CGFloat = 0
-        var endAngle:   CGFloat = 0
+        var endAngle: CGFloat = 0
 
         func point(at progress: CGFloat) -> CGPoint {
             if isArc {
@@ -363,9 +363,9 @@ class BorderEffect: SKNode {
 
     private func interpolateColor(from: NSColor, to: NSColor, progress: CGFloat) -> NSColor {
         NSColor(
-            red:   from.redComponent   + (to.redComponent   - from.redComponent)   * progress,
+            red: from.redComponent + (to.redComponent - from.redComponent) * progress,
             green: from.greenComponent + (to.greenComponent - from.greenComponent) * progress,
-            blue:  from.blueComponent  + (to.blueComponent  - from.blueComponent)  * progress,
+            blue: from.blueComponent + (to.blueComponent - from.blueComponent) * progress,
             alpha: 1.0
         )
     }
