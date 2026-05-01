@@ -3,7 +3,7 @@ options:
   bundleIdPrefix: com.spectrawall
   deploymentTarget:
     macOS: "14.2"
-  xcodeVersion: "16.0"
+  xcodeVersion: "26.2"
   generateEmptyDirectories: true
   fileTypes:
     metal:
@@ -27,6 +27,8 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "14.2"
     ENABLE_USER_SCRIPT_SANDBOXING: NO # Must be NO for SwiftLint to run
     DEAD_CODE_STRIPPING: YES
+    CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED: YES
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
 
 targets:
   SpectraWall:
@@ -74,7 +76,6 @@ targets:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
           SWIFT_OPTIMIZATION_LEVEL: "-Onone"
-          STRING_CATALOG_GENERATE_SYMBOLS: YES
         Release:
           SWIFT_COMPILATION_MODE: wholemodule
           DEAD_CODE_STRIPPING: YES
