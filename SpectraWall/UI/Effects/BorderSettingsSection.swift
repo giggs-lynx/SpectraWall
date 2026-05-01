@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct BorderSettingsSection: View {
     @ObservedObject var layer: LayerSettings
@@ -52,6 +53,12 @@ struct BorderSettingsSection: View {
         .onChange(of: settings) { _, newValue in
             layer.effectSettings = newValue
             VisualizerSceneManager.shared.save()
+        }
+        .onReceive(layer.objectWillChange) { _ in
+            if let borderSettings = layer.effectSettings as? BorderSettings,
+               borderSettings != settings {
+                settings = borderSettings
+            }
         }
 
         Divider()

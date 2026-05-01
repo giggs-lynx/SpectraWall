@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct CommonSettingsSection: View {
     @ObservedObject var layer: LayerSettings
@@ -58,6 +59,12 @@ struct CommonSettingsSection: View {
         .onChange(of: positionY) { _, newValue in
             layer.positionY = newValue
             VisualizerSceneManager.shared.save()
+        }
+        .onReceive(layer.objectWillChange) { _ in
+            opacity = layer.opacity
+            positionX = layer.positionX
+            positionY = layer.positionY
+            channelMode = layer.channelMode
         }
     }
 }

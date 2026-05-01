@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct OrbSettingsSection: View {
     @ObservedObject var layer: LayerSettings
@@ -56,6 +57,12 @@ struct OrbSettingsSection: View {
         .onChange(of: settings) { _, newValue in
             layer.effectSettings = newValue
             VisualizerSceneManager.shared.save()
+        }
+        .onReceive(layer.objectWillChange) { _ in
+            if let orbSettings = layer.effectSettings as? OrbSettings,
+               orbSettings != settings {
+                settings = orbSettings
+            }
         }
 
         Divider()

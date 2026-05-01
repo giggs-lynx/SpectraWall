@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct SpectrumSettingsSection: View {
     @ObservedObject var layer: LayerSettings
@@ -51,6 +52,12 @@ struct SpectrumSettingsSection: View {
         .onChange(of: settings) { _, newValue in
             layer.effectSettings = newValue
             VisualizerSceneManager.shared.save()
+        }
+        .onReceive(layer.objectWillChange) { _ in
+            if let spectrumSettings = layer.effectSettings as? SpectrumSettings,
+               spectrumSettings != settings {
+                settings = spectrumSettings
+            }
         }
 
         Divider()
