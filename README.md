@@ -12,7 +12,7 @@ SpectraWall captures system audio (per-app or global) and renders dynamic visual
 - **Three Visual Effects**:
   - **Spectrum** — frequency bars with channel separation
   - **Orb** — pulsing circle that reacts to amplitude
-  - **Border** — Metal-accelerated glowing border trail with clockwise/counter-clockwise motion
+  - **Border** — Metal-accelerated glowing border trail with neon glow shader, beat-reactive pulse echo
 - **Multi-Display Support** — automatically spans all connected monitors
 - **Scene/Layer Architecture** — stack multiple effects with independent settings
 - **Menu Bar App** — runs in the menu bar with popover settings window
@@ -22,13 +22,12 @@ SpectraWall captures system audio (per-app or global) and renders dynamic visual
 
 - macOS 14.2+
 - Xcode 16+
-- Swift 6
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
 ## Installation
 
 ```bash
-git clone https://github.com/YOUR_USER/SpectraWall.git
+git clone https://github.com/giggs-lynx/SpectraWall.git
 cd SpectraWall
 make project
 open SpectraWall.xcodeproj
@@ -47,14 +46,15 @@ Build and run from Xcode (⌘R).
 
 ```
 SpectraWall/
-├── App/            # App entry, menu bar, desktop window management
+├── App/            # App entry, AppDelegate, desktop window setup
 ├── Audio/          # Core Audio tap, FFT analyzer, process monitor
-├── Settings/       # Configuration models
+├── Model/          # Configuration models (settings structs)
 ├── UI/             # SwiftUI settings views
+│   ├── Components/ # Reusable UI components
 │   └── Effects/    # Per-effect settings sections
-├── Visualizer/     # SpriteKit scenes and layer management
+├── Visualizer/     # SpriteKit scene and layer management
 │   └── Effects/    # Spectrum, Orb, Border effects
-└── Metal/          # Metal shaders, mesh, renderer (border effect)
+└── Metal/          # Metal shader, trail renderer, renderer registry
 ```
 
 ## License
