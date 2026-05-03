@@ -8,6 +8,7 @@
 import SwiftUI
 import SpriteKit
 import OSLog
+import MetalKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
 
@@ -16,6 +17,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var desktopWindows: [NSWindow] = []
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
+    private var trailRenderers: [NSScreen: BorderTrailRenderer] = [:]
 
     private let logger = Logger(subsystem: AppConstants.bundleId, category: "AppLifecycle")
 
@@ -86,13 +88,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
-        let skView = SKView(frame: NSRect(origin: .zero, size: screen.frame.size))
+        let size = screen.frame.size
+        let containerView = NSView(frame: NSRect(origin: .zero, size: size))
+        containerView.wantsLayer = true
+
+        // SKView
+        let skView = SKView(frame: NSRect(origin: .zero, size: size))
         skView.allowsTransparency = true
-
-        let scene = VisualizerScene(size: screen.frame.size)
+        let scene = VisualizerScene(size: size)
         skView.presentScene(scene)
+        containerView.addSubview(skView)
 
-        window.contentView = skView
+        // MTKView
+        let mtkView = MTKView(frame: NSRect(origin: .zero, size: size))
+        mtkView.layer?.isOpaque = false
+        mtkView.layer?.backgroundColor = .clear
+        mtkView.wantsLayer = true
+        if let renderer = BorderTrailRenderer(mtkView: mtkView) {
+            mtkView.delegate = renderer
+            trailRenderers[screen] = renderer
+            BorderTrailRendererRegistry.shared.register(renderer, for: screen)
+            
+            let scale = screen.backingScaleFactor
+            let drawableSize = CGSize(width: size.width * scale, height: size.height * scale)
+            mtkView.drawableSize = drawableSize
+            renderer.mtkView(mtkView, drawableSizeWillChange: drawableSize)
+        }
+        containerView.addSubview(mtkView)
+
+        window.contentView = containerView
         return window
     }
 

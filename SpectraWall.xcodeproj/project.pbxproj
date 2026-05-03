@@ -16,6 +16,10 @@
 		3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B60CF699EDBE474237A6F64 /* ColorPickerRow.swift */; };
 		38E876BC3348A5FC7C3FCF6D /* OrbEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */; };
 		3D40F3B52FA48A7E0063CDA3 /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D40F3B42FA48A7E0063CDA3 /* AudioEngine.swift */; };
+		3D40F3B72FA52A8E0063CDA3 /* BorderTrail.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3D40F3B62FA52A8E0063CDA3 /* BorderTrail.metal */; };
+		3D40F3B92FA52AA70063CDA3 /* BorderTrailRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D40F3B82FA52AA70063CDA3 /* BorderTrailRenderer.swift */; };
+		3D40F3BB2FA52AFF0063CDA3 /* BorderTrailRendererRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D40F3BA2FA52AFF0063CDA3 /* BorderTrailRendererRegistry.swift */; };
+		3D40F3C02FA5F2A70063CDA3 /* BorderEffectGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D40F3BF2FA5F2A70063CDA3 /* BorderEffectGeometry.swift */; };
 		434790673A0A2D87D51AE656 /* SceneSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50727C140006D5CA0FFA8B2E /* SceneSettings.swift */; };
 		45AA0DA4D71C679B96C2FC99 /* VisualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D70F274F572EBBA149E0D8 /* VisualizerSettings.swift */; };
 		4B750357466F81B1760F8FA0 /* AudioObjectIDExt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A6FD6711C9F4393C02B6D24 /* AudioObjectIDExt.swift */; };
@@ -79,6 +83,10 @@
 		25DD316C2B3E0E9039209DAF /* SpectrumSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumSettings.swift; sourceTree = "<group>"; };
 		396D85DF64231696AB87650B /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
 		3D40F3B42FA48A7E0063CDA3 /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
+		3D40F3B62FA52A8E0063CDA3 /* BorderTrail.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = BorderTrail.metal; sourceTree = "<group>"; };
+		3D40F3B82FA52AA70063CDA3 /* BorderTrailRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderTrailRenderer.swift; sourceTree = "<group>"; };
+		3D40F3BA2FA52AFF0063CDA3 /* BorderTrailRendererRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderTrailRendererRegistry.swift; sourceTree = "<group>"; };
+		3D40F3BF2FA5F2A70063CDA3 /* BorderEffectGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderEffectGeometry.swift; sourceTree = "<group>"; };
 		497BA89A08FD7D95FDB0D6C5 /* LayerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerSettingsView.swift; sourceTree = "<group>"; };
 		50727C140006D5CA0FFA8B2E /* SceneSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSettings.swift; sourceTree = "<group>"; };
 		5343DED5166E7273A786FB4B /* CommonSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonSettingsSection.swift; sourceTree = "<group>"; };
@@ -150,6 +158,16 @@
 			path = Effects;
 			sourceTree = "<group>";
 		};
+		3D40F3BC2FA5F0C90063CDA3 /* Metal */ = {
+			isa = PBXGroup;
+			children = (
+				3D40F3B62FA52A8E0063CDA3 /* BorderTrail.metal */,
+				3D40F3B82FA52AA70063CDA3 /* BorderTrailRenderer.swift */,
+				3D40F3BA2FA52AFF0063CDA3 /* BorderTrailRendererRegistry.swift */,
+			);
+			path = Metal;
+			sourceTree = "<group>";
+		};
 		43B6E7E56FC58F8BF9863318 /* Components */ = {
 			isa = PBXGroup;
 			children = (
@@ -165,6 +183,7 @@
 		560BEA8FA3ED90FDDBA60632 /* Effects */ = {
 			isa = PBXGroup;
 			children = (
+				3D40F3BF2FA5F2A70063CDA3 /* BorderEffectGeometry.swift */,
 				9C90B5502739F4165FAAB05E /* BorderEffect.swift */,
 				64DC7BB1AD44D5709DEFC431 /* OrbEffect.swift */,
 				8E72743D7A773D83695C08C6 /* SpectrumEffect.swift */,
@@ -238,6 +257,7 @@
 		D7CA16D80A98AE35273837FF /* SpectraWall */ = {
 			isa = PBXGroup;
 			children = (
+				3D40F3BC2FA5F0C90063CDA3 /* Metal */,
 				D076AA890B568E28D54BB0AB /* Assets.xcassets */,
 				89FFF9D3BF84BCE6535AA84F /* Info.plist */,
 				92298E104B7C197F9821A05A /* Localizable.xcstrings */,
@@ -419,6 +439,7 @@
 				D718742DF5741E602A43F2BB /* BorderSettingsSection.swift in Sources */,
 				9E0D24655FBC2BC2AD5FF4F4 /* ChannelColorSettings.swift in Sources */,
 				F8DBE95DD0AEB8B064601793 /* ChannelColorSettingsView.swift in Sources */,
+				3D40F3B92FA52AA70063CDA3 /* BorderTrailRenderer.swift in Sources */,
 				3672749402C214A4EF9A50F5 /* ColorPickerRow.swift in Sources */,
 				74660ECF8B6CE7F201E03985 /* CommonSettingsSection.swift in Sources */,
 				68C8498DC8808B2E02530F1F /* EffectSettings.swift in Sources */,
@@ -429,17 +450,20 @@
 				7975A727F56D8686D759C120 /* OrbSettings.swift in Sources */,
 				A58221399614778BAD2212C2 /* OrbSettingsSection.swift in Sources */,
 				CD6A494DC4CFCDC15B94B904 /* PopoverView.swift in Sources */,
+				3D40F3B72FA52A8E0063CDA3 /* BorderTrail.metal in Sources */,
 				434790673A0A2D87D51AE656 /* SceneSettings.swift in Sources */,
 				84F4B25551533C0D03FF6183 /* SectionHeader.swift in Sources */,
 				5A9AB759908AB1C5615B7FE4 /* SettingsSlider.swift in Sources */,
 				80AAD8EEC42188E7F6DE0D5E /* SettingsWindowView.swift in Sources */,
 				B086D3707650CAC6C8A870D8 /* SpectraWallApp.swift in Sources */,
 				4F4DABB3B6FD4BCC8B476A33 /* SpectrumEffect.swift in Sources */,
+				3D40F3BB2FA52AFF0063CDA3 /* BorderTrailRendererRegistry.swift in Sources */,
 				23DF99ABFC0FDBA92563EC9A /* SpectrumSettings.swift in Sources */,
 				D59207A6F54E1FF888EEB8D0 /* SpectrumSettingsSection.swift in Sources */,
 				7D63DD88377D234DB325DF72 /* VisualizerScene.swift in Sources */,
 				C69FE214CD41108928135210 /* VisualizerSceneManager.swift in Sources */,
 				45AA0DA4D71C679B96C2FC99 /* VisualizerSettings.swift in Sources */,
+				3D40F3C02FA5F2A70063CDA3 /* BorderEffectGeometry.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
