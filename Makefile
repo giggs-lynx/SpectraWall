@@ -1,5 +1,5 @@
 SCHEME  = SpectraWall
-VERSION = 1.0
+VERSION = 0.0.1
 BUILD_DIR   = ./build
 RELEASE_DIR = $(BUILD_DIR)/Build/Products/Release
 DIST_DIR    = ./dist
