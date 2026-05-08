@@ -8,6 +8,8 @@ jobs:
   release:
     name: Release
     runs-on: macos-15
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
