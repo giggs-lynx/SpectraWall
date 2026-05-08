@@ -26,6 +26,17 @@ SpectraWall captures system audio (per-app or global) and renders dynamic visual
 
 ## Installation
 
+### Homebrew
+
+```bash
+brew tap giggs-lynx/tap
+brew install --cask spectrawall
+```
+
+> First launch may require approving an unidentified developer in **System Settings > Privacy & Security**.
+
+### Build from source
+
 ```bash
 git clone https://github.com/giggs-lynx/SpectraWall.git
 cd SpectraWall
