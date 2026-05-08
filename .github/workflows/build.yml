@@ -1,0 +1,44 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & Lint
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+
+      - name: Cache Homebrew
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: brew-${{ hashFiles('.github/workflows/build.yml') }}
+          restore-keys: brew-
+
+      - name: Install dependencies
+        run: brew install xcodegen swiftlint
+
+      - name: Generate Xcode project
+        run: make project
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project SpectraWall.xcodeproj \
+            -scheme SpectraWall \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: SwiftLint
+        run: swiftlint lint --config .swiftlint.yml
