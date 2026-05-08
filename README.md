@@ -1,5 +1,10 @@
 # SpectraWall
 
+[![build](https://github.com/giggs-lynx/SpectraWall/actions/workflows/build.yml/badge.svg)](https://github.com/giggs-lynx/SpectraWall/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/giggs-lynx/SpectraWall)](https://github.com/giggs-lynx/SpectraWall/releases)
+![platform](https://img.shields.io/badge/platform-macOS-lightgrey)
+[![license](https://img.shields.io/github/license/giggs-lynx/SpectraWall)](LICENSE)
+
 Audio-reactive desktop visualizer for macOS that paints your desktop wallpaper with real-time sound.
 
 ## Overview
