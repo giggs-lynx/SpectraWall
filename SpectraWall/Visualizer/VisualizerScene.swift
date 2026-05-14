@@ -14,6 +14,8 @@ protocol UpdatableEffectNode {
 }
 
 class VisualizerScene: SKScene {
+    var screen: NSScreen = NSScreen.screens[0]
+
     private var effectNodes: [UUID: SKNode] = [:]
     private var cancellables = Set<AnyCancellable>()
     private var perLayerCancellables = Set<AnyCancellable>()
@@ -134,7 +136,7 @@ class VisualizerScene: SKScene {
         switch layer.effectType {
         case .spectrum: return SpectrumEffect(size: size, settings: layer)
         case .orb:      return OrbEffect(size: size, settings: layer)
-        case .border:   return BorderEffect(size: size, settings: layer)
+        case .border:   return BorderEffect(size: size, settings: layer, screen: screen)
         }
     }
 

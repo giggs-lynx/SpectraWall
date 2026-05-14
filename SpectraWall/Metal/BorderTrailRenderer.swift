@@ -29,6 +29,7 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
     private var screenSize: SIMD2<Float> = .zero
 
     private(set) var trails: [ObjectIdentifier: TrailData] = [:]
+    private var vertexBuffers: [ObjectIdentifier: MTLBuffer] = [:]
     private let lock = NSLock()
 
     init?(mtkView: MTKView) {
@@ -44,8 +45,9 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
         mtkView.framebufferOnly      = false
         mtkView.colorPixelFormat     = .bgra8Unorm
         mtkView.clearColor           = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
-        mtkView.isPaused             = false
-        mtkView.enableSetNeedsDisplay = false
+        mtkView.isPaused                  = false
+        mtkView.enableSetNeedsDisplay     = false
+        mtkView.preferredFramesPerSecond  = 60
         mtkView.sampleCount          = 4
 
         guard
@@ -115,19 +117,30 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
         let snapshot = trails
         lock.unlock()
 
+        let activeIds = Set(snapshot.keys)
+        vertexBuffers = vertexBuffers.filter { activeIds.contains($0.key) }
+
         if !snapshot.isEmpty {
             encoder.setRenderPipelineState(pipelineState)
             encoder.setVertexBytes(&screenSize, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
 
-            for trailData in snapshot.values {
+            for (id, trailData) in snapshot {
                 guard trailData.vertices.count >= 3 else { continue }
 
                 let byteCount = trailData.vertices.count * MemoryLayout<TrailVertex>.stride
-                guard let buf = device.makeBuffer(
-                    bytes: trailData.vertices,
-                    length: byteCount,
-                    options: .storageModeShared
-                ) else { continue }
+                let buf: MTLBuffer
+                if let existing = vertexBuffers[id], existing.length >= byteCount {
+                    existing.contents().copyMemory(from: trailData.vertices, byteCount: byteCount)
+                    buf = existing
+                } else {
+                    guard let newBuf = device.makeBuffer(
+                        bytes: trailData.vertices,
+                        length: byteCount,
+                        options: .storageModeShared
+                    ) else { continue }
+                    vertexBuffers[id] = newBuf
+                    buf = newBuf
+                }
 
                 encoder.setVertexBuffer(buf, offset: 0, index: 0)
                 encoder.drawPrimitives(

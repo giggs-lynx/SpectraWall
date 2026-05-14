@@ -269,10 +269,10 @@ extension BorderEffect {
         var centerPoints: [CGPoint] = []
         var widths: [CGFloat] = []
         var stripWidths: [CGFloat] = []
-        var colors: [NSColor] = []
+        var colors: [SIMD4<Float>] = []  // pre-converted; avoids per-step NSColor alloc
         var alphas: [CGFloat] = []
     }
-    
+
     private func prepareTrailData(
         progress: Double,
         amplitude: Float,
@@ -283,46 +283,63 @@ extension BorderEffect {
         let bs = borderSettings
         let segments = borderSegments()
         let steps = 120
-        let colorStart = strokeIndex == 0 ? bs.stroke1ColorStart.nsColor : bs.stroke2ColorStart.nsColor
-        let colorEnd = strokeIndex == 0 ? bs.stroke1ColorEnd.nsColor : bs.stroke2ColorEnd.nsColor
+        let capacity = steps + 1
+
+        // Convert palette colors once — reused for every step via SIMD lerp.
+        let startNS  = strokeIndex == 0 ? bs.stroke1ColorStart.nsColor : bs.stroke2ColorStart.nsColor
+        let endNS    = strokeIndex == 0 ? bs.stroke1ColorEnd.nsColor   : bs.stroke2ColorEnd.nsColor
+        let colorStartV = SIMD4<Float>(Float(startNS.redComponent), Float(startNS.greenComponent),
+                                       Float(startNS.blueComponent), 1.0)
+        let colorEndV   = SIMD4<Float>(Float(endNS.redComponent),   Float(endNS.greenComponent),
+                                       Float(endNS.blueComponent),   1.0)
+
         var ctx = TrailContext()
-        
+        ctx.centerPoints.reserveCapacity(capacity)
+        ctx.widths.reserveCapacity(capacity)
+        ctx.stripWidths.reserveCapacity(capacity)
+        ctx.colors.reserveCapacity(capacity)
+        ctx.alphas.reserveCapacity(capacity)
+
+        let heightF = sceneSize.height
+
         for stepIndex in 0...steps {
-            let stepT = CGFloat(stepIndex) / CGFloat(steps)
+            let stepT  = CGFloat(stepIndex) / CGFloat(steps)
+            let stepTF = Float(stepT)
             let distAlong = stepT * CGFloat(bs.tailLength) * perimeterLength
             let rawDist = CGFloat(progress) * perimeterLength + (bs.clockwise ? distAlong : -distAlong)
             let wrapped = ((rawDist.truncatingRemainder(dividingBy: perimeterLength)) + perimeterLength)
                 .truncatingRemainder(dividingBy: perimeterLength)
-            
+
             let (segIdx, localDist) = segmentAt(distance: wrapped, segments: segments)
             let seg = segments[segIdx]
             let localT = seg.length > 0 ? min(localDist / seg.length, 1.0) : 0
             let point = seg.point(at: localT)
-            
-            let baseW = (CGFloat(bs.baseWidth) + CGFloat(amplitude) * 3.0) * CGFloat(stepT)
-            ctx.centerPoints.append(point)
+
+            let baseW = (CGFloat(bs.baseWidth) + CGFloat(amplitude) * 3.0) * stepT
+            // Fold y-flip into the append to avoid a separate map pass after the loop.
+            ctx.centerPoints.append(CGPoint(x: point.x, y: heightF - point.y))
             ctx.widths.append(baseW)
             ctx.stripWidths.append(baseW * 3.0 * stripScale)
-            ctx.colors.append(interpolateNSColor(from: colorEnd, to: colorStart, progress: stepT))
+            // SIMD lerp: register-only ops, zero heap allocation per step.
+            ctx.colors.append(colorEndV + (colorStartV - colorEndV) * stepTF)
             ctx.alphas.append(alpha != nil ? CGFloat(alpha ?? 0) : stepT)
         }
-        
-        ctx.centerPoints = ctx.centerPoints.map { CGPoint(x: $0.x, y: sceneSize.height - $0.y) }.reversed()
+
+        ctx.centerPoints.reverse()
         ctx.widths.reverse()
         ctx.stripWidths.reverse()
         ctx.colors.reverse()
         ctx.alphas.reverse()
         return ctx
     }
-    
+
     private func appendHeadFan(ctx: TrailContext, to vertices: inout [TrailVertex]) {
         let hCenter = ctx.centerPoints[0]
         let hDir = normalize(CGPoint(x: hCenter.x - ctx.centerPoints[1].x, y: hCenter.y - ctx.centerPoints[1].y))
         let hNormal = perp(hDir)
         let hRadius = ctx.widths[0] / 2
-        let hColor = SIMD4<Float>(Float(ctx.colors[0].redComponent), Float(ctx.colors[0].greenComponent),
-                                  Float(ctx.colors[0].blueComponent), 1.0)
-        let hAlpha = Float(ctx.alphas[0])
+        let hColor  = ctx.colors[0]
+        let hAlpha  = Float(ctx.alphas[0])
         let fanSteps = 16
         
         for fanIndex in 0...fanSteps {
@@ -365,15 +382,15 @@ extension BorderEffect {
                                      y: ctx.centerPoints[i + 1].y - ctx.centerPoints[i - 1].y)
                 normal = perp(normalize(vector))
             }
-            let color4 = SIMD4<Float>(Float(ctx.colors[i].redComponent), Float(ctx.colors[i].greenComponent),
-                                      Float(ctx.colors[i].blueComponent), 1.0)
-            let halfW = ctx.stripWidths[i] / 2
+            let color4 = ctx.colors[i]  // already SIMD4<Float>
+            let halfW  = ctx.stripWidths[i] / 2
+            let alpha  = Float(ctx.alphas[i])
             vertices.append(TrailVertex(position: SIMD2<Float>(Float(point.x + normal.x * halfW),
                                                                Float(point.y + normal.y * halfW)),
-                                        color: color4, alpha: Float(ctx.alphas[i]), edgeDist: -1.0))
+                                        color: color4, alpha: alpha, edgeDist: -1.0))
             vertices.append(TrailVertex(position: SIMD2<Float>(Float(point.x - normal.x * halfW),
                                                                Float(point.y - normal.y * halfW)),
-                                        color: color4, alpha: Float(ctx.alphas[i]), edgeDist: 1.0))
+                                        color: color4, alpha: alpha, edgeDist: 1.0))
         }
     }
     
@@ -386,7 +403,9 @@ extension BorderEffect {
     ) -> [TrailVertex] {
         let ctx = prepareTrailData(progress: progress, amplitude: amplitude, stripScale: stripScale,
                                    strokeIndex: strokeIndex, alpha: alpha)
+        // fan: (fanSteps+1)*2 + 3 connector ≈ 37; strip: (steps+1)*2 = 242
         var vertices: [TrailVertex] = []
+        vertices.reserveCapacity(280)
         appendHeadFan(ctx: ctx, to: &vertices)
         appendBodyStrip(ctx: ctx, to: &vertices)
         return vertices
@@ -423,15 +442,13 @@ extension BorderEffect {
             alpha: alpha
         )
         
-        // scale 從螢幕中心展開
+        // Scale outward from the screen center, in-place to avoid a second array copy.
         let screenCenter = SIMD2<Float>(Float(sceneSize.width / 2), Float(sceneSize.height / 2))
-        vertices = vertices.map { vertex in
-            var updated = vertex
-            let offset = vertex.position - screenCenter
-            updated.position = screenCenter + offset * Float(scale)
-            return updated
+        let scaleF = Float(scale)
+        for i in 0..<vertices.count {
+            vertices[i].position = screenCenter + (vertices[i].position - screenCenter) * scaleF
         }
-        
+
         return TrailData(vertices: vertices)
     }
 }

@@ -66,7 +66,7 @@ class BorderEffect: SKNode, UpdatableEffectNode {
 
     // MARK: - Initialization
 
-    init(size: CGSize, settings: LayerSettings) {
+    init(size: CGSize, settings: LayerSettings, screen: NSScreen) {
         self.sceneSize = size
         self.settings = settings
         super.init()
@@ -74,15 +74,15 @@ class BorderEffect: SKNode, UpdatableEffectNode {
         setupStrokes()
         subscribeToAudio()
         observeSettings()
-        findRenderer()
+        findRenderer(for: screen)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func findRenderer() {
-        trailRenderer = BorderTrailRendererRegistry.shared.rendererForMainScreen()
+    private func findRenderer(for screen: NSScreen) {
+        trailRenderer = BorderTrailRendererRegistry.shared.renderer(for: screen)
         rendererID = ObjectIdentifier(self)
     }
 
@@ -307,6 +307,7 @@ class BorderEffect: SKNode, UpdatableEffectNode {
         guard let renderer = trailRenderer, let id = rendererID else { return }
 
         var allVertices: [TrailVertex] = []
+        allVertices.reserveCapacity(300 * strokes.count + 300 * scaleGhosts.count)
 
         for strokeIndex in 0..<strokes.count {
             let data = buildTrailData(strokeIndex: strokeIndex)

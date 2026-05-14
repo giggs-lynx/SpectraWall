@@ -70,7 +70,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         for screen in NSScreen.screens {
             let window = makeDesktopWindow(for: screen)
-            window.makeKeyAndOrderFront(nil)
+            window.orderFront(nil)
             desktopWindows.append(window)
         }
     }
@@ -92,10 +92,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let containerView = NSView(frame: NSRect(origin: .zero, size: size))
         containerView.wantsLayer = true
 
+        // Match the display's native refresh rate so every frame aligns with VSync.
+        // Capping ProMotion (120 Hz) to 60 fps causes judder because frames land on
+        // alternating VSync pairs unevenly. Time-based smoothing handles any frame rate.
+        let nativeFPS = screen.maximumFramesPerSecond
+
         // SKView
         let skView = SKView(frame: NSRect(origin: .zero, size: size))
         skView.allowsTransparency = true
+        skView.ignoresSiblingOrder = true
+        skView.preferredFramesPerSecond = nativeFPS
         let scene = VisualizerScene(size: size)
+        scene.screen = screen
         skView.presentScene(scene)
         containerView.addSubview(skView)
 
@@ -108,11 +116,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             mtkView.delegate = renderer
             trailRenderers[screen] = renderer
             BorderTrailRendererRegistry.shared.register(renderer, for: screen)
-            
+
             let scale = screen.backingScaleFactor
             let drawableSize = CGSize(width: size.width * scale, height: size.height * scale)
             mtkView.drawableSize = drawableSize
             renderer.mtkView(mtkView, drawableSizeWillChange: drawableSize)
+            // Override the 60 fps default set inside BorderTrailRenderer.init.
+            mtkView.preferredFramesPerSecond = nativeFPS
         }
         containerView.addSubview(mtkView)
 
