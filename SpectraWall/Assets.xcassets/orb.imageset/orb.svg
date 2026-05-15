@@ -1,0 +1,23 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="og" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e8a0ff"/>
+      <stop offset="50%" stop-color="#bf5af2"/>
+      <stop offset="100%" stop-color="#7c2fbd" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="og2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#bf5af2" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#bf5af2" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="of">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="48" cy="48" r="46" fill="url(#og2)"/>
+  <circle cx="48" cy="48" r="38" fill="none" stroke="#bf5af2" stroke-width="1" stroke-opacity="0.4"/>
+  <circle cx="48" cy="48" r="30" fill="none" stroke="#bf5af2" stroke-width="1.5" stroke-opacity="0.6"/>
+  <circle filter="url(#of)" cx="48" cy="48" r="22" fill="url(#og)"/>
+  <circle cx="48" cy="48" r="20" fill="#bf5af2" opacity="0.9"/>
+  <circle cx="40" cy="41" r="5" fill="white" opacity="0.2"/>
+</svg>

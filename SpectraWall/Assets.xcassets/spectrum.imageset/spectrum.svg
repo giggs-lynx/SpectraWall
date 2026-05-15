@@ -1,0 +1,27 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00f5ff"/>
+      <stop offset="100%" stop-color="#0088aa"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00f5ff" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#0088aa" stop-opacity="0.4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="48" cy="76" rx="36" ry="5" fill="#00f5ff" opacity="0.08"/>
+  <g filter="url(#glow)">
+    <rect x="10" y="44" width="7" height="32" rx="3.5" fill="url(#g2)"/>
+    <rect x="21" y="28" width="7" height="48" rx="3.5" fill="url(#g1)"/>
+    <rect x="32" y="18" width="7" height="58" rx="3.5" fill="url(#g1)"/>
+    <rect x="43" y="22" width="7" height="54" rx="3.5" fill="url(#g1)"/>
+    <rect x="54" y="32" width="7" height="44" rx="3.5" fill="url(#g1)"/>
+    <rect x="65" y="40" width="7" height="36" rx="3.5" fill="url(#g2)"/>
+    <rect x="76" y="52" width="7" height="24" rx="3.5" fill="url(#g2)"/>
+  </g>
+  <line x1="8" y1="78" x2="88" y2="78" stroke="#00f5ff" stroke-width="1" stroke-opacity="0.2"/>
+</svg>

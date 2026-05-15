@@ -1,0 +1,14 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="wg">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#wg)">
+    <path d="M8 38 Q14 26 20 38 Q26 50 32 38 Q38 26 44 38 Q50 50 56 38 Q62 26 68 38 Q74 50 80 38 Q86 26 92 38" stroke="#ff6b35" stroke-width="2" fill="none" stroke-opacity="0.4" stroke-linecap="round"/>
+    <path d="M8 48 Q16 30 24 48 Q32 66 40 48 Q48 30 56 48 Q64 66 72 48 Q80 30 88 48" stroke="#ff6b35" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M8 58 Q14 50 20 58 Q26 66 32 58 Q38 50 44 58 Q50 66 56 58 Q62 50 68 58 Q74 66 80 58 Q86 50 92 58" stroke="#ff6b35" stroke-width="2" fill="none" stroke-opacity="0.4" stroke-linecap="round"/>
+  </g>
+  <circle cx="48" cy="48" r="6" fill="#ff6b35"/>
+</svg>

@@ -18,9 +18,9 @@ struct PopoverView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
-                Image(systemName: "waveform")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 20, height: 20)
                 Text(AppConstants.appName)
                     .font(.headline)
                 Spacer()
@@ -30,7 +30,7 @@ struct PopoverView: View {
 
             Divider()
 
-            SectionHeader(title: "Audio Source")
+            SectionHeader(title: "Audio Source", imageName: "audio_tap")
 
             VStack(alignment: .leading, spacing: 6) {
                 AudioSourceRow(
@@ -65,7 +65,7 @@ struct PopoverView: View {
 
             Divider()
 
-            SectionHeader(title: "Scenes")
+            SectionHeader(title: "Scenes", systemImageName: "square.stack", imageColor: .purple)
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(sceneManager.scenes) { scene in
@@ -102,7 +102,7 @@ struct PopoverView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "gearshape")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.orange)
                         .frame(width: 16)
                     Text("Settings")
                         .foregroundColor(.primary)
@@ -125,7 +125,7 @@ struct PopoverView: View {
 
                 HStack(spacing: 8) {
                     Image(systemName: "power")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.red)
                         .frame(width: 16)
                     Text("Quit SpectraWall")
                         .foregroundColor(.primary)

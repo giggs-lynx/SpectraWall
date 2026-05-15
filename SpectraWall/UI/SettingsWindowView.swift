@@ -345,15 +345,18 @@ struct EffectRow: View {
     }
 
     private var effectIcon: some View {
-        Image(systemName: {
+        let name: String = {
             switch layer.effectType {
-            case .spectrum: return "waveform.path"
-            case .orb:      return "circle.circle"
-            case .border:   return "rectangle.on.rectangle"
+            case .spectrum: return "spectrum"
+            case .orb:      return "orb"
+            case .border:   return "border"
             }
-        }())
-        .foregroundColor(.secondary)
-        .frame(width: 16)
+        }()
+        return Image(name)
+            .renderingMode(.template)
+            .resizable()
+            .frame(width: 16, height: 16)
+            .foregroundColor(.secondary)
     }
 
     private var visibilityButton: some View {
