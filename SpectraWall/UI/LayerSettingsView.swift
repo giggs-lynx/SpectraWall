@@ -26,20 +26,16 @@ struct LayerSettingsView: View {
                 Divider()
 
                 CommonSettingsSection(layer: layer)
-                    .id(layer.id)
 
                 Divider()
 
                 switch layer.effectType {
                 case .spectrum:
                     SpectrumSettingsSection(layer: layer)
-                        .id(layer.id)
                 case .orb:
                     OrbSettingsSection(layer: layer)
-                        .id(layer.id)
                 case .border:
                     BorderSettingsSection(layer: layer)
-                        .id(layer.id)
                 }
 
                 Divider()
@@ -61,7 +57,6 @@ struct LayerSettingsView: View {
                 .padding(.vertical, 16)
             }
         }
-        .id(layer.id)
         .confirmationDialog("Are you sure you want to delete \"\(layer.name)\"?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 if let scene = VisualizerSceneManager.shared.scenes.first(where: {

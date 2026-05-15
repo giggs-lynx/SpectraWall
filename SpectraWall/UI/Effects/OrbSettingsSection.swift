@@ -54,7 +54,15 @@ struct OrbSettingsSection: View {
                 settings = orbSettings
             }
         }
+        .onChange(of: layer.id) { _, _ in
+            if let orbSettings = layer.effectSettings as? OrbSettings {
+                settings = orbSettings
+            }
+        }
         .onChange(of: settings) { _, newValue in
+            if let current = layer.effectSettings as? OrbSettings, current == newValue {
+                return
+            }
             layer.effectSettings = newValue
             VisualizerSceneManager.shared.save()
         }

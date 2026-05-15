@@ -50,7 +50,15 @@ struct BorderSettingsSection: View {
                 settings = borderSettings
             }
         }
+        .onChange(of: layer.id) { _, _ in
+            if let borderSettings = layer.effectSettings as? BorderSettings {
+                settings = borderSettings
+            }
+        }
         .onChange(of: settings) { _, newValue in
+            if let current = layer.effectSettings as? BorderSettings, current == newValue {
+                return
+            }
             layer.effectSettings = newValue
             VisualizerSceneManager.shared.save()
         }

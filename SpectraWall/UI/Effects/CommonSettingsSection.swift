@@ -43,20 +43,37 @@ struct CommonSettingsSection: View {
             positionX = layer.positionX
             positionY = layer.positionY
         }
+        .onChange(of: layer.id) { _, _ in
+            // Re-sync @State when the view is reused for a different layer.
+            // Required because we removed `.id(layer.id)` to avoid the
+            // expensive full rebuild (multiple ColorPickers reinstantiating)
+            // on every layer switch.
+            channelMode = layer.channelMode
+            opacity = layer.opacity
+            positionX = layer.positionX
+            positionY = layer.positionY
+        }
         // MARK: - State Sync & Persistence
+        // Guards prevent the onAppear → onChange feedback loop where SwiftUI fires
+        // onChange after onAppear assigns @State, causing a no-op write-back that
+        // still triggers layer.objectWillChange and cascades to every effect node.
         .onChange(of: channelMode) { _, newValue in
+            guard layer.channelMode != newValue else { return }
             layer.channelMode = newValue
             VisualizerSceneManager.shared.save()
         }
         .onChange(of: opacity) { _, newValue in
+            guard layer.opacity != newValue else { return }
             layer.opacity = newValue
             VisualizerSceneManager.shared.save()
         }
         .onChange(of: positionX) { _, newValue in
+            guard layer.positionX != newValue else { return }
             layer.positionX = newValue
             VisualizerSceneManager.shared.save()
         }
         .onChange(of: positionY) { _, newValue in
+            guard layer.positionY != newValue else { return }
             layer.positionY = newValue
             VisualizerSceneManager.shared.save()
         }
