@@ -13,10 +13,7 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
     // MARK: - Properties (Nodes & State)
 
     private var bars: [SKSpriteNode] = []
-    private var smoothed: [Float]  = Array(repeating: 0, count: 96)
-    private var displayed: [Float] = Array(repeating: 0, count: 96)
-    private var latestBins: StereoBins?
-    private var lastUpdateTime: TimeInterval = 0
+    private var smoothed: [Float] = Array(repeating: 0, count: 96)
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Properties (Configuration)
@@ -72,7 +69,7 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
         AudioDataBus.shared.spectrumPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bins in
-                self?.latestBins = bins
+                self?.updateBars(bins: bins)
             }
             .store(in: &cancellables)
 
@@ -84,12 +81,7 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
             .store(in: &cancellables)
     }
 
-    func update(_ currentTime: TimeInterval) {
-        guard let bins = latestBins else { return }
-        let dt = lastUpdateTime == 0 ? (1.0 / 94.0) : currentTime - lastUpdateTime
-        lastUpdateTime = currentTime
-        updateBars(bins: bins, dt: dt)
-    }
+    func update(_ currentTime: TimeInterval) {}
 
     // MARK: - Setup & Layout
 
@@ -180,27 +172,19 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
         }
     }
 
-    private func updateBars(bins: StereoBins, dt: TimeInterval = 1.0 / 94.0) {
+    private func updateBars(bins: StereoBins) {
         guard !isHidden else { return }
 
         let ss       = spectrumSettings
         let selected = selectedBins(from: bins)
-        // Scale coefficients so effective time-constant is framerate-independent.
-        // Reference design rate: 94 Hz (1/94 s per step).
-        let scale    = dt * 94.0
-
-        // Visual lerp coefficient — replaces the 50ms SKAction smooth, framerate-independent.
-        let visualCoeff = Float(1.0 - pow(0.75, scale))
 
         for i in 0..<smoothed.count {
             guard i < selected.count else { break }
-            let base     = selected[i] > smoothed[i] ? Double(ss.attack) : Double(ss.release)
-            let coeff    = Float(1.0 - pow(1.0 - base, scale))
-            smoothed[i]  = smoothed[i] * (1 - coeff) + selected[i] * coeff
-            displayed[i] = displayed[i] * (1 - visualCoeff) + smoothed[i] * visualCoeff
+            let coeff   = selected[i] > smoothed[i] ? Float(ss.attack) : Float(ss.release)
+            smoothed[i] = smoothed[i] * (1 - coeff) + selected[i] * coeff
         }
 
-        let curved = displayed.map { pow($0, Float(ss.powerCurve)) }
+        let curved = smoothed.map { pow($0, Float(ss.powerCurve)) }
 
         switch ss.anchor {
         case .bottom, .top:
@@ -219,7 +203,7 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
             let barHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
-            bar.size = CGSize(width: bar.size.width, height: barHeight)
+            bar.run(.resize(toHeight: barHeight, duration: 0.05))
             bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }
@@ -233,7 +217,7 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
         for (i, bar) in bars.enumerated() {
             guard i < curved.count else { break }
             let barWidth = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
-            bar.size = CGSize(width: barWidth, height: bar.size.height)
+            bar.run(.resize(toWidth: barWidth, duration: 0.05))
             bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
         }
     }

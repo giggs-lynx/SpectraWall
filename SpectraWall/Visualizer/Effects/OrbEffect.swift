@@ -23,9 +23,6 @@ class OrbEffect: SKNode, UpdatableEffectNode {
     // Separate smoothed amplitudes for left/right channels
     private var smoothedLeft: Float = 0
     private var smoothedRight: Float = 0
-    private var displayedScale: CGFloat = 1.0
-    private var latestBins: StereoBins?
-    private var lastUpdateTime: TimeInterval = 0
 
     private var sceneSize: CGSize = .zero
 
@@ -75,7 +72,8 @@ class OrbEffect: SKNode, UpdatableEffectNode {
         AudioDataBus.shared.spectrumPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bins in
-                self?.latestBins = bins
+                self?.updateOrb(bins: bins)
+                self?.updateColor(bins: bins)
             }
             .store(in: &cancellables)
 
@@ -87,13 +85,7 @@ class OrbEffect: SKNode, UpdatableEffectNode {
             .store(in: &cancellables)
     }
 
-    func update(_ currentTime: TimeInterval) {
-        guard let bins = latestBins else { return }
-        let dt = lastUpdateTime == 0 ? (1.0 / 94.0) : currentTime - lastUpdateTime
-        lastUpdateTime = currentTime
-        updateOrb(bins: bins, dt: dt)
-        updateColor(bins: bins)
-    }
+    func update(_ currentTime: TimeInterval) {}
 
     // MARK: - Setup & Layout
 
@@ -137,16 +129,15 @@ class OrbEffect: SKNode, UpdatableEffectNode {
 
     // MARK: - Audio Driven Updates
 
-    private func updateOrb(bins: StereoBins, dt: TimeInterval = 1.0 / 94.0) {
+    private func updateOrb(bins: StereoBins) {
         guard !isHidden else { return }
 
-        let os    = orbSettings
-        let scale = dt * 94.0
+        let os       = orbSettings
         let leftAmp  = bins.leftAmplitude()
         let rightAmp = bins.rightAmplitude()
 
-        let leftCoeff  = Float(1.0 - pow(1.0 - Double(leftAmp  > smoothedLeft  ? os.attack : os.release), scale))
-        let rightCoeff = Float(1.0 - pow(1.0 - Double(rightAmp > smoothedRight ? os.attack : os.release), scale))
+        let leftCoeff  = leftAmp  > smoothedLeft  ? Float(os.attack) : Float(os.release)
+        let rightCoeff = rightAmp > smoothedRight ? Float(os.attack) : Float(os.release)
 
         smoothedLeft  = smoothedLeft  * (1 - leftCoeff)  + leftAmp  * leftCoeff
         smoothedRight = smoothedRight * (1 - rightCoeff) + rightAmp * rightCoeff
@@ -161,11 +152,9 @@ class OrbEffect: SKNode, UpdatableEffectNode {
             amplitude = smoothedRight
         }
 
-        let targetScale  = min(1.0 + CGFloat(amplitude) * CGFloat(os.boost), 2.5)
-        let visualCoeff  = CGFloat(1.0 - pow(0.75, scale))
-        displayedScale   = displayedScale * (1 - visualCoeff) + targetScale * visualCoeff
-        orb?.setScale(displayedScale)
-        glowOrb?.setScale(displayedScale)
+        let targetScale = min(1.0 + CGFloat(amplitude) * CGFloat(os.boost), 2.5)
+        orb?.run(SKAction.scale(to: targetScale, duration: 0.05))
+        glowOrb?.run(SKAction.scale(to: targetScale, duration: 0.08))
     }
 
     private func updateColor(bins: StereoBins) {
