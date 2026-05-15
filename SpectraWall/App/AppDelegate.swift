@@ -157,9 +157,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             let scale = screen.backingScaleFactor
             renderer.setBackingScaleFactor(scale)
+            // Pin the shader's vertex normalization basis to the scene size in
+            // points. This is independent of the Metal drawable size, which
+            // AppKit may resize at any time.
+            renderer.setSceneSize(size)
             let drawableSize = CGSize(width: size.width * scale, height: size.height * scale)
             mtkView.drawableSize = drawableSize
-            renderer.mtkView(mtkView, drawableSizeWillChange: drawableSize)
             // Override the 60 fps default set inside BorderTrailRenderer.init.
             mtkView.preferredFramesPerSecond = nativeFPS
         }

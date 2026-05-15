@@ -83,6 +83,13 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
         backingScaleFactor = scale
     }
 
+    /// Set the logical scene size that vertex coordinates are expressed in.
+    /// This decouples the shader's normalization basis from the Metal drawable
+    /// size (which AppKit may resize independently at app launch).
+    func setSceneSize(_ size: CGSize) {
+        screenSize = SIMD2<Float>(Float(size.width), Float(size.height))
+    }
+
     // MARK: - Trail Updates
 
     func updateTrail(id: ObjectIdentifier, data: TrailData) {
@@ -100,10 +107,12 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
     // MARK: - MTKViewDelegate
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-        screenSize = SIMD2<Float>(
-            Float(size.width  / backingScaleFactor),
-            Float(size.height / backingScaleFactor)
-        )
+        // Intentionally a no-op. The shader's vertex normalization basis
+        // (screenSize) is pinned to the scene size in points via setSceneSize();
+        // it must not track the Metal drawable size because AppKit may resize
+        // the drawable to stale values at app launch (e.g. half-size on a
+        // 1x external display while the window's screen association is still
+        // settling).
     }
 
     func draw(in view: MTKView) {
