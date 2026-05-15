@@ -86,21 +86,11 @@ struct GlobalSettingsView: View {
     private func screenToggleBinding(for screen: NSScreen) -> Binding<Bool> {
         let id = screen.displayID
         return Binding(
-            get: {
-                appSettings.enabledDisplayIDs.isEmpty || appSettings.enabledDisplayIDs.contains(id)
-            },
+            get: { appSettings.enabledDisplayIDs.contains(id) },
             set: { isOn in
                 if isOn {
                     appSettings.enabledDisplayIDs.insert(id)
-                    // If all screens are now enabled, normalize back to "all" (empty set)
-                    if appSettings.enabledDisplayIDs.count == NSScreen.screens.count {
-                        appSettings.enabledDisplayIDs = []
-                    }
                 } else {
-                    // Turning one off: if set was empty (all), populate with all-minus-this
-                    if appSettings.enabledDisplayIDs.isEmpty {
-                        appSettings.enabledDisplayIDs = Set(NSScreen.screens.map { $0.displayID })
-                    }
                     appSettings.enabledDisplayIDs.remove(id)
                 }
             }

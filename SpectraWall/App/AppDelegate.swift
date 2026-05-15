@@ -78,7 +78,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func activeScreens() -> [NSScreen] {
         let enabled = AppSettings.shared.enabledDisplayIDs
-        guard !enabled.isEmpty else { return NSScreen.screens }
         return NSScreen.screens.filter { enabled.contains($0.displayID) }
     }
 
