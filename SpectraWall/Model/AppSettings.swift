@@ -30,10 +30,20 @@ extension AudioApp: Equatable {
 // MARK: - AppSettings
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
-    
+
     @Published var audioSource: AudioSource = .global
     @Published var activeApps: [AudioApp] = []
     @Published var lastSelectedApp: AudioApp?
 
-    private init() {}
+    /// Display IDs of screens where SpectraWall should render. Empty = all screens.
+    @Published var enabledDisplayIDs: Set<CGDirectDisplayID> {
+        didSet {
+            UserDefaults.standard.set(Array(enabledDisplayIDs).map { Int64($0) }, forKey: "enabledDisplayIDs")
+        }
+    }
+
+    private init() {
+        let stored = UserDefaults.standard.array(forKey: "enabledDisplayIDs") as? [Int64] ?? []
+        enabledDisplayIDs = Set(stored.map { CGDirectDisplayID($0) })
+    }
 }

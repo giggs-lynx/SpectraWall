@@ -9,15 +9,25 @@ import SwiftUI
 import SpriteKit
 import OSLog
 import MetalKit
+import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
 
+    // MARK: - Types
+
+    private struct DesktopWindowSet {
+        let window: NSWindow
+        let skView: SKView
+        let mtkView: MTKView
+    }
+
     // MARK: - Properties
 
-    private var desktopWindows: [NSWindow] = []
+    private var windowSets: [DesktopWindowSet] = []
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var trailRenderers: [NSScreen: BorderTrailRenderer] = [:]
+    private var cancellables = Set<AnyCancellable>()
 
     private let logger = Logger(subsystem: AppConstants.bundleId, category: "AppLifecycle")
 
@@ -66,22 +76,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Desktop Windows
 
-    private func setupDesktopWindows() {
-        desktopWindows.forEach { $0.close() }
-        desktopWindows = []
+    private func activeScreens() -> [NSScreen] {
+        let enabled = AppSettings.shared.enabledDisplayIDs
+        guard !enabled.isEmpty else { return NSScreen.screens }
+        return NSScreen.screens.filter { enabled.contains($0.displayID) }
+    }
 
-        for screen in NSScreen.screens {
-            let window = makeDesktopWindow(for: screen)
-            window.orderFront(nil)
-            desktopWindows.append(window)
+    private func setupDesktopWindows() {
+        let oldSets = windowSets
+        windowSets = []
+        trailRenderers = [:]
+
+        // Stop render loops and hide immediately (synchronous).
+        for set in oldSets {
+            set.mtkView.isPaused = true
+            set.skView.isPaused = true
+            set.window.orderOut(nil)
         }
+
+        // Create new windows on the updated screen list.
+        for screen in activeScreens() {
+            if let set = makeDesktopWindowSet(for: screen) {
+                set.window.orderFront(nil)
+                windowSets.append(set)
+            }
+        }
+
+        // Defer the actual dealloc by one run loop so any CVDisplayLink
+        // callbacks already in flight on a background thread can finish
+        // before the objects they reference are freed.
+        DispatchQueue.main.async { _ = oldSets }
     }
 
     private func effectiveFrame(for screen: NSScreen) -> CGRect {
         screen.visibleFrame
     }
 
-    private func makeDesktopWindow(for screen: NSScreen) -> NSWindow {
+    private func makeDesktopWindowSet(for screen: NSScreen) -> DesktopWindowSet? {
         let frame = effectiveFrame(for: screen)
         let window = NSWindow(
             contentRect: frame,
@@ -94,6 +125,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.backgroundColor = .clear
         window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        window.animationBehavior = .none
 
         let size = frame.size
         let containerView = NSView(frame: NSRect(origin: .zero, size: size))
@@ -135,7 +167,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         containerView.addSubview(mtkView)
 
         window.contentView = containerView
-        return window
+        return DesktopWindowSet(window: window, skView: skView, mtkView: mtkView)
     }
 
     private func startObservingScreenChanges() {
@@ -147,5 +179,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.setupDesktopWindows()
         }
 
+        AppSettings.shared.$enabledDisplayIDs
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.setupDesktopWindows() }
+            .store(in: &cancellables)
+    }
+}
+
+// MARK: - NSScreen helpers
+
+extension NSScreen {
+    var displayID: CGDirectDisplayID {
+        (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID) ?? 0
     }
 }

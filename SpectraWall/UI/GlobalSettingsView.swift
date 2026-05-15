@@ -11,10 +11,12 @@ import os
 
 struct GlobalSettingsView: View {
     @ObservedObject var visualizerSettings = VisualizerSettings.shared
+    @ObservedObject var appSettings = AppSettings.shared
     @State private var launchAtLogin: Bool = SMAppService.mainApp.status == .enabled
-    
+    @State private var screens: [NSScreen] = NSScreen.screens
+
     private let logger = Logger(subsystem: AppConstants.bundleId, category: "GlobalSettingsView")
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -38,7 +40,18 @@ struct GlobalSettingsView: View {
                 .padding(.bottom, 16)
 
                 Divider()
-                
+
+                SectionHeader(title: "Displays", systemImageName: "display", imageColor: .blue)
+                VStack(spacing: 10) {
+                    ForEach(screens, id: \.displayID) { screen in
+                        Toggle(screen.localizedName, isOn: screenToggleBinding(for: screen))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+
+                Divider()
+
                 SectionHeader(title: "Audio")
                 VStack(spacing: 10) {
                     SettingsSlider(
@@ -66,6 +79,31 @@ struct GlobalSettingsView: View {
         }
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
+            screens = NSScreen.screens
         }
+    }
+
+    private func screenToggleBinding(for screen: NSScreen) -> Binding<Bool> {
+        let id = screen.displayID
+        return Binding(
+            get: {
+                appSettings.enabledDisplayIDs.isEmpty || appSettings.enabledDisplayIDs.contains(id)
+            },
+            set: { isOn in
+                if isOn {
+                    appSettings.enabledDisplayIDs.insert(id)
+                    // If all screens are now enabled, normalize back to "all" (empty set)
+                    if appSettings.enabledDisplayIDs.count == NSScreen.screens.count {
+                        appSettings.enabledDisplayIDs = []
+                    }
+                } else {
+                    // Turning one off: if set was empty (all), populate with all-minus-this
+                    if appSettings.enabledDisplayIDs.isEmpty {
+                        appSettings.enabledDisplayIDs = Set(NSScreen.screens.map { $0.displayID })
+                    }
+                    appSettings.enabledDisplayIDs.remove(id)
+                }
+            }
+        )
     }
 }
