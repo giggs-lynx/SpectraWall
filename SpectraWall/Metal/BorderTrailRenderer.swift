@@ -27,6 +27,7 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
     private let pipelineState: MTLRenderPipelineState
 
     private var screenSize: SIMD2<Float> = .zero
+    private var backingScaleFactor: CGFloat = 1.0
 
     private(set) var trails: [ObjectIdentifier: TrailData] = [:]
     private var vertexBuffers: [ObjectIdentifier: MTLBuffer] = [:]
@@ -78,6 +79,10 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
         super.init()
     }
 
+    func setBackingScaleFactor(_ scale: CGFloat) {
+        backingScaleFactor = scale
+    }
+
     // MARK: - Trail Updates
 
     func updateTrail(id: ObjectIdentifier, data: TrailData) {
@@ -95,7 +100,10 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
     // MARK: - MTKViewDelegate
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-        screenSize = SIMD2<Float>(Float(size.width), Float(size.height))
+        screenSize = SIMD2<Float>(
+            Float(size.width  / backingScaleFactor),
+            Float(size.height / backingScaleFactor)
+        )
     }
 
     func draw(in view: MTKView) {

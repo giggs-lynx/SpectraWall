@@ -77,9 +77,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func effectiveFrame(for screen: NSScreen) -> CGRect {
+        screen.visibleFrame
+    }
+
     private func makeDesktopWindow(for screen: NSScreen) -> NSWindow {
+        let frame = effectiveFrame(for: screen)
         let window = NSWindow(
-            contentRect: screen.frame,
+            contentRect: frame,
             styleMask: .borderless,
             backing: .buffered,
             defer: false
@@ -90,7 +95,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
-        let size = screen.frame.size
+        let size = frame.size
         let containerView = NSView(frame: NSRect(origin: .zero, size: size))
         containerView.wantsLayer = true
 
@@ -120,6 +125,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             BorderTrailRendererRegistry.shared.register(renderer, for: screen)
 
             let scale = screen.backingScaleFactor
+            renderer.setBackingScaleFactor(scale)
             let drawableSize = CGSize(width: size.width * scale, height: size.height * scale)
             mtkView.drawableSize = drawableSize
             renderer.mtkView(mtkView, drawableSizeWillChange: drawableSize)
@@ -140,5 +146,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.setupDesktopWindows()
         }
+
     }
 }
