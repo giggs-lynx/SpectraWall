@@ -10,6 +10,10 @@ import SwiftUI
 struct LayerSettingsView: View {
     @ObservedObject var layer: LayerSettings
     @State private var showDeleteConfirm = false
+    // Tracks which effect-type sections have been instantiated. We never remove
+    // entries; once a section is built it stays alive so switching back to that
+    // type is a cheap frame change instead of a full ColorPicker rebuild.
+    @State private var instantiatedTypes: Set<EffectType> = []
 
     var body: some View {
         ScrollView {
@@ -29,13 +33,28 @@ struct LayerSettingsView: View {
 
                 Divider()
 
-                switch layer.effectType {
-                case .spectrum:
+                // Build sections lazily but never remove them: the first time
+                // the user picks a layer of a given effect type, that section
+                // pays its one-time creation cost (~400ms for ColorPickers).
+                // Subsequent switches between already-instantiated types are
+                // just frame collapses, no rebuild.
+                if instantiatedTypes.contains(.spectrum) {
                     SpectrumSettingsSection(layer: layer)
-                case .orb:
+                        .frame(height: layer.effectType == .spectrum ? nil : 0)
+                        .clipped()
+                        .allowsHitTesting(layer.effectType == .spectrum)
+                }
+                if instantiatedTypes.contains(.orb) {
                     OrbSettingsSection(layer: layer)
-                case .border:
+                        .frame(height: layer.effectType == .orb ? nil : 0)
+                        .clipped()
+                        .allowsHitTesting(layer.effectType == .orb)
+                }
+                if instantiatedTypes.contains(.border) {
                     BorderSettingsSection(layer: layer)
+                        .frame(height: layer.effectType == .border ? nil : 0)
+                        .clipped()
+                        .allowsHitTesting(layer.effectType == .border)
                 }
 
                 Divider()
@@ -56,6 +75,10 @@ struct LayerSettingsView: View {
                 }
                 .padding(.vertical, 16)
             }
+        }
+        .onAppear { instantiatedTypes.insert(layer.effectType) }
+        .onChange(of: layer.effectType) { _, newType in
+            instantiatedTypes.insert(newType)
         }
         .confirmationDialog("Are you sure you want to delete \"\(layer.name)\"?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
