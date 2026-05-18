@@ -20,19 +20,33 @@ struct TrailData {
     var vertices: [TrailVertex]
 }
 
-class BorderTrailRenderer: NSObject, MTKViewDelegate {
+class EffectsRenderer: NSObject, MTKViewDelegate {
 
-    private let device: MTLDevice
+    // MARK: - Metal objects
+
+    let metalDevice: MTLDevice
     private let commandQueue: MTLCommandQueue
-    private let pipelineState: MTLRenderPipelineState
+    private let borderPipelineState: MTLRenderPipelineState    // additive; border trail
+    private let spectrumPipelineState: MTLRenderPipelineState  // alpha blend; spectrum bars
+    private let orbPipelineState: MTLRenderPipelineState       // additive; orb glow
 
     private var screenSize: SIMD2<Float> = .zero
     private var backingScaleFactor: CGFloat = 1.0
 
-    private(set) var trails: [ObjectIdentifier: TrailData] = [:]
-    private var vertexBuffers: [ObjectIdentifier: MTLBuffer] = [:]
+    // MARK: - Per-effect data and buffer caches
+
+    private(set) var trails: [ObjectIdentifier: TrailData] = [:]       // Border
+    private var spectrumData: [ObjectIdentifier: TrailData] = [:]      // Spectrum
+    private var orbData: [ObjectIdentifier: TrailData] = [:]           // Orb
+
+    private var borderBuffers: [ObjectIdentifier: MTLBuffer] = [:]
+    private var spectrumBuffers: [ObjectIdentifier: MTLBuffer] = [:]
+    private var orbBuffers: [ObjectIdentifier: MTLBuffer] = [:]
+
     private var tickClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
     private let lock = NSLock()
+
+    // MARK: - Initialization
 
     init?(mtkView: MTKView) {
         guard
@@ -40,45 +54,71 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
             let queue  = device.makeCommandQueue()
         else { return nil }
 
-        self.device       = device
+        self.metalDevice  = device
         self.commandQueue = queue
 
-        mtkView.device               = device
-        mtkView.framebufferOnly      = false
-        mtkView.colorPixelFormat     = .bgra8Unorm
-        mtkView.clearColor           = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
-        mtkView.isPaused                  = false
-        mtkView.enableSetNeedsDisplay     = false
-        mtkView.preferredFramesPerSecond  = 60
-        mtkView.sampleCount          = 4
+        mtkView.device                   = device
+        mtkView.framebufferOnly          = false
+        mtkView.colorPixelFormat         = .bgra8Unorm
+        mtkView.clearColor               = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        mtkView.isPaused                 = false
+        mtkView.enableSetNeedsDisplay    = false
+        mtkView.preferredFramesPerSecond = 60
+        mtkView.sampleCount              = 4
+
+        guard let library = device.makeDefaultLibrary() else { return nil }
+
+        // Helper that builds a pipeline with named shader functions and a blend configurator.
+        func makePipeline(vertex: String, fragment: String,
+                          blend: (MTLRenderPipelineColorAttachmentDescriptor) -> Void)
+            -> MTLRenderPipelineState?
+        {
+            guard
+                let vf = library.makeFunction(name: vertex),
+                let ff = library.makeFunction(name: fragment)
+            else { return nil }
+            let desc = MTLRenderPipelineDescriptor()
+            desc.vertexFunction    = vf
+            desc.fragmentFunction  = ff
+            desc.rasterSampleCount = 4
+            desc.colorAttachments[0].pixelFormat = .bgra8Unorm
+            if let att = desc.colorAttachments[0] {
+                att.isBlendingEnabled = true
+                blend(att)
+            }
+            return try? device.makeRenderPipelineState(descriptor: desc)
+        }
+
+        let additive: (MTLRenderPipelineColorAttachmentDescriptor) -> Void = { att in
+            att.rgbBlendOperation           = .add
+            att.alphaBlendOperation         = .add
+            att.sourceRGBBlendFactor        = .sourceAlpha
+            att.destinationRGBBlendFactor   = .one
+            att.sourceAlphaBlendFactor      = .sourceAlpha
+            att.destinationAlphaBlendFactor = .one
+        }
+        let alphaBlend: (MTLRenderPipelineColorAttachmentDescriptor) -> Void = { att in
+            att.rgbBlendOperation           = .add
+            att.alphaBlendOperation         = .add
+            att.sourceRGBBlendFactor        = .sourceAlpha
+            att.destinationRGBBlendFactor   = .oneMinusSourceAlpha
+            att.sourceAlphaBlendFactor      = .sourceAlpha
+            att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        }
 
         guard
-            let library      = device.makeDefaultLibrary(),
-            let vertexFunc   = library.makeFunction(name: "border_vertex"),
-            let fragmentFunc = library.makeFunction(name: "border_fragment")
+            let bp = makePipeline(vertex: "border_vertex",   fragment: "border_fragment",   blend: additive),
+            let sp = makePipeline(vertex: "spectrum_vertex",  fragment: "spectrum_fragment", blend: alphaBlend),
+            let op = makePipeline(vertex: "orb_vertex",       fragment: "orb_fragment",      blend: additive)
         else { return nil }
 
-        let pipelineDesc = MTLRenderPipelineDescriptor()
-        pipelineDesc.vertexFunction    = vertexFunc
-        pipelineDesc.fragmentFunction  = fragmentFunc
-        pipelineDesc.rasterSampleCount = 4
-        pipelineDesc.colorAttachments[0].pixelFormat = .bgra8Unorm
-
-        guard let att = pipelineDesc.colorAttachments[0] else { return nil }
-        att.isBlendingEnabled           = true
-        att.rgbBlendOperation           = .add
-        att.alphaBlendOperation         = .add
-        att.sourceRGBBlendFactor        = .sourceAlpha
-        att.destinationRGBBlendFactor   = .one
-        att.sourceAlphaBlendFactor      = .sourceAlpha
-        att.destinationAlphaBlendFactor = .one
-
-        guard let pipelineState = try? device.makeRenderPipelineState(descriptor: pipelineDesc)
-        else { return nil }
-
-        self.pipelineState = pipelineState
+        self.borderPipelineState   = bp
+        self.spectrumPipelineState = sp
+        self.orbPipelineState      = op
         super.init()
     }
+
+    // MARK: - Configuration
 
     func setBackingScaleFactor(_ scale: CGFloat) {
         backingScaleFactor = scale
@@ -91,19 +131,37 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
         screenSize = SIMD2<Float>(Float(size.width), Float(size.height))
     }
 
-    // MARK: - Trail Updates
+    // MARK: - Border API
 
     func updateTrail(id: ObjectIdentifier, data: TrailData) {
-        lock.lock()
-        trails[id] = data
-        lock.unlock()
+        lock.lock(); trails[id] = data; lock.unlock()
     }
 
     func removeTrail(id: ObjectIdentifier) {
-        lock.lock()
-        trails.removeValue(forKey: id)
-        lock.unlock()
+        lock.lock(); trails.removeValue(forKey: id); lock.unlock()
     }
+
+    // MARK: - Spectrum API
+
+    func updateSpectrum(id: ObjectIdentifier, data: TrailData) {
+        lock.lock(); spectrumData[id] = data; lock.unlock()
+    }
+
+    func removeSpectrum(id: ObjectIdentifier) {
+        lock.lock(); spectrumData.removeValue(forKey: id); lock.unlock()
+    }
+
+    // MARK: - Orb API
+
+    func updateOrb(id: ObjectIdentifier, data: TrailData) {
+        lock.lock(); orbData[id] = data; lock.unlock()
+    }
+
+    func removeOrb(id: ObjectIdentifier) {
+        lock.lock(); orbData.removeValue(forKey: id); lock.unlock()
+    }
+
+    // MARK: - Tick registry
 
     func registerTickClient(id: ObjectIdentifier, tick: @escaping (TimeInterval) -> Void) {
         lock.lock(); tickClients[id] = tick; lock.unlock()
@@ -145,46 +203,65 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
             return
         }
 
+        encoder.setVertexBytes(&screenSize, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
+
         lock.lock()
-        let snapshot = trails
+        let borderSnap   = trails
+        let spectrumSnap = spectrumData
+        let orbSnap      = orbData
         lock.unlock()
 
-        let activeIds = Set(snapshot.keys)
-        vertexBuffers = vertexBuffers.filter { activeIds.contains($0.key) }
-
-        if !snapshot.isEmpty {
-            encoder.setRenderPipelineState(pipelineState)
-            encoder.setVertexBytes(&screenSize, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
-
-            for (id, trailData) in snapshot {
-                guard trailData.vertices.count >= 3 else { continue }
-
-                let byteCount = trailData.vertices.count * MemoryLayout<TrailVertex>.stride
-                let buf: MTLBuffer
-                if let existing = vertexBuffers[id], existing.length >= byteCount {
-                    existing.contents().copyMemory(from: trailData.vertices, byteCount: byteCount)
-                    buf = existing
-                } else {
-                    guard let newBuf = device.makeBuffer(
-                        bytes: trailData.vertices,
-                        length: byteCount,
-                        options: .storageModeShared
-                    ) else { continue }
-                    vertexBuffers[id] = newBuf
-                    buf = newBuf
-                }
-
-                encoder.setVertexBuffer(buf, offset: 0, index: 0)
-                encoder.drawPrimitives(
-                    type: .triangleStrip,
-                    vertexStart: 0,
-                    vertexCount: trailData.vertices.count
-                )
-            }
-        }
+        drawEffects(snapshot: borderSnap,   pipeline: borderPipelineState,
+                    buffers: &borderBuffers,   encoder: encoder)
+        drawEffects(snapshot: spectrumSnap, pipeline: spectrumPipelineState,
+                    buffers: &spectrumBuffers, encoder: encoder)
+        drawEffects(snapshot: orbSnap,      pipeline: orbPipelineState,
+                    buffers: &orbBuffers,      encoder: encoder)
 
         encoder.endEncoding()
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
+
+    // MARK: - Private helpers
+
+    private func drawEffects(
+        snapshot: [ObjectIdentifier: TrailData],
+        pipeline: MTLRenderPipelineState,
+        buffers: inout [ObjectIdentifier: MTLBuffer],
+        encoder: MTLRenderCommandEncoder
+    ) {
+        guard !snapshot.isEmpty else { return }
+
+        let activeIds = Set(snapshot.keys)
+        buffers = buffers.filter { activeIds.contains($0.key) }
+
+        encoder.setRenderPipelineState(pipeline)
+
+        for (id, data) in snapshot {
+            guard data.vertices.count >= 3 else { continue }
+
+            let byteCount = data.vertices.count * MemoryLayout<TrailVertex>.stride
+            let buf: MTLBuffer
+            if let existing = buffers[id], existing.length >= byteCount {
+                existing.contents().copyMemory(from: data.vertices, byteCount: byteCount)
+                buf = existing
+            } else {
+                guard let newBuf = metalDevice.makeBuffer(
+                    bytes: data.vertices,
+                    length: byteCount,
+                    options: .storageModeShared
+                ) else { continue }
+                buffers[id] = newBuf
+                buf = newBuf
+            }
+
+            encoder.setVertexBuffer(buf, offset: 0, index: 0)
+            encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: data.vertices.count)
+        }
+    }
 }
+
+// MARK: - Backward compatibility typealias
+// Remove after all call sites are updated to EffectsRenderer.
+typealias BorderTrailRenderer = EffectsRenderer

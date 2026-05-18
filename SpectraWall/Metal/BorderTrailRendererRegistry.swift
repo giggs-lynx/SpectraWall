@@ -7,25 +7,28 @@
 
 import AppKit
 
-class BorderTrailRendererRegistry {
-    static let shared = BorderTrailRendererRegistry()
-    private var renderers: [NSScreen: BorderTrailRenderer] = [:]
+class EffectsRendererRegistry {
+    static let shared = EffectsRendererRegistry()
+    private var renderers: [NSScreen: EffectsRenderer] = [:]
     private let lock = NSLock()
 
-    func register(_ renderer: BorderTrailRenderer, for screen: NSScreen) {
+    func register(_ renderer: EffectsRenderer, for screen: NSScreen) {
         lock.lock()
         renderers[screen] = renderer
         lock.unlock()
     }
 
-    func renderer(for screen: NSScreen) -> BorderTrailRenderer? {
+    func renderer(for screen: NSScreen) -> EffectsRenderer? {
         lock.lock()
         defer { lock.unlock() }
         return renderers[screen]
     }
 
-    // BorderEffect 用這個，找自己所在 scene 對應的 renderer
-    func rendererForMainScreen() -> BorderTrailRenderer? {
+    func rendererForMainScreen() -> EffectsRenderer? {
         renderer(for: NSScreen.screens[0])
     }
 }
+
+// MARK: - Backward compatibility typealias
+// Remove after all call sites are updated to EffectsRendererRegistry.
+typealias BorderTrailRendererRegistry = EffectsRendererRegistry
