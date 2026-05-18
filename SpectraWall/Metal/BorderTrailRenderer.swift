@@ -18,6 +18,7 @@ struct TrailVertex {
 
 struct TrailData {
     var vertices: [TrailVertex]
+    var primitiveType: MTLPrimitiveType = .triangleStrip
 }
 
 class EffectsRenderer: NSObject, MTKViewDelegate {
@@ -257,7 +258,7 @@ class EffectsRenderer: NSObject, MTKViewDelegate {
             }
 
             encoder.setVertexBuffer(buf, offset: 0, index: 0)
-            encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: data.vertices.count)
+            encoder.drawPrimitives(type: data.primitiveType, vertexStart: 0, vertexCount: data.vertices.count)
         }
     }
 }

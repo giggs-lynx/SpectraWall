@@ -14,11 +14,12 @@ protocol UpdatableEffectNode {
 class VisualizerScene: SKScene {
     var screen: NSScreen = NSScreen.screens[0]
 
-    // SpriteKit-based effects (Orb)
+    // SpriteKit-based effects (none remaining after Phase 3d)
     private var effectNodes: [UUID: SKNode] = [:]
     // Metal-based effects — managed independently of the SpriteKit render loop
     private var borderEffects: [UUID: BorderEffect] = [:]
     private var spectrumEffects: [UUID: SpectrumEffect] = [:]
+    private var orbEffects: [UUID: OrbEffect] = [:]
 
     private var cancellables = Set<AnyCancellable>()
     private var perLayerCancellables = Set<AnyCancellable>()
@@ -68,6 +69,8 @@ class VisualizerScene: SKScene {
         borderEffects.removeAll()
         spectrumEffects.values.forEach { $0.stop() }
         spectrumEffects.removeAll()
+        orbEffects.values.forEach { $0.stop() }
+        orbEffects.removeAll()
         perLayerCancellables.removeAll()
         sceneStructureCancellables.removeAll()
 
@@ -97,6 +100,7 @@ class VisualizerScene: SKScene {
         let existingIDs = Set(effectNodes.keys)
             .union(Set(borderEffects.keys))
             .union(Set(spectrumEffects.keys))
+            .union(Set(orbEffects.keys))
 
         // Remove orphaned effects
         for id in existingIDs.subtracting(newIDs) {
@@ -106,6 +110,8 @@ class VisualizerScene: SKScene {
             borderEffects.removeValue(forKey: id)
             spectrumEffects[id]?.stop()
             spectrumEffects.removeValue(forKey: id)
+            orbEffects[id]?.stop()
+            orbEffects.removeValue(forKey: id)
         }
 
         // Add or update
@@ -120,6 +126,12 @@ class VisualizerScene: SKScene {
                 if spectrumEffects[layer.id] == nil {
                     let effect = SpectrumEffect(size: size, settings: layer, screen: screen)
                     spectrumEffects[layer.id] = effect
+                }
+                updateNodeVisuals(for: layer)
+            } else if layer.effectType == .orb {
+                if orbEffects[layer.id] == nil {
+                    let effect = OrbEffect(size: size, settings: layer, screen: screen)
+                    orbEffects[layer.id] = effect
                 }
                 updateNodeVisuals(for: layer)
             } else {
@@ -148,6 +160,11 @@ class VisualizerScene: SKScene {
             spectrum.opacity   = Float(layer.opacity)
             return
         }
+        if let orb = orbEffects[layer.id] {
+            orb.isVisible = layer.isVisible
+            orb.opacity   = Float(layer.opacity)
+            return
+        }
         guard let node = effectNodes[layer.id] else { return }
         node.isHidden = !layer.isVisible
         node.alpha    = CGFloat(layer.opacity)
@@ -158,7 +175,7 @@ class VisualizerScene: SKScene {
     private func createNode(for layer: LayerSettings) -> SKNode {
         switch layer.effectType {
         case .spectrum: fatalError("Spectrum effects are managed separately")
-        case .orb:      return OrbEffect(size: size, settings: layer)
+        case .orb:      fatalError("Orb effects are managed separately")
         case .border:   fatalError("Border effects are managed separately")
         }
     }

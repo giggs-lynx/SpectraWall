@@ -5,65 +5,80 @@
 //  Created by Giggs Lynx on 2026/4/25.
 //
 
-import SpriteKit
+import AppKit
+import simd
 import Combine
 
-class OrbEffect: SKNode, UpdatableEffectNode {
+class OrbEffect: NSObject {
 
-    // MARK: - Nodes
+    // MARK: - Properties
 
-    private var orb: SKShapeNode?
-    private var glowOrb: SKShapeNode?
-
-    // MARK: - Properties (State & Settings)
-
+    private var sceneSize: CGSize
     private var settings: LayerSettings
     private var cancellables = Set<AnyCancellable>()
 
-    // Separate smoothed amplitudes for left/right channels
-    private var smoothedLeft: Float = 0
+    private var smoothedLeft:  Float = 0
     private var smoothedRight: Float = 0
 
-    private var sceneSize: CGSize = .zero
+    // Derived from audio each callback; read in tick (both on main thread)
+    private var currentScale:      Float = 1.0
+    private var currentInnerColor: SIMD4<Float> = SIMD4(0.2, 0.4, 1.0, 1.0)
+    private var currentOuterColor: SIMD4<Float> = SIMD4(0.2, 0.4, 1.0, 0.15)
+
+    var isVisible: Bool = true
+    var opacity:   Float = 1.0
+
+    private var isStopped  = false
+    private var wasVisible = true
+
+    weak var renderer: EffectsRenderer?
+    var rendererID: ObjectIdentifier?
 
     private var orbSettings: OrbSettings {
         settings.effectSettings as? OrbSettings ?? .defaults
     }
 
-    private let baseRadius: CGFloat = 120
+    private let fanSegments = 32
 
     // MARK: - Initialization
 
-    init(size: CGSize, settings: LayerSettings) {
+    init(size: CGSize, settings: LayerSettings, screen: NSScreen) {
         self.sceneSize = size
-        self.settings = settings
+        self.settings  = settings
+        self.opacity   = Float(settings.opacity)
+        self.isVisible = settings.isVisible
         super.init()
-
-        setupOrb()
         subscribeToAudio()
         observeSettings()
+        findRenderer(for: screen)
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    private func findRenderer(for screen: NSScreen) {
+        renderer = EffectsRendererRegistry.shared.renderer(for: screen)
+        let id = ObjectIdentifier(self)
+        rendererID = id
+        renderer?.registerTickClient(id: id, tick: { [weak self] t in self?.tick(timestamp: t) })
     }
 
-    // MARK: - Lifecycle & Observation
+    func stop() {
+        isStopped = true
+        if let id = rendererID {
+            renderer?.unregisterTickClient(id: id)
+            renderer?.removeOrb(id: id)
+        }
+    }
+
+    deinit { stop() }
+
+    // MARK: - Observation
 
     private func observeSettings() {
-        var lastBaseRadius = orbSettings.baseRadius
-
         settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                let current = self.orbSettings
-                if current.baseRadius != lastBaseRadius {
-                    lastBaseRadius = current.baseRadius
-                    self.setupOrb()
-                } else {
-                    self.updateLayout()
-                }
+                self.opacity   = Float(self.settings.opacity)
+                self.isVisible = self.settings.isVisible
             }
             .store(in: &cancellables)
     }
@@ -71,127 +86,114 @@ class OrbEffect: SKNode, UpdatableEffectNode {
     private func subscribeToAudio() {
         AudioDataBus.shared.spectrumPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] bins in
-                self?.updateOrb(bins: bins)
-                self?.updateColor(bins: bins)
-            }
+            .sink { [weak self] bins in self?.onAudioBins(bins) }
             .store(in: &cancellables)
 
         AudioDataBus.shared.resetPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.reset()
-            }
+            .sink { [weak self] _ in self?.reset() }
             .store(in: &cancellables)
     }
 
-    func update(_ currentTime: TimeInterval) {}
+    // MARK: - Tick
 
-    // MARK: - Setup & Layout
+    func tick(timestamp: TimeInterval) {
+        guard !isStopped else { return }
+        guard isVisible else {
+            if wasVisible, let id = rendererID {
+                renderer?.removeOrb(id: id)
+                wasVisible = false
+            }
+            return
+        }
+        wasVisible = true
+        guard let renderer, let id = rendererID else { return }
+        renderer.updateOrb(id: id, data: buildOrbData())
+    }
 
-    private func setupOrb() {
-        orb?.removeFromParent()
-        glowOrb?.removeFromParent()
+    // MARK: - Audio
 
+    private func onAudioBins(_ bins: StereoBins) {
         let os = orbSettings
-        let radius = CGFloat(os.baseRadius)
 
-        // Setup Outer Glow
-        let glow = SKShapeNode(circleOfRadius: radius * CGFloat(os.outerRadiusMultiplier))
-        glow.fillColor = os.outerColorLow.nsColor.withAlphaComponent(CGFloat(os.outerOpacity))
-        glow.strokeColor = .clear
-        glow.blendMode = .add
-        addChild(glow)
-        glowOrb = glow
-
-        // Setup Main Orb
-        let main = SKShapeNode(circleOfRadius: radius)
-        main.fillColor = os.innerColorLow.nsColor
-        main.strokeColor = os.innerColorLow.nsColor.withAlphaComponent(0.6)
-        main.lineWidth = 2
-        main.blendMode = .add
-        addChild(main)
-        orb = main
-
-        updateLayout()
-    }
-
-    private func updateLayout() {
-        let center = CGPoint(
-            x: sceneSize.width * CGFloat(settings.positionX),
-            y: sceneSize.height * CGFloat(settings.positionY)
-        )
-
-        orb?.position = center
-        glowOrb?.position = center
-        alpha = CGFloat(settings.opacity)
-    }
-
-    // MARK: - Audio Driven Updates
-
-    private func updateOrb(bins: StereoBins) {
-        guard !isHidden else { return }
-
-        let os       = orbSettings
         let leftAmp  = bins.leftAmplitude()
         let rightAmp = bins.rightAmplitude()
-
-        let leftCoeff  = leftAmp  > smoothedLeft  ? Float(os.attack) : Float(os.release)
-        let rightCoeff = rightAmp > smoothedRight ? Float(os.attack) : Float(os.release)
-
-        smoothedLeft  = smoothedLeft  * (1 - leftCoeff)  + leftAmp  * leftCoeff
-        smoothedRight = smoothedRight * (1 - rightCoeff) + rightAmp * rightCoeff
+        let lCoeff   = leftAmp  > smoothedLeft  ? Float(os.attack) : Float(os.release)
+        let rCoeff   = rightAmp > smoothedRight ? Float(os.attack) : Float(os.release)
+        smoothedLeft  = smoothedLeft  * (1 - lCoeff) + leftAmp  * lCoeff
+        smoothedRight = smoothedRight * (1 - rCoeff) + rightAmp * rCoeff
 
         let amplitude: Float
         switch settings.channelMode {
-        case .stereo, .mono:
-            amplitude = (smoothedLeft + smoothedRight) / 2
-        case .left:
-            amplitude = smoothedLeft
-        case .right:
-            amplitude = smoothedRight
+        case .stereo, .mono: amplitude = (smoothedLeft + smoothedRight) / 2
+        case .left:          amplitude = smoothedLeft
+        case .right:         amplitude = smoothedRight
         }
 
-        let targetScale = min(1.0 + CGFloat(amplitude) * CGFloat(os.boost), 2.5)
-        orb?.run(SKAction.scale(to: targetScale, duration: 0.05))
-        glowOrb?.run(SKAction.scale(to: targetScale, duration: 0.08))
+        currentScale = min(1.0 + amplitude * Float(os.boost), 2.5)
+
+        let intensity = bins.amplitude(for: settings.channelMode, binRange: 0..<4)
+        currentInnerColor = lerpColor(from: os.innerColorLow, to: os.innerColorHigh, t: intensity)
+        currentOuterColor = lerpColor(from: os.outerColorLow, to: os.outerColorHigh, t: intensity,
+                                      alphaOverride: Float(os.outerOpacity))
     }
 
-    private func updateColor(bins: StereoBins) {
-        let os = orbSettings
-        let intensity = CGFloat(bins.amplitude(for: settings.channelMode, binRange: 0..<4))
-
-        let innerColor = interpolateColor(
-            from: os.innerColorLow.nsColor,
-            to: os.innerColorHigh.nsColor,
-            progress: intensity
-        )
-        let outerColor = interpolateColor(
-            from: os.outerColorLow.nsColor,
-            to: os.outerColorHigh.nsColor,
-            progress: intensity
-        )
-
-        orb?.fillColor = innerColor
-        orb?.strokeColor = innerColor.withAlphaComponent(0.6)
-        glowOrb?.fillColor = outerColor.withAlphaComponent(CGFloat(os.outerOpacity))
-    }
-
-    // MARK: - Helper Methods
-
-    private func interpolateColor(from: NSColor, to: NSColor, progress: CGFloat) -> NSColor {
-        let red   = from.redComponent   + (to.redComponent   - from.redComponent)   * progress
-        let green = from.greenComponent + (to.greenComponent - from.greenComponent) * progress
-        let blue  = from.blueComponent  + (to.blueComponent  - from.blueComponent)  * progress
-        let alpha = from.alphaComponent + (to.alphaComponent - from.alphaComponent) * progress
-
-        return NSColor(red: red, green: green, blue: blue, alpha: alpha)
-    }
-
-    func reset() {
+    private func reset() {
         smoothedLeft  = 0
         smoothedRight = 0
-        orb?.run(SKAction.scale(to: 1.0, duration: 0.3))
-        glowOrb?.run(SKAction.scale(to: 1.0, duration: 0.3))
+        currentScale  = 1.0
+    }
+
+    // MARK: - Vertex Building
+
+    private func buildOrbData() -> TrailData {
+        let os = orbSettings
+        let cx = Float(sceneSize.width  * settings.positionX)
+        let cy = Float(sceneSize.height * settings.positionY)
+        let center = SIMD2<Float>(cx, cy)
+
+        let innerR = Float(os.baseRadius) * currentScale
+        let outerR = innerR * Float(os.outerRadiusMultiplier)
+
+        var vertices: [TrailVertex] = []
+        vertices.reserveCapacity(fanSegments * 3 * 2)
+
+        // Outer glow first (drawn underneath inner orb)
+        appendFan(to: &vertices, center: center, radius: outerR,
+                  color: currentOuterColor, alpha: opacity)
+
+        // Inner orb on top
+        appendFan(to: &vertices, center: center, radius: innerR,
+                  color: currentInnerColor, alpha: opacity)
+
+        return TrailData(vertices: vertices, primitiveType: .triangle)
+    }
+
+    private func appendFan(to vertices: inout [TrailVertex],
+                            center: SIMD2<Float>, radius: Float,
+                            color: SIMD4<Float>, alpha: Float) {
+        let step = Float.pi * 2 / Float(fanSegments)
+        let centerVert = TrailVertex(position: center, color: color, alpha: alpha, edgeDist: 0)
+
+        for i in 0..<fanSegments {
+            let a0 = step * Float(i)
+            let a1 = step * Float(i + 1)
+            let p0 = SIMD2<Float>(center.x + cos(a0) * radius, center.y + sin(a0) * radius)
+            let p1 = SIMD2<Float>(center.x + cos(a1) * radius, center.y + sin(a1) * radius)
+            vertices.append(centerVert)
+            vertices.append(TrailVertex(position: p0, color: color, alpha: alpha, edgeDist: 1))
+            vertices.append(TrailVertex(position: p1, color: color, alpha: alpha, edgeDist: 1))
+        }
+    }
+
+    // MARK: - Color Helpers
+
+    private func lerpColor(from lo: ColorData, to hi: ColorData,
+                            t: Float, alphaOverride: Float? = nil) -> SIMD4<Float> {
+        let r = Float(lo.red)   + (Float(hi.red)   - Float(lo.red))   * t
+        let g = Float(lo.green) + (Float(hi.green)  - Float(lo.green)) * t
+        let b = Float(lo.blue)  + (Float(hi.blue)   - Float(lo.blue))  * t
+        let a = alphaOverride ?? (Float(lo.alpha) + (Float(hi.alpha) - Float(lo.alpha)) * t)
+        return SIMD4(r, g, b, a)
     }
 }
