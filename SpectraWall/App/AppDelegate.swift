@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SpriteKit
 import OSLog
 import MetalKit
 import Combine
@@ -17,8 +16,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private struct DesktopWindowSet {
         let window: NSWindow
-        let skView: SKView
         let mtkView: MTKView
+        let coordinator: EffectsCoordinator
     }
 
     // MARK: - Properties
@@ -89,7 +88,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Stop render loops and hide immediately (synchronous).
         for set in oldSets {
             set.mtkView.isPaused = true
-            set.skView.isPaused = true
             set.window.orderOut(nil)
         }
 
@@ -135,41 +133,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // alternating VSync pairs unevenly. Time-based smoothing handles any frame rate.
         let nativeFPS = screen.maximumFramesPerSecond
 
-        // SKView
-        let skView = SKView(frame: NSRect(origin: .zero, size: size))
-        skView.allowsTransparency = true
-        skView.ignoresSiblingOrder = true
-        skView.preferredFramesPerSecond = nativeFPS
-        let scene = VisualizerScene(size: size)
-        scene.screen = screen
-        skView.presentScene(scene)
-        containerView.addSubview(skView)
-
-        // MTKView
+        // MTKView — sole render surface after full Metal migration
         let mtkView = MTKView(frame: NSRect(origin: .zero, size: size))
         mtkView.layer?.isOpaque = false
         mtkView.layer?.backgroundColor = .clear
         mtkView.wantsLayer = true
-        if let renderer = BorderTrailRenderer(mtkView: mtkView) {
-            mtkView.delegate = renderer
-            trailRenderers[screen] = renderer
-            BorderTrailRendererRegistry.shared.register(renderer, for: screen)
+        guard let renderer = BorderTrailRenderer(mtkView: mtkView) else { return nil }
 
-            let scale = screen.backingScaleFactor
-            renderer.setBackingScaleFactor(scale)
-            // Pin the shader's vertex normalization basis to the scene size in
-            // points. This is independent of the Metal drawable size, which
-            // AppKit may resize at any time.
-            renderer.setSceneSize(size)
-            let drawableSize = CGSize(width: size.width * scale, height: size.height * scale)
-            mtkView.drawableSize = drawableSize
-            // Override the 60 fps default set inside BorderTrailRenderer.init.
-            mtkView.preferredFramesPerSecond = nativeFPS
-        }
+        mtkView.delegate = renderer
+        trailRenderers[screen] = renderer
+        BorderTrailRendererRegistry.shared.register(renderer, for: screen)
+
+        let scale = screen.backingScaleFactor
+        renderer.setBackingScaleFactor(scale)
+        // Pin the shader's vertex normalization basis to the scene size in
+        // points. This is independent of the Metal drawable size, which
+        // AppKit may resize at any time.
+        renderer.setSceneSize(size)
+        let drawableSize = CGSize(width: size.width * scale, height: size.height * scale)
+        mtkView.drawableSize = drawableSize
+        // Override the 60 fps default set inside BorderTrailRenderer.init.
+        mtkView.preferredFramesPerSecond = nativeFPS
+
         containerView.addSubview(mtkView)
 
+        // Coordinator manages all effect lifecycles; must be created AFTER
+        // the renderer is registered so findRenderer(for:) succeeds.
+        let coordinator = EffectsCoordinator(size: size, screen: screen)
+
         window.contentView = containerView
-        return DesktopWindowSet(window: window, skView: skView, mtkView: mtkView)
+        return DesktopWindowSet(window: window, mtkView: mtkView, coordinator: coordinator)
     }
 
     private func startObservingScreenChanges() {
