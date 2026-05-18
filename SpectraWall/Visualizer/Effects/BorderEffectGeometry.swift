@@ -265,12 +265,18 @@ extension BorderEffect {
         return vertices
     }
     
+    private struct ArcInfo {
+        var center: CGPoint
+        var radius: CGFloat
+    }
+
     private struct TrailContext {
         var centerPoints: [CGPoint] = []
         var widths: [CGFloat] = []
         var stripWidths: [CGFloat] = []
         var colors: [SIMD4<Float>] = []  // pre-converted; avoids per-step NSColor alloc
         var alphas: [CGFloat] = []
+        var arcInfos: [ArcInfo?] = []    // nil on straight segments; arc center is y-flipped
     }
 
     private func prepareTrailData(
@@ -282,7 +288,14 @@ extension BorderEffect {
     ) -> TrailContext {
         let bs = borderSettings
         let segments = borderSegments()
-        let steps = 120
+        let inset = max(CGFloat(bs.baseWidth) / 2, 0)
+        let arcLength = CGFloat.pi / 2 * max(CGFloat(bs.cornerRadius) - inset, 0)
+        let trailLength = CGFloat(bs.tailLength) * perimeterLength
+        let steps: Int = {
+            guard arcLength > 0 else { return 120 }
+            let needed = Int(trailLength / arcLength) * 8
+            return max(120, min(needed, 1200))
+        }()
         let capacity = steps + 1
 
         // Convert palette colors once — reused for every step via SIMD lerp.
@@ -299,6 +312,7 @@ extension BorderEffect {
         ctx.stripWidths.reserveCapacity(capacity)
         ctx.colors.reserveCapacity(capacity)
         ctx.alphas.reserveCapacity(capacity)
+        ctx.arcInfos.reserveCapacity(capacity)
 
         let heightF = sceneSize.height
 
@@ -323,6 +337,13 @@ extension BorderEffect {
             // SIMD lerp: register-only ops, zero heap allocation per step.
             ctx.colors.append(colorEndV + (colorStartV - colorEndV) * stepTF)
             ctx.alphas.append(alpha != nil ? CGFloat(alpha ?? 0) : stepT)
+            if seg.isArc {
+                // y-flip the arc center to match centerPoints coordinate space.
+                ctx.arcInfos.append(ArcInfo(center: CGPoint(x: seg.center.x, y: heightF - seg.center.y),
+                                            radius: seg.radius))
+            } else {
+                ctx.arcInfos.append(nil)
+            }
         }
 
         ctx.centerPoints.reverse()
@@ -330,6 +351,7 @@ extension BorderEffect {
         ctx.stripWidths.reverse()
         ctx.colors.reverse()
         ctx.alphas.reverse()
+        ctx.arcInfos.reverse()
         return ctx
     }
 
@@ -368,28 +390,50 @@ extension BorderEffect {
         let steps = ctx.centerPoints.count - 1
         for i in 0...steps {
             let point = ctx.centerPoints[i]
+
+            // For arc sections use the analytic outward normal (point → away from arc center).
+            // This is exact regardless of sampling density, and unambiguously points outward.
+            // For straight sections fall back to the central-difference tangent normal.
             let normal: CGPoint
-            if i == 0 {
-                let vector = CGPoint(x: ctx.centerPoints[1].x - point.x,
-                                     y: ctx.centerPoints[1].y - point.y)
-                normal = perp(normalize(vector))
-            } else if i == steps {
-                let vector = CGPoint(x: point.x - ctx.centerPoints[i - 1].x,
-                                     y: point.y - ctx.centerPoints[i - 1].y)
-                normal = perp(normalize(vector))
+            let innerHalfW: CGFloat
+            let halfW = ctx.stripWidths[i] / 2
+
+            if let arc = ctx.arcInfos[i] {
+                let dx = point.x - arc.center.x
+                let dy = point.y - arc.center.y
+                let d  = sqrt(dx * dx + dy * dy)
+                normal = d > 0 ? CGPoint(x: dx / d, y: dy / d)
+                               : perp(normalize(CGPoint(x: ctx.centerPoints[min(i+1,steps)].x - point.x,
+                                                        y: ctx.centerPoints[min(i+1,steps)].y - point.y)))
+                // Keep a positive inner arc radius so inner vertices don't all collapse to
+                // arc.center. Collapsing causes 30+ overlapping triangles at each corner with
+                // additive blending → bright dot artifact. The 15% floor keeps inner vertices
+                // spread along a small inner arc while staying close to center.
+                let minInnerRadius: CGFloat = max(1.0, arc.radius * 0.15)
+                innerHalfW = min(halfW, max(0, arc.radius - minInnerRadius))
             } else {
-                let vector = CGPoint(x: ctx.centerPoints[i + 1].x - ctx.centerPoints[i - 1].x,
-                                     y: ctx.centerPoints[i + 1].y - ctx.centerPoints[i - 1].y)
-                normal = perp(normalize(vector))
+                if i == 0 {
+                    normal = perp(normalize(CGPoint(x: ctx.centerPoints[1].x - point.x,
+                                                    y: ctx.centerPoints[1].y - point.y)))
+                } else if i == steps {
+                    normal = perp(normalize(CGPoint(x: point.x - ctx.centerPoints[i - 1].x,
+                                                    y: point.y - ctx.centerPoints[i - 1].y)))
+                } else {
+                    normal = perp(normalize(CGPoint(x: ctx.centerPoints[i + 1].x - ctx.centerPoints[i - 1].x,
+                                                    y: ctx.centerPoints[i + 1].y - ctx.centerPoints[i - 1].y)))
+                }
+                innerHalfW = halfW
             }
-            let color4 = ctx.colors[i]  // already SIMD4<Float>
-            let halfW  = ctx.stripWidths[i] / 2
+
+            let color4 = ctx.colors[i]
             let alpha  = Float(ctx.alphas[i])
+            // normal points outward (away from arc center / away from screen interior).
+            // outer vertex: +normal side;  inner vertex: -normal side, clamped at arc sections.
             vertices.append(TrailVertex(position: SIMD2<Float>(Float(point.x + normal.x * halfW),
                                                                Float(point.y + normal.y * halfW)),
                                         color: color4, alpha: alpha, edgeDist: -1.0))
-            vertices.append(TrailVertex(position: SIMD2<Float>(Float(point.x - normal.x * halfW),
-                                                               Float(point.y - normal.y * halfW)),
+            vertices.append(TrailVertex(position: SIMD2<Float>(Float(point.x - normal.x * innerHalfW),
+                                                               Float(point.y - normal.y * innerHalfW)),
                                         color: color4, alpha: alpha, edgeDist: 1.0))
         }
     }
@@ -403,9 +447,8 @@ extension BorderEffect {
     ) -> [TrailVertex] {
         let ctx = prepareTrailData(progress: progress, amplitude: amplitude, stripScale: stripScale,
                                    strokeIndex: strokeIndex, alpha: alpha)
-        // fan: (fanSteps+1)*2 + 3 connector ≈ 37; strip: (steps+1)*2 = 242
         var vertices: [TrailVertex] = []
-        vertices.reserveCapacity(280)
+        vertices.reserveCapacity(ctx.centerPoints.count * 2 + 40)
         appendHeadFan(ctx: ctx, to: &vertices)
         appendBodyStrip(ctx: ctx, to: &vertices)
         return vertices

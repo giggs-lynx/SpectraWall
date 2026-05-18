@@ -222,8 +222,9 @@ class AudioTapManager {
 
         guard !leftSamples.isEmpty else { return }
 
-        DispatchQueue.main.async {
-            self.onAudioData?(leftSamples, rightSamples)
-        }
+        // Invoke directly on the audio thread. Subscribers use .receive(on: DispatchQueue.main)
+        // to hop back to main as needed; removing this dispatch saves N·3-effect main-queue
+        // blocks per audio buffer on multi-screen setups.
+        self.onAudioData?(leftSamples, rightSamples)
     }
 }

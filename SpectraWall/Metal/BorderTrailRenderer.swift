@@ -31,6 +31,7 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
 
     private(set) var trails: [ObjectIdentifier: TrailData] = [:]
     private var vertexBuffers: [ObjectIdentifier: MTLBuffer] = [:]
+    private var tickClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
     private let lock = NSLock()
 
     init?(mtkView: MTKView) {
@@ -104,6 +105,14 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
         lock.unlock()
     }
 
+    func registerTickClient(id: ObjectIdentifier, tick: @escaping (TimeInterval) -> Void) {
+        lock.lock(); tickClients[id] = tick; lock.unlock()
+    }
+
+    func unregisterTickClient(id: ObjectIdentifier) {
+        lock.lock(); tickClients.removeValue(forKey: id); lock.unlock()
+    }
+
     // MARK: - MTKViewDelegate
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -116,6 +125,12 @@ class BorderTrailRenderer: NSObject, MTKViewDelegate {
     }
 
     func draw(in view: MTKView) {
+        let now = CACurrentMediaTime()
+        lock.lock()
+        let ticks = Array(tickClients.values)
+        lock.unlock()
+        for tick in ticks { tick(now) }
+
         guard
             let drawable       = view.currentDrawable,
             let renderPassDesc = view.currentRenderPassDescriptor,

@@ -5,10 +5,11 @@
 //  Created by Giggs Lynx on 2026/4/27.
 //
 
-import SpriteKit
+import AppKit
+import QuartzCore
 import Combine
 
-class BorderEffect: SKNode, UpdatableEffectNode {
+class BorderEffect: NSObject {
 
     // MARK: - Properties (Settings & State)
 
@@ -32,6 +33,11 @@ class BorderEffect: SKNode, UpdatableEffectNode {
 
     private var lastUpdateTime: TimeInterval = 0
     var perimeterLength: CGFloat = 0
+
+    // MARK: - Visibility
+
+    var isVisible: Bool = true
+    var opacity: Float = 1.0
 
     // MARK: - Scale Pulse Echo
 
@@ -64,11 +70,16 @@ class BorderEffect: SKNode, UpdatableEffectNode {
     weak var trailRenderer: BorderTrailRenderer?
     var rendererID: ObjectIdentifier?
 
+    // MARK: - Stopped flag
+
+    private var isStopped = false
+
     // MARK: - Initialization
 
     init(size: CGSize, settings: LayerSettings, screen: NSScreen) {
         self.sceneSize = size
-        self.settings = settings
+        self.settings  = settings
+        self.opacity   = Float(settings.opacity)
         super.init()
 
         setupStrokes()
@@ -77,19 +88,28 @@ class BorderEffect: SKNode, UpdatableEffectNode {
         findRenderer(for: screen)
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
     private func findRenderer(for screen: NSScreen) {
         trailRenderer = BorderTrailRendererRegistry.shared.renderer(for: screen)
-        rendererID = ObjectIdentifier(self)
+        let id = ObjectIdentifier(self)
+        rendererID = id
+        trailRenderer?.registerTickClient(id: id, tick: { [weak self] t in self?.tick(timestamp: t) })
+    }
+
+    func stop() {
+        isStopped = true
+        if let id = rendererID {
+            trailRenderer?.unregisterTickClient(id: id)
+            trailRenderer?.removeTrail(id: id)
+        }
     }
 
     deinit {
-        if let id = rendererID {
-            trailRenderer?.removeTrail(id: id)
-        }
+        stop()
+    }
+
+    func tick(timestamp: TimeInterval) {
+        guard !isStopped, isVisible else { return }
+        update(timestamp)
     }
 
     // MARK: - Lifecycle & Observation
@@ -222,7 +242,7 @@ class BorderEffect: SKNode, UpdatableEffectNode {
 
             let easedT = 1.0 - pow(max(0, 1.0 - lifetime), 4)
             let scale  = 1.0 + easedT * (echoMaxScale - 1.0)
-            let alpha  = Float(echoStartAlpha * max(0, 1.0 - pow(lifetime, 1.2)))
+            let alpha  = Float(echoStartAlpha * max(0, 1.0 - pow(lifetime, 1.2))) * opacity
 
             let ghost = scaleGhosts[index]
             let data = buildGhostTrailData(
@@ -250,8 +270,8 @@ class BorderEffect: SKNode, UpdatableEffectNode {
 
     private func setupStrokes() {
         segmentCache = nil
-        scaleGhosts = []
-        strokes = []
+        scaleGhosts  = []
+        strokes      = []
 
         let count = borderSettings.strokeCount
         for strokeIndex in 0..<count {
@@ -265,7 +285,7 @@ class BorderEffect: SKNode, UpdatableEffectNode {
     }
 
     private func updateVisuals() {
-        alpha = CGFloat(settings.opacity)
+        opacity = Float(settings.opacity)
         updatePerimeterLength()
     }
 
@@ -344,3 +364,4 @@ class BorderEffect: SKNode, UpdatableEffectNode {
         scaleGhosts        = []
     }
 }
+

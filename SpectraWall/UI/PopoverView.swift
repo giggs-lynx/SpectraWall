@@ -117,7 +117,18 @@ struct PopoverView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     openSettings()
-                    NSApp.activate(ignoringOtherApps: true)
+                    // SwiftUI creates the window synchronously on the call above, but
+                    // collectionBehavior must be set after the window object exists.
+                    // One run-loop pass is enough.
+                    DispatchQueue.main.async {
+                        if let win = NSApp.windows.first(where: {
+                            $0.identifier?.rawValue.lowercased().contains("settings") == true
+                        }) {
+                            win.collectionBehavior.insert(.moveToActiveSpace)
+                            win.makeKeyAndOrderFront(nil)
+                        }
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
                 }
                 .onHover { hovering in
                     footerHovered = hovering ? "settings" : nil

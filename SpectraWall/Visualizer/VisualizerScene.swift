@@ -2,8 +2,6 @@
 //  VisualizerScene.swift
 //  SpectraWall
 //
-//  Created by Giggs Lynx on 2026/4/26.
-//
 
 import SpriteKit
 import Combine
@@ -16,7 +14,11 @@ protocol UpdatableEffectNode {
 class VisualizerScene: SKScene {
     var screen: NSScreen = NSScreen.screens[0]
 
+    // SpriteKit-based effects (Spectrum, Orb)
     private var effectNodes: [UUID: SKNode] = [:]
+    // Metal-based effects (Border) — managed independently of the SpriteKit render loop
+    private var borderEffects: [UUID: BorderEffect] = [:]
+
     private var cancellables = Set<AnyCancellable>()
     private var perLayerCancellables = Set<AnyCancellable>()
     private var sceneStructureCancellables = Set<AnyCancellable>()
@@ -31,13 +33,11 @@ class VisualizerScene: SKScene {
     // MARK: - Observation
 
     private func observeSceneChanges() {
-        // Observe active scene switching
         VisualizerSceneManager.shared.$activeSceneID
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.reloadActiveScene() }
             .store(in: &cancellables)
 
-        // Observe general scenes array for structural changes
         VisualizerSceneManager.shared.$scenes
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.syncActiveSceneLayers() }
@@ -45,9 +45,8 @@ class VisualizerScene: SKScene {
     }
 
     private func observeLayerProperties(_ layers: [LayerSettings]) {
-        // Clear previous layer-specific observers to avoid memory leaks
         perLayerCancellables.removeAll()
-        
+
         for layer in layers {
             layer.objectWillChange
                 .receive(on: DispatchQueue.main)
@@ -64,6 +63,8 @@ class VisualizerScene: SKScene {
     private func reloadActiveScene() {
         effectNodes.values.forEach { $0.removeFromParent() }
         effectNodes.removeAll()
+        borderEffects.values.forEach { $0.stop() }
+        borderEffects.removeAll()
         perLayerCancellables.removeAll()
         sceneStructureCancellables.removeAll()
 
@@ -71,11 +72,10 @@ class VisualizerScene: SKScene {
             currentSceneID = nil
             return
         }
-        
+
         currentSceneID = scene.id
         syncActiveSceneLayers()
 
-        // Observe internal layer list changes (Add/Remove/Move)
         scene.$layers
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newLayers in
@@ -90,53 +90,58 @@ class VisualizerScene: SKScene {
               scene.id == currentSceneID else { return }
 
         let newLayers = scene.layers
-        let newIDs = Set(newLayers.map { $0.id })
-        let existingIDs = Set(effectNodes.keys)
+        let newIDs    = Set(newLayers.map { $0.id })
+        let existingIDs = Set(effectNodes.keys).union(Set(borderEffects.keys))
 
-        // 1. Remove orphaned nodes
+        // Remove orphaned effects
         for id in existingIDs.subtracting(newIDs) {
             effectNodes[id]?.removeFromParent()
             effectNodes.removeValue(forKey: id)
+            borderEffects[id]?.stop()
+            borderEffects.removeValue(forKey: id)
         }
 
-        // 2. Add or Update nodes
+        // Add or update
         for (index, layer) in newLayers.enumerated() {
-            let node: SKNode
-            if let existingNode = effectNodes[layer.id] {
-                node = existingNode
+            if layer.effectType == .border {
+                if borderEffects[layer.id] == nil {
+                    let effect = BorderEffect(size: size, settings: layer, screen: screen)
+                    borderEffects[layer.id] = effect
+                }
+                updateNodeVisuals(for: layer)
             } else {
-                node = createNode(for: layer)
-                addChild(node)
-                effectNodes[layer.id] = node
+                let node: SKNode
+                if let existing = effectNodes[layer.id] {
+                    node = existing
+                } else {
+                    node = createNode(for: layer)
+                    addChild(node)
+                    effectNodes[layer.id] = node
+                }
+                node.zPosition = CGFloat(index)
+                updateNodeVisuals(for: layer)
             }
-            
-            // Sync dynamic properties
-            node.zPosition = CGFloat(index)
-            updateNodeVisuals(for: layer)
         }
     }
 
     private func updateNodeVisuals(for layer: LayerSettings) {
+        if let border = borderEffects[layer.id] {
+            border.isVisible = layer.isVisible
+            border.opacity   = Float(layer.opacity)
+            return
+        }
         guard let node = effectNodes[layer.id] else { return }
         node.isHidden = !layer.isVisible
-        node.alpha = CGFloat(layer.opacity)
+        node.alpha    = CGFloat(layer.opacity)
     }
 
-    // MARK: - Node Factory
-
-    private func addEffectNode(for layer: LayerSettings, zPosition: CGFloat) {
-        let node = createNode(for: layer)
-        node.zPosition = zPosition
-        updateNodeVisuals(for: layer)
-        addChild(node)
-        effectNodes[layer.id] = node
-    }
+    // MARK: - Node Factory (SpriteKit effects only)
 
     private func createNode(for layer: LayerSettings) -> SKNode {
         switch layer.effectType {
         case .spectrum: return SpectrumEffect(size: size, settings: layer)
         case .orb:      return OrbEffect(size: size, settings: layer)
-        case .border:   return BorderEffect(size: size, settings: layer, screen: screen)
+        case .border:   fatalError("Border effects are managed separately")
         }
     }
 
@@ -145,11 +150,10 @@ class VisualizerScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         for node in effectNodes.values {
             guard !node.isHidden else { continue }
-            
-            // Use protocol instead of specific class casting for better performance
             if let updatable = node as? UpdatableEffectNode {
                 updatable.update(currentTime)
             }
         }
+        // BorderEffects are driven by BorderTrailRenderer.draw(in:) via tickClients — no call needed here.
     }
 }
