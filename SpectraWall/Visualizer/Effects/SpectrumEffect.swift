@@ -5,23 +5,30 @@
 //  Created by Giggs Lynx on 2026/4/24.
 //
 
-import SpriteKit
+import AppKit
+import simd
 import Combine
 
-class SpectrumEffect: SKNode, UpdatableEffectNode {
+class SpectrumEffect: NSObject {
 
-    // MARK: - Properties (Nodes & State)
+    // MARK: - Properties
 
-    private var bars: [SKSpriteNode] = []
+    private let binCount   = 96
+    private let barSpacing: CGFloat = 4
+    private var sceneSize: CGSize
+    private var settings: LayerSettings
+
     private var smoothed: [Float] = Array(repeating: 0, count: 96)
     private var cancellables = Set<AnyCancellable>()
 
-    // MARK: - Properties (Configuration)
+    var isVisible: Bool = true
+    var opacity: Float  = 1.0
 
-    private let binCount = 96
-    private let barSpacing: CGFloat = 4
-    private var sceneSize: CGSize = .zero
-    private var settings: LayerSettings
+    private var isStopped  = false
+    private var wasVisible = true  // tracks last visibility to clear data on hide
+
+    weak var renderer: EffectsRenderer?
+    var rendererID: ObjectIdentifier?
 
     private var spectrumSettings: SpectrumSettings {
         settings.effectSettings as? SpectrumSettings ?? .defaults
@@ -29,38 +36,43 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
 
     // MARK: - Initialization
 
-    init(size: CGSize, settings: LayerSettings) {
+    init(size: CGSize, settings: LayerSettings, screen: NSScreen) {
         self.sceneSize = size
-        self.settings = settings
+        self.settings  = settings
+        self.opacity   = Float(settings.opacity)
+        self.isVisible = settings.isVisible
         super.init()
-
-        setupBars()
         subscribeToAudio()
         observeSettings()
+        findRenderer(for: screen)
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    private func findRenderer(for screen: NSScreen) {
+        renderer = EffectsRendererRegistry.shared.renderer(for: screen)
+        let id = ObjectIdentifier(self)
+        rendererID = id
+        renderer?.registerTickClient(id: id, tick: { [weak self] t in self?.tick(timestamp: t) })
     }
 
-    // MARK: - Lifecycle & Observation
+    func stop() {
+        isStopped = true
+        if let id = rendererID {
+            renderer?.unregisterTickClient(id: id)
+            renderer?.removeSpectrum(id: id)
+        }
+    }
+
+    deinit { stop() }
+
+    // MARK: - Observation
 
     private func observeSettings() {
-        var lastAnchor = spectrumSettings.anchor
-        var lastWidth  = spectrumSettings.width
-
         settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                let current = self.spectrumSettings
-                if current.anchor != lastAnchor || current.width != lastWidth {
-                    lastAnchor = current.anchor
-                    lastWidth  = current.width
-                    self.setupBars()
-                } else {
-                    self.updateLayout()
-                }
+                self.opacity   = Float(self.settings.opacity)
+                self.isVisible = self.settings.isVisible
             }
             .store(in: &cancellables)
     }
@@ -68,187 +80,173 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
     private func subscribeToAudio() {
         AudioDataBus.shared.spectrumPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] bins in
-                self?.updateBars(bins: bins)
-            }
+            .sink { [weak self] bins in self?.onAudioBins(bins) }
             .store(in: &cancellables)
 
         AudioDataBus.shared.resetPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.reset()
+                guard let self else { return }
+                self.smoothed = Array(repeating: 0, count: self.binCount)
             }
             .store(in: &cancellables)
     }
 
-    func update(_ currentTime: TimeInterval) {}
+    // MARK: - Tick
 
-    // MARK: - Setup & Layout
-
-    private func setupBars() {
-        bars.forEach { $0.removeFromParent() }
-        bars = []
-
-        switch spectrumSettings.anchor {
-        case .bottom, .top:
-            setupHorizontalBars()
-        case .left, .right:
-            setupVerticalBars()
-        }
-
-        updateLayout()
-    }
-
-    private func updateLayout() {
-        let ss  = spectrumSettings
-        let pos = settings
-
-        let totalWidth  = sceneSize.width  * CGFloat(ss.width)
-        let startX      = (sceneSize.width - totalWidth) * CGFloat(pos.positionX)
-        let startY      = sceneSize.height * CGFloat(pos.positionY)
-
-        let totalHeight = sceneSize.height * CGFloat(ss.width)
-        let startYVert  = (sceneSize.height - totalHeight) * CGFloat(pos.positionY)
-        let startXVert  = sceneSize.width * CGFloat(pos.positionX)
-
-        for (i, bar) in bars.enumerated() {
-            if ss.anchor == .bottom || ss.anchor == .top {
-                let barWidth = bar.size.width
-                let x = startX + barWidth / 2 + CGFloat(i) * (barWidth + barSpacing)
-                bar.position = CGPoint(x: x, y: startY)
-            } else {
-                let barHeight = bar.size.height
-                let y = startYVert + barHeight / 2 + CGFloat(i) * (barHeight + barSpacing)
-                bar.position = CGPoint(x: startXVert, y: y)
+    func tick(timestamp: TimeInterval) {
+        guard !isStopped else { return }
+        guard isVisible else {
+            if wasVisible, let id = rendererID {
+                renderer?.removeSpectrum(id: id)
+                wasVisible = false
             }
+            return
         }
-
-        alpha = CGFloat(settings.opacity)
+        wasVisible = true
+        guard let renderer, let id = rendererID else { return }
+        renderer.updateSpectrum(id: id, data: TrailData(vertices: buildVertices()))
     }
 
-    private func setupHorizontalBars() {
-        let ss       = spectrumSettings
-        let total    = sceneSize.width * CGFloat(ss.width)
-        let barWidth = max(1, (total - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
-
-        bars = (0..<binCount).map { _ in
-            let bar = SKSpriteNode(color: .white, size: CGSize(width: barWidth, height: 2))
-            bar.anchorPoint = ss.anchor == .bottom ? CGPoint(x: 0.5, y: 0) : CGPoint(x: 0.5, y: 1)
-            bar.position = .zero
-            addChild(bar)
-            return bar
-        }
-    }
-
-    private func setupVerticalBars() {
-        let ss        = spectrumSettings
-        let total     = sceneSize.height * CGFloat(ss.width)
-        let barHeight = max(1, (total - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
-
-        bars = (0..<binCount).map { _ in
-            let bar = SKSpriteNode(color: .white, size: CGSize(width: 2, height: barHeight))
-            bar.anchorPoint = ss.anchor == .left ? CGPoint(x: 0, y: 0.5) : CGPoint(x: 1, y: 0.5)
-            bar.position = .zero
-            addChild(bar)
-            return bar
-        }
-    }
-
-    // MARK: - Audio Processing
+    // MARK: - Audio
 
     private func selectedBins(from stereo: StereoBins) -> [Float] {
         switch settings.channelMode {
         case .stereo:
-            let half      = binCount / 2
-            let leftBins  = Array(stereo.left.prefix(half))
-            let rightBins = Array(stereo.right.prefix(half).reversed())
-            return leftBins + rightBins
+            let half = binCount / 2
+            return Array(stereo.left.prefix(half)) + Array(stereo.right.prefix(half).reversed())
         case .left:
-            return stereo.left
+            return Array(stereo.left.prefix(binCount))
         case .right:
-            return stereo.right
+            return Array(stereo.right.prefix(binCount))
         case .mono:
-            return zip(stereo.left, stereo.right).map { ($0 + $1) / 2 }
+            return zip(stereo.left.prefix(binCount), stereo.right.prefix(binCount)).map { ($0 + $1) / 2 }
         }
     }
 
-    private func updateBars(bins: StereoBins) {
-        guard !isHidden else { return }
-
+    private func onAudioBins(_ bins: StereoBins) {
         let ss       = spectrumSettings
         let selected = selectedBins(from: bins)
-
         for i in 0..<smoothed.count {
             guard i < selected.count else { break }
-            let coeff   = selected[i] > smoothed[i] ? Float(ss.attack) : Float(ss.release)
-            smoothed[i] = smoothed[i] * (1 - coeff) + selected[i] * coeff
+            let coeff    = selected[i] > smoothed[i] ? Float(ss.attack) : Float(ss.release)
+            smoothed[i]  = smoothed[i] * (1 - coeff) + selected[i] * coeff
         }
+    }
 
+    // MARK: - Vertex Building
+
+    private func buildVertices() -> [TrailVertex] {
+        let ss     = spectrumSettings
         let curved = smoothed.map { pow($0, Float(ss.powerCurve)) }
+        let gain   = CGFloat(ss.gain)
+        let half   = binCount / 2
+
+        var vertices: [TrailVertex] = []
+        vertices.reserveCapacity(binCount * 4 + (binCount - 1) * 3)
 
         switch ss.anchor {
         case .bottom, .top:
-            updateHorizontalBars(curved: curved)
+            let totalWidth = sceneSize.width * CGFloat(ss.width)
+            let barWidth   = max(1, (totalWidth - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
+            let leftEdgeX  = (sceneSize.width - totalWidth) * CGFloat(settings.positionX)
+            let baseY      = sceneSize.height * CGFloat(settings.positionY)
+            let maxH       = sceneSize.height * CGFloat(ss.maxHeight)
+
+            for i in 0..<binCount {
+                let barH     = max(1, min(CGFloat(curved[i]) * maxH * gain, maxH))
+                let barLeft  = Float(leftEdgeX + CGFloat(i) * (barWidth + barSpacing))
+                let barRight = barLeft + Float(barWidth)
+                let isRight  = settings.channelMode == .stereo && i >= half
+                let color    = barColorSIMD(for: i, value: curved[i], isRight: isRight)
+
+                let (baseYF, tipYF): (Float, Float)
+                if ss.anchor == .bottom {
+                    baseYF = Float(baseY)
+                    tipYF  = Float(baseY + barH)
+                } else {
+                    baseYF = Float(baseY)
+                    tipYF  = Float(baseY - barH)
+                }
+
+                let v0 = TrailVertex(position: SIMD2(barLeft,  baseYF), color: color, alpha: opacity, edgeDist: -1)
+                let v1 = TrailVertex(position: SIMD2(barLeft,  tipYF),  color: color, alpha: opacity, edgeDist: +1)
+                let v2 = TrailVertex(position: SIMD2(barRight, baseYF), color: color, alpha: opacity, edgeDist: -1)
+                let v3 = TrailVertex(position: SIMD2(barRight, tipYF),  color: color, alpha: opacity, edgeDist: +1)
+                appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
+            }
+
         case .left, .right:
-            updateVerticalBars(curved: curved)
+            let totalHeight = sceneSize.height * CGFloat(ss.width)
+            let barHeight   = max(1, (totalHeight - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
+            let botEdgeY    = (sceneSize.height - totalHeight) * CGFloat(settings.positionY)
+            let baseX       = sceneSize.width * CGFloat(settings.positionX)
+            let maxW        = sceneSize.width * CGFloat(ss.maxHeight)
+
+            for i in 0..<binCount {
+                let barW    = max(1, min(CGFloat(curved[i]) * maxW * gain, maxW))
+                let barBot  = Float(botEdgeY + CGFloat(i) * (barHeight + barSpacing))
+                let barTop  = barBot + Float(barHeight)
+                let isRight = settings.channelMode == .stereo && i >= half
+                let color   = barColorSIMD(for: i, value: curved[i], isRight: isRight)
+
+                let (baseXF, tipXF): (Float, Float)
+                if ss.anchor == .left {
+                    baseXF = Float(baseX)
+                    tipXF  = Float(baseX + barW)
+                } else {
+                    baseXF = Float(baseX)
+                    tipXF  = Float(baseX - barW)
+                }
+
+                // For horizontal bars, strip order: (base,bot)→(tip,bot)→(base,top)→(tip,top)
+                let v0 = TrailVertex(position: SIMD2(baseXF, barBot), color: color, alpha: opacity, edgeDist: -1)
+                let v1 = TrailVertex(position: SIMD2(tipXF,  barBot), color: color, alpha: opacity, edgeDist: +1)
+                let v2 = TrailVertex(position: SIMD2(baseXF, barTop), color: color, alpha: opacity, edgeDist: -1)
+                let v3 = TrailVertex(position: SIMD2(tipXF,  barTop), color: color, alpha: opacity, edgeDist: +1)
+                appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
+            }
         }
+
+        return vertices
     }
 
-    private func updateHorizontalBars(curved: [Float]) {
-        let ss        = spectrumSettings
-        let maxHeight = sceneSize.height * CGFloat(ss.maxHeight)
-        let gain      = CGFloat(ss.gain)
-        let half      = binCount / 2
-
-        for (i, bar) in bars.enumerated() {
-            guard i < curved.count else { break }
-            let barHeight = max(2, min(CGFloat(curved[i]) * maxHeight * gain, maxHeight))
-            bar.run(.resize(toHeight: barHeight, duration: 0.05))
-            bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
+    private func appendBar(to vertices: inout [TrailVertex],
+                           v0: TrailVertex, v1: TrailVertex,
+                           v2: TrailVertex, v3: TrailVertex) {
+        if !vertices.isEmpty {
+            let lastV = vertices.last!
+            vertices.append(lastV)
+            vertices.append(lastV)
+            vertices.append(v0)
         }
+        vertices.append(contentsOf: [v0, v1, v2, v3])
     }
 
-    private func updateVerticalBars(curved: [Float]) {
-        let ss       = spectrumSettings
-        let maxWidth = sceneSize.width * CGFloat(ss.maxHeight)
-        let gain     = CGFloat(ss.gain)
-        let half     = binCount / 2
+    // MARK: - Color Calculation (alloc-free)
 
-        for (i, bar) in bars.enumerated() {
-            guard i < curved.count else { break }
-            let barWidth = max(2, min(CGFloat(curved[i]) * maxWidth * gain, maxWidth))
-            bar.run(.resize(toWidth: barWidth, duration: 0.05))
-            bar.color = barColor(for: i, value: curved[i], isRightChannel: i >= half)
-        }
-    }
-
-    // MARK: - Color Calculation
-
-    private func barColor(for index: Int, value: Float, isRightChannel: Bool = false) -> NSColor {
+    private func barColorSIMD(for index: Int, value: Float, isRight: Bool) -> SIMD4<Float> {
         let ss = spectrumSettings
-        let colorSettings: ChannelColorSettings
-
+        let cs: ChannelColorSettings
         if settings.channelMode == .stereo && !ss.colorSync {
-            colorSettings = isRightChannel ? ss.rightColorSettings : ss.leftColorSettings
+            cs = isRight ? ss.rightColorSettings : ss.leftColorSettings
         } else {
-            colorSettings = ss.colorSettings
+            cs = ss.colorSettings
         }
-
-        switch colorSettings.colorMode {
+        switch cs.colorMode {
         case .rainbow:
-            let ratio = rainbowRatio(for: index)
-            return NSColor(hue: 0.6 - ratio * 0.5, saturation: 0.8, brightness: 1.0, alpha: 1.0)
-
+            let h = Float(0.6 - rainbowRatio(for: index) * 0.5)
+            return hsbToRGBA(h: h, s: 0.8, b: 1.0, a: 1.0)
         case .gradient:
-            let ratio = gradientRatio(for: index)
-            return interpolateColor(
-                from: colorSettings.gradientColorLow.nsColor,
-                to: colorSettings.gradientColorHigh.nsColor,
-                progress: ratio
-            )
-
+            let t  = Float(gradientRatio(for: index))
+            let lo = SIMD4<Float>(Float(cs.gradientColorLow.red),  Float(cs.gradientColorLow.green),
+                                  Float(cs.gradientColorLow.blue), Float(cs.gradientColorLow.alpha))
+            let hi = SIMD4<Float>(Float(cs.gradientColorHigh.red), Float(cs.gradientColorHigh.green),
+                                  Float(cs.gradientColorHigh.blue),Float(cs.gradientColorHigh.alpha))
+            return lo + (hi - lo) * t
         case .solid:
-            return colorSettings.solidColor.nsColor
+            return SIMD4<Float>(Float(cs.solidColor.red), Float(cs.solidColor.green),
+                                Float(cs.solidColor.blue), Float(cs.solidColor.alpha))
         }
     }
 
@@ -272,24 +270,21 @@ class SpectrumEffect: SKNode, UpdatableEffectNode {
         return CGFloat(index) / CGFloat(binCount - 1)
     }
 
-    private func interpolateColor(from: NSColor, to: NSColor, progress: CGFloat) -> NSColor {
-        NSColor(
-            red: from.redComponent + (to.redComponent - from.redComponent) * progress,
-            green: from.greenComponent + (to.greenComponent - from.greenComponent) * progress,
-            blue: from.blueComponent + (to.blueComponent - from.blueComponent) * progress,
-            alpha: 1.0
-        )
-    }
-
-    // MARK: - Control
-
-    func reset() {
-        smoothed = Array(repeating: 0, count: binCount)
-        switch spectrumSettings.anchor {
-        case .bottom, .top:
-            bars.forEach { $0.run(.resize(toHeight: 2, duration: 0.3)) }
-        case .left, .right:
-            bars.forEach { $0.run(.resize(toWidth: 2, duration: 0.3)) }
+    private func hsbToRGBA(h: Float, s: Float, b: Float, a: Float) -> SIMD4<Float> {
+        let sector = Int(h * 6) % 6
+        let f = h * 6 - Float(Int(h * 6))
+        let p = b * (1 - s)
+        let q = b * (1 - f * s)
+        let t = b * (1 - (1 - f) * s)
+        let rgb: SIMD3<Float>
+        switch sector {
+        case 0: rgb = SIMD3(b, t, p)
+        case 1: rgb = SIMD3(q, b, p)
+        case 2: rgb = SIMD3(p, b, t)
+        case 3: rgb = SIMD3(p, q, b)
+        case 4: rgb = SIMD3(t, p, b)
+        default: rgb = SIMD3(b, p, q)
         }
+        return SIMD4(rgb, a)
     }
 }
