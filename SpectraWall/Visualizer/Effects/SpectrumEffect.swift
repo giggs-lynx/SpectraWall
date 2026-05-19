@@ -18,7 +18,9 @@ class SpectrumEffect: NSObject {
     private var sceneSize: CGSize
     private var settings: LayerSettings
 
-    private var smoothed: [Float] = Array(repeating: 0, count: 96)
+    private var smoothed:        [Float] = Array(repeating: 0, count: 96)
+    private var renderedHeight:  [Float] = Array(repeating: 0, count: 96)
+    private var lastTickTime:    TimeInterval = 0
     private var cancellables = Set<AnyCancellable>()
 
     var isVisible: Bool = true
@@ -87,7 +89,9 @@ class SpectrumEffect: NSObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.smoothed = Array(repeating: 0, count: self.binCount)
+                self.smoothed       = Array(repeating: 0, count: self.binCount)
+                self.renderedHeight = Array(repeating: 0, count: self.binCount)
+                self.lastTickTime   = 0
             }
             .store(in: &cancellables)
     }
@@ -105,6 +109,18 @@ class SpectrumEffect: NSObject {
         }
         wasVisible = true
         guard let renderer, let id = rendererID else { return }
+
+        // Apply power curve to audio target first (matches SKAction.resize order in SpriteKit),
+        // then lerp renderedHeight toward the curved target with a 50ms time constant.
+        let dt = lastTickTime == 0 ? 0.016 : min(timestamp - lastTickTime, 0.1)
+        lastTickTime = timestamp
+        let lerpRate = Float(1.0 - exp(-dt / 0.05))
+        let powerCurve = Float(spectrumSettings.powerCurve)
+        for i in 0..<binCount {
+            let target = pow(smoothed[i], powerCurve)
+            renderedHeight[i] += (target - renderedHeight[i]) * lerpRate
+        }
+
         renderer.updateSpectrum(id: id, data: TrailData(vertices: buildVertices()))
     }
 
@@ -138,7 +154,7 @@ class SpectrumEffect: NSObject {
 
     private func buildVertices() -> [TrailVertex] {
         let ss     = spectrumSettings
-        let curved = smoothed.map { pow($0, Float(ss.powerCurve)) }
+        let curved = renderedHeight  // already power-curved in tick()
         let gain   = CGFloat(ss.gain)
         let half   = binCount / 2
 

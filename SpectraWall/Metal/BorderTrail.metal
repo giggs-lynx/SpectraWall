@@ -68,11 +68,7 @@ vertex VertexOut spectrum_vertex(
 }
 
 fragment float4 spectrum_fragment(VertexOut in [[stage_in]]) {
-    // edgeDist: -1 = bottom of bar (full opacity), 1 = top (fade out)
-    float t    = (in.edgeDist + 1.0) * 0.5;          // remap -1…1 → 0…1
-    float fade = 1.0 - t * t;                         // quadratic fade toward top
-    float finalAlpha = in.color.a * in.alpha * fade;
-    return float4(in.color.rgb, finalAlpha);
+    return float4(in.color.rgb, in.color.a * in.alpha);
 }
 
 // MARK: - Orb
@@ -94,10 +90,17 @@ vertex VertexOut orb_vertex(
 }
 
 fragment float4 orb_fragment(VertexOut in [[stage_in]]) {
-    // edgeDist: 0 = orb center, 1 = edge
-    float d    = clamp(abs(in.edgeDist), 0.0, 1.0);
-    float glow = exp(-d * d * 3.0);
-    float core = smoothstep(0.3, 0.0, d);
-    float finalAlpha = in.color.a * in.alpha * max(glow, core * 0.5);
-    return float4(in.color.rgb * (glow + core * 1.5), finalAlpha);
+    // edgeDist sign encodes layer type:
+    //   >= 0  →  inner solid disk  (edgeDist: 0=center, +1=edge)
+    //   <  0  →  outer glow ring   (edgeDist: 0=center, -1=edge)
+    float d = clamp(abs(in.edgeDist), 0.0, 1.0);
+    float mask;
+    if (in.edgeDist < 0.0) {
+        // Outer glow: solid filled circle matching SKShapeNode, 5% antialiasing at edge
+        mask = smoothstep(1.0, 0.95, d);
+    } else {
+        // Inner solid disk with minimal anti-aliasing
+        mask = smoothstep(1.0, 0.95, d);
+    }
+    return float4(in.color.rgb, in.color.a * in.alpha * mask);
 }

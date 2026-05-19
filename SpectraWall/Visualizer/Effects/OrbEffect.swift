@@ -21,9 +21,14 @@ class OrbEffect: NSObject {
     private var smoothedRight: Float = 0
 
     // Derived from audio each callback; read in tick (both on main thread)
-    private var currentScale:      Float = 1.0
+    private var currentScale:      Float = 0
     private var currentInnerColor: SIMD4<Float> = SIMD4(0.2, 0.4, 1.0, 1.0)
     private var currentOuterColor: SIMD4<Float> = SIMD4(0.2, 0.4, 1.0, 0.15)
+
+    // Lerped display values — inner 50ms, outer 80ms (matches SKAction durations)
+    private var renderedInnerScale: Float = 0
+    private var renderedOuterScale: Float = 0
+    private var lastTickTime: TimeInterval = 0
 
     var isVisible: Bool = true
     var opacity:   Float = 1.0
@@ -108,6 +113,13 @@ class OrbEffect: NSObject {
         }
         wasVisible = true
         guard let renderer, let id = rendererID else { return }
+
+        // Lerp scale toward audio target — inner 50ms, outer 80ms (matches SKAction durations)
+        let dt = lastTickTime == 0 ? 0.016 : min(timestamp - lastTickTime, 0.1)
+        lastTickTime = timestamp
+        renderedInnerScale += (currentScale - renderedInnerScale) * Float(1.0 - exp(-dt / 0.05))
+        renderedOuterScale += (currentScale - renderedOuterScale) * Float(1.0 - exp(-dt / 0.08))
+
         renderer.updateOrb(id: id, data: buildOrbData())
     }
 
@@ -130,7 +142,15 @@ class OrbEffect: NSObject {
         case .right:         amplitude = smoothedRight
         }
 
-        currentScale = min(1.0 + amplitude * Float(os.boost), 2.5)
+        // Silence gate: scale = 0 when fully silent, ramps quickly to the base 1.0 size
+        // for any audio, then 1 + amp*boost above that. Avoids the static orb sitting at
+        // base size when no audio is playing.
+        let silenceLo: Float = 0.001
+        let silenceHi: Float = 0.01
+        let t = (amplitude - silenceLo) / (silenceHi - silenceLo)
+        let clampedT = max(0, min(1, t))
+        let silenceGate = clampedT * clampedT * (3 - 2 * clampedT)
+        currentScale = silenceGate * min(1.0 + amplitude * Float(os.boost), 2.5)
 
         let intensity = bins.amplitude(for: settings.channelMode, binRange: 0..<4)
         currentInnerColor = lerpColor(from: os.innerColorLow, to: os.innerColorHigh, t: intensity)
@@ -139,9 +159,12 @@ class OrbEffect: NSObject {
     }
 
     private func reset() {
-        smoothedLeft  = 0
-        smoothedRight = 0
-        currentScale  = 1.0
+        smoothedLeft       = 0
+        smoothedRight      = 0
+        currentScale       = 0
+        renderedInnerScale = 0
+        renderedOuterScale = 0
+        lastTickTime       = 0
     }
 
     // MARK: - Vertex Building
@@ -152,26 +175,27 @@ class OrbEffect: NSObject {
         let cy = Float(sceneSize.height * settings.positionY)
         let center = SIMD2<Float>(cx, cy)
 
-        let innerR = Float(os.baseRadius) * currentScale
-        let outerR = innerR * Float(os.outerRadiusMultiplier)
+        let innerR = Float(os.baseRadius) * renderedInnerScale
+        let outerR = Float(os.baseRadius) * renderedOuterScale * Float(os.outerRadiusMultiplier)
 
         var vertices: [TrailVertex] = []
         vertices.reserveCapacity(fanSegments * 3 * 2)
 
-        // Outer glow first (drawn underneath inner orb)
+        // Outer glow first (drawn underneath inner orb); negative edgeDist = glow mode in shader
         appendFan(to: &vertices, center: center, radius: outerR,
-                  color: currentOuterColor, alpha: opacity)
+                  color: currentOuterColor, alpha: opacity, outerEdgeDist: -1)
 
-        // Inner orb on top
+        // Inner solid disk on top; positive edgeDist = solid-disk mode in shader
         appendFan(to: &vertices, center: center, radius: innerR,
-                  color: currentInnerColor, alpha: opacity)
+                  color: currentInnerColor, alpha: opacity, outerEdgeDist: +1)
 
         return TrailData(vertices: vertices, primitiveType: .triangle)
     }
 
     private func appendFan(to vertices: inout [TrailVertex],
                             center: SIMD2<Float>, radius: Float,
-                            color: SIMD4<Float>, alpha: Float) {
+                            color: SIMD4<Float>, alpha: Float,
+                            outerEdgeDist: Float) {
         let step = Float.pi * 2 / Float(fanSegments)
         let centerVert = TrailVertex(position: center, color: color, alpha: alpha, edgeDist: 0)
 
@@ -181,8 +205,8 @@ class OrbEffect: NSObject {
             let p0 = SIMD2<Float>(center.x + cos(a0) * radius, center.y + sin(a0) * radius)
             let p1 = SIMD2<Float>(center.x + cos(a1) * radius, center.y + sin(a1) * radius)
             vertices.append(centerVert)
-            vertices.append(TrailVertex(position: p0, color: color, alpha: alpha, edgeDist: 1))
-            vertices.append(TrailVertex(position: p1, color: color, alpha: alpha, edgeDist: 1))
+            vertices.append(TrailVertex(position: p0, color: color, alpha: alpha, edgeDist: outerEdgeDist))
+            vertices.append(TrailVertex(position: p1, color: color, alpha: alpha, edgeDist: outerEdgeDist))
         }
     }
 

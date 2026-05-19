@@ -270,6 +270,11 @@ extension BorderEffect {
         var radius: CGFloat
     }
 
+    private struct CapInfo {
+        var radius: CGFloat  // arc.radius of nearest arc within window
+        var blend: CGFloat   // 1 at arc, fades to 0 at window edge
+    }
+
     private struct TrailContext {
         var centerPoints: [CGPoint] = []
         var widths: [CGFloat] = []
@@ -277,6 +282,7 @@ extension BorderEffect {
         var colors: [SIMD4<Float>] = []  // pre-converted; avoids per-step NSColor alloc
         var alphas: [CGFloat] = []
         var arcInfos: [ArcInfo?] = []    // nil on straight segments; arc center is y-flipped
+        var capInfos: [CapInfo?] = []    // smooth cap for halfW so corners don't fan to arc.center
     }
 
     private func prepareTrailData(
@@ -352,6 +358,48 @@ extension BorderEffect {
         ctx.colors.reverse()
         ctx.alphas.reverse()
         ctx.arcInfos.reverse()
+
+        // Compute smooth cap info: each sample gets the nearest arc.radius within a window,
+        // with a blend factor that's 1 at the arc and fades linearly to 0 at the window edge.
+        // This lets appendBodyStrip narrow halfW smoothly approaching the corner instead of
+        // a sudden width step at the segment boundary.
+        let n = ctx.centerPoints.count
+        ctx.capInfos = Array(repeating: nil, count: n)
+        let capWindow = 30
+        // Forward pass
+        var lastArcIndex = -capWindow - 1
+        var lastArcRadius: CGFloat = 0
+        for i in 0..<n {
+            if let arc = ctx.arcInfos[i] {
+                lastArcIndex = i
+                lastArcRadius = arc.radius
+            }
+            let dist = i - lastArcIndex
+            if dist <= capWindow {
+                let blend = 1.0 - CGFloat(dist) / CGFloat(capWindow)
+                ctx.capInfos[i] = CapInfo(radius: lastArcRadius, blend: blend)
+            }
+        }
+        // Backward pass
+        var nextArcIndex = n + capWindow + 1
+        var nextArcRadius: CGFloat = 0
+        for i in (0..<n).reversed() {
+            if let arc = ctx.arcInfos[i] {
+                nextArcIndex = i
+                nextArcRadius = arc.radius
+            }
+            let dist = nextArcIndex - i
+            if dist <= capWindow {
+                let blend = 1.0 - CGFloat(dist) / CGFloat(capWindow)
+                if let existing = ctx.capInfos[i] {
+                    if blend > existing.blend {
+                        ctx.capInfos[i] = CapInfo(radius: nextArcRadius, blend: blend)
+                    }
+                } else {
+                    ctx.capInfos[i] = CapInfo(radius: nextArcRadius, blend: blend)
+                }
+            }
+        }
         return ctx
     }
 
@@ -395,8 +443,7 @@ extension BorderEffect {
             // This is exact regardless of sampling density, and unambiguously points outward.
             // For straight sections fall back to the central-difference tangent normal.
             let normal: CGPoint
-            let innerHalfW: CGFloat
-            let halfW = ctx.stripWidths[i] / 2
+            var halfW = ctx.stripWidths[i] / 2
 
             if let arc = ctx.arcInfos[i] {
                 let dx = point.x - arc.center.x
@@ -405,12 +452,6 @@ extension BorderEffect {
                 normal = d > 0 ? CGPoint(x: dx / d, y: dy / d)
                                : perp(normalize(CGPoint(x: ctx.centerPoints[min(i+1,steps)].x - point.x,
                                                         y: ctx.centerPoints[min(i+1,steps)].y - point.y)))
-                // Keep a positive inner arc radius so inner vertices don't all collapse to
-                // arc.center. Collapsing causes 30+ overlapping triangles at each corner with
-                // additive blending → bright dot artifact. The 15% floor keeps inner vertices
-                // spread along a small inner arc while staying close to center.
-                let minInnerRadius: CGFloat = max(1.0, arc.radius * 0.15)
-                innerHalfW = min(halfW, max(0, arc.radius - minInnerRadius))
             } else {
                 if i == 0 {
                     normal = perp(normalize(CGPoint(x: ctx.centerPoints[1].x - point.x,
@@ -422,8 +463,20 @@ extension BorderEffect {
                     normal = perp(normalize(CGPoint(x: ctx.centerPoints[i + 1].x - ctx.centerPoints[i - 1].x,
                                                     y: ctx.centerPoints[i + 1].y - ctx.centerPoints[i - 1].y)))
                 }
-                innerHalfW = halfW
             }
+
+            // Smoothly narrow halfW near corners so the strip doesn't fan to arc.center.
+            // Symmetric (inner = outer) so the edgeDist=0 bright band stays on the centerline.
+            // The cap kicks in within capWindow samples of an arc, full at the arc, fading
+            // to no cap at the window edge — eliminates the sudden width step at boundaries.
+            if let cap = ctx.capInfos[i] {
+                let tightCap = cap.radius * 0.95
+                // Smoothstep blend for a gentler ease at boundaries.
+                let t = cap.blend
+                let smoothBlend = t * t * (3 - 2 * t)
+                halfW -= smoothBlend * max(0, halfW - tightCap)
+            }
+            let innerHalfW = halfW
 
             let color4 = ctx.colors[i]
             let alpha  = Float(ctx.alphas[i])

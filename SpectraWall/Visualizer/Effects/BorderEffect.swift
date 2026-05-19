@@ -38,6 +38,19 @@ class BorderEffect: NSObject {
 
     var isVisible: Bool = true
     var opacity: Float = 1.0
+    private var wasVisible = true
+    private var trailHidden = false
+
+    // Silence fade-out: tracks when raw audio went below threshold.
+    // After a short grace period the trail fades to 0 over fadeDuration; any audio
+    // clearly above the resume threshold clears silentSince and the trail snaps back.
+    // Hysteresis: enter silence at the low threshold, exit only above the high one —
+    // prevents system audio noise floor jitter from continually resetting the timer.
+    private var silentSince: TimeInterval?
+    private let silenceEnterThreshold: Float = 0.02
+    private let silenceExitThreshold: Float  = 0.1
+    private let silenceGrace: TimeInterval = 0.2
+    private let silenceFadeDuration: TimeInterval = 0.8
 
     // MARK: - Scale Pulse Echo
 
@@ -80,6 +93,9 @@ class BorderEffect: NSObject {
         self.sceneSize = size
         self.settings  = settings
         self.opacity   = Float(settings.opacity)
+        // Start in silent state so the trail is invisible until audio arrives,
+        // rather than animating around the screen on launch with no audio yet.
+        self.silentSince = CACurrentMediaTime() - silenceGrace - silenceFadeDuration
         super.init()
 
         setupStrokes()
@@ -108,8 +124,33 @@ class BorderEffect: NSObject {
     }
 
     func tick(timestamp: TimeInterval) {
-        guard !isStopped, isVisible else { return }
-        update(timestamp)
+        guard !isStopped else { return }
+        guard isVisible else {
+            if wasVisible, let id = rendererID {
+                trailRenderer?.removeTrail(id: id)
+                wasVisible = false
+            }
+            return
+        }
+        wasVisible = true
+
+        // Smooth fade-out when audio has been silent past the grace period.
+        // Fade applies uniformly to main trail + ghosts; once fully faded, drop
+        // queued ghosts (some are still in their pre-render delay) and reset the
+        // dt anchor so the next resumed frame doesn't see a huge deltaTime.
+        let fade = currentFadeAlpha()
+        if fade <= 0 {
+            if !trailHidden, let id = rendererID {
+                trailRenderer?.removeTrail(id: id)
+                scaleGhosts.removeAll()
+                lastUpdateTime = 0
+                trailHidden = true
+            }
+            return
+        }
+        trailHidden = false
+
+        update(timestamp, fadeAlpha: fade)
     }
 
     // MARK: - Lifecycle & Observation
@@ -167,10 +208,33 @@ class BorderEffect: NSObject {
         smoothedLeft  = smoothedLeft  * (1 - leftCoeff)  + leftAmp  * leftCoeff
         smoothedRight = smoothedRight * (1 - rightCoeff) + rightAmp * rightCoeff
 
+        // Raw amplitude (pre-smoothing) drives the silence fade-out with hysteresis:
+        // enter silence when amp drops below enterThreshold; exit only when amp climbs
+        // above the higher exitThreshold. Noise floor jitter between the two thresholds
+        // is treated as "still silent" so it can't keep resetting the fade timer.
+        let rawAmp = max(leftAmp, rightAmp)
+        if rawAmp < silenceEnterThreshold {
+            if silentSince == nil { silentSince = CACurrentMediaTime() }
+        } else if rawAmp > silenceExitThreshold {
+            silentSince = nil
+        }
+
         detectAndSpawnEcho()
 
         lastAmplitudeLeft  = smoothedLeft
         lastAmplitudeRight = smoothedRight
+    }
+
+    /// Returns the trail's current fade-out alpha multiplier.
+    /// 1.0 while audio is present or within the grace window; ramps to 0 over
+    /// silenceFadeDuration after grace; snaps back to 1.0 the moment audio returns.
+    private func currentFadeAlpha() -> Float {
+        guard let since = silentSince else { return 1.0 }
+        let elapsed = CACurrentMediaTime() - since
+        if elapsed < silenceGrace { return 1.0 }
+        let t = (elapsed - silenceGrace) / silenceFadeDuration
+        if t >= 1 { return 0 }
+        return Float(1 - t)
     }
 
     private var lastEchoTime: TimeInterval = 0
@@ -305,7 +369,7 @@ class BorderEffect: NSObject {
 
     // MARK: - Main Update Loop
 
-    func update(_ currentTime: TimeInterval) {
+    func update(_ currentTime: TimeInterval, fadeAlpha: Float = 1.0) {
         guard lastUpdateTime > 0 else {
             lastUpdateTime = currentTime
             return
@@ -349,6 +413,12 @@ class BorderEffect: NSObject {
                 allVertices.append(first)
             }
             allVertices.append(contentsOf: ghostVerts)
+        }
+
+        if fadeAlpha < 1.0 {
+            for i in 0..<allVertices.count {
+                allVertices[i].alpha *= fadeAlpha
+            }
         }
 
         renderer.updateTrail(id: id, data: TrailData(vertices: allVertices))
