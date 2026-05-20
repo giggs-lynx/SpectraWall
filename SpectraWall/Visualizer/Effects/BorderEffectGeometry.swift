@@ -12,27 +12,169 @@ import simd
 // MARK: - BorderSegment
 
 extension BorderEffect {
+    /// One segment of the rounded-rectangle border path. Straight edges are `.line`;
+    /// rounded corners are `.bezier` (quintic — degree 5), which gives C2 continuity at
+    /// the line↔corner boundary (curvature = 0 at both endpoints) and eliminates the
+    /// visible "breakpoint" a thick stroke shows where a line meets a circular arc.
     struct BorderSegment {
+        enum Kind {
+            case line(start: CGPoint, end: CGPoint)
+            /// `controls` is 6 control points P0…P5. `arcLUT` has 33 entries of cumulative
+            /// chord length sampled at uniform `t∈[0,1]`. `arcLUT.last == length`.
+            case bezier(controls: [CGPoint], arcLUT: [CGFloat])
+        }
+
+        var kind: Kind
         var length: CGFloat
-        var isArc: Bool
-        var startPoint: CGPoint = .zero
-        var endPoint: CGPoint = .zero
-        var center: CGPoint = .zero
-        var radius: CGFloat = 0
-        var startAngle: CGFloat = 0
-        var endAngle: CGFloat = 0
-        
-        func point(at localT: CGFloat) -> CGPoint {
-            if isArc {
-                let angle = startAngle + (endAngle - startAngle) * localT
-                return CGPoint(x: center.x + radius * cos(angle),
-                               y: center.y + radius * sin(angle))
-            } else {
-                return CGPoint(
-                    x: startPoint.x + (endPoint.x - startPoint.x) * localT,
-                    y: startPoint.y + (endPoint.y - startPoint.y) * localT
+        /// Smallest radius of curvature along the segment (= 1 / max |κ|). For lines this
+        /// is `.infinity`; for the corner Bézier it's the tightest local radius (occurs
+        /// somewhere in the middle of the curve). Drives the corner-narrow cap clamp.
+        var minRadius: CGFloat
+
+        /// Returns position + unit tangent (direction of increasing t) at `localT ∈ [0,1]`.
+        /// `localT` is interpreted by **arc length**, not curve parameter, so trail samples
+        /// are uniformly spaced along the visible path.
+        func sample(at localT: CGFloat) -> (point: CGPoint, tangent: CGPoint) {
+            switch kind {
+            case .line(let start, let end):
+                let dx = end.x - start.x
+                let dy = end.y - start.y
+                let len = sqrt(dx * dx + dy * dy)
+                let tangent: CGPoint = len > 0
+                    ? CGPoint(x: dx / len, y: dy / len)
+                    : CGPoint(x: 1, y: 0)
+                let pt = CGPoint(x: start.x + dx * localT, y: start.y + dy * localT)
+                return (pt, tangent)
+
+            case .bezier(let controls, let arcLUT):
+                guard length > 0 else {
+                    return (controls[0], CGPoint(x: 1, y: 0))
+                }
+                let t = Self.parameterForArcLength(localT * length, lut: arcLUT)
+                let pt = Self.evaluateQuintic(controls, t: t)
+                let tan = Self.evaluateQuinticTangent(controls, t: t)
+                return (pt, tan)
+            }
+        }
+
+        // MARK: - Quintic Bézier evaluation helpers
+
+        /// de Casteljau on 6 control points → point at parameter t.
+        static func evaluateQuintic(_ controls: [CGPoint], t: CGFloat) -> CGPoint {
+            var pts = controls
+            for level in (1...5).reversed() {
+                for i in 0..<level {
+                    pts[i] = CGPoint(
+                        x: pts[i].x + (pts[i + 1].x - pts[i].x) * t,
+                        y: pts[i].y + (pts[i + 1].y - pts[i].y) * t
+                    )
+                }
+            }
+            return pts[0]
+        }
+
+        /// Unit tangent at parameter t. The derivative B'(t) of a degree-5 Bézier is a
+        /// degree-4 Bézier whose control points are `Q_i = 5·(P_{i+1} − P_i)`.
+        static func evaluateQuinticTangent(_ controls: [CGPoint], t: CGFloat) -> CGPoint {
+            var pts: [CGPoint] = (0..<5).map { i in
+                CGPoint(
+                    x: 5 * (controls[i + 1].x - controls[i].x),
+                    y: 5 * (controls[i + 1].y - controls[i].y)
                 )
             }
+            for level in (1...4).reversed() {
+                for i in 0..<level {
+                    pts[i] = CGPoint(
+                        x: pts[i].x + (pts[i + 1].x - pts[i].x) * t,
+                        y: pts[i].y + (pts[i + 1].y - pts[i].y) * t
+                    )
+                }
+            }
+            let len = sqrt(pts[0].x * pts[0].x + pts[0].y * pts[0].y)
+            return len > 0 ? CGPoint(x: pts[0].x / len, y: pts[0].y / len) : CGPoint(x: 1, y: 0)
+        }
+
+        /// Build the 33-entry arc-length LUT for a quintic Bézier and return
+        /// (lut, totalLength, minRadius). Sampling at 32 segments gives ~0.05% length error.
+        static func buildBezierTables(_ controls: [CGPoint]) -> (lut: [CGFloat], length: CGFloat, minRadius: CGFloat) {
+            let steps = 32
+            var lut: [CGFloat] = []
+            lut.reserveCapacity(steps + 1)
+            lut.append(0)
+            var prevPoint = controls[0]
+            var maxKappa: CGFloat = 0
+
+            for i in 1...steps {
+                let t = CGFloat(i) / CGFloat(steps)
+                let p = evaluateQuintic(controls, t: t)
+                let dx = p.x - prevPoint.x
+                let dy = p.y - prevPoint.y
+                lut.append(lut.last! + sqrt(dx * dx + dy * dy))
+                prevPoint = p
+
+                let k = abs(curvature(controls, t: t))
+                if k > maxKappa { maxKappa = k }
+            }
+            let minRadius: CGFloat = maxKappa > 0 ? 1 / maxKappa : .infinity
+            return (lut, lut.last!, minRadius)
+        }
+
+        /// Signed curvature κ(t) = (x'·y'' − y'·x'') / (x'² + y'²)^(3/2).
+        /// Used only at LUT build time, not per-frame.
+        private static func curvature(_ controls: [CGPoint], t: CGFloat) -> CGFloat {
+            // B'(t): degree-4 Bézier of Q_i = 5·(P_{i+1} − P_i)
+            var qs: [CGPoint] = (0..<5).map { i in
+                CGPoint(
+                    x: 5 * (controls[i + 1].x - controls[i].x),
+                    y: 5 * (controls[i + 1].y - controls[i].y)
+                )
+            }
+            // B''(t): degree-3 Bézier of R_i = 4·(Q_{i+1} − Q_i)
+            var rs: [CGPoint] = (0..<4).map { i in
+                CGPoint(
+                    x: 4 * (qs[i + 1].x - qs[i].x),
+                    y: 4 * (qs[i + 1].y - qs[i].y)
+                )
+            }
+            // Evaluate both at t via de Casteljau.
+            for level in (1...4).reversed() {
+                for i in 0..<level {
+                    qs[i] = CGPoint(
+                        x: qs[i].x + (qs[i + 1].x - qs[i].x) * t,
+                        y: qs[i].y + (qs[i + 1].y - qs[i].y) * t
+                    )
+                }
+            }
+            for level in (1...3).reversed() {
+                for i in 0..<level {
+                    rs[i] = CGPoint(
+                        x: rs[i].x + (rs[i + 1].x - rs[i].x) * t,
+                        y: rs[i].y + (rs[i + 1].y - rs[i].y) * t
+                    )
+                }
+            }
+            let bp = qs[0], bpp = rs[0]
+            let denom = pow(bp.x * bp.x + bp.y * bp.y, 1.5)
+            guard denom > 0 else { return 0 }
+            return (bp.x * bpp.y - bp.y * bpp.x) / denom
+        }
+
+        /// Invert the cumulative arc-length LUT: given a target arc length `s`,
+        /// return the curve parameter `t ∈ [0,1]` whose arc length equals `s`.
+        /// Binary search + linear interp between LUT entries.
+        private static func parameterForArcLength(_ s: CGFloat, lut: [CGFloat]) -> CGFloat {
+            let total = lut.last ?? 0
+            if total <= 0 || s <= 0 { return 0 }
+            if s >= total { return 1 }
+            var lo = 0
+            var hi = lut.count - 1
+            while hi - lo > 1 {
+                let mid = (lo + hi) / 2
+                if lut[mid] <= s { lo = mid } else { hi = mid }
+            }
+            let span = lut[hi] - lut[lo]
+            let f = span > 0 ? (s - lut[lo]) / span : 0
+            return (CGFloat(lo) + f) / CGFloat(lut.count - 1)
         }
     }
 }
@@ -91,57 +233,89 @@ extension BorderEffect {
     func borderSegments() -> [BorderSegment] {
         let bs = borderSettings
         let inset = max(CGFloat(bs.baseWidth) / 2, 0)
-        
+
         if let cache = segmentCache,
            cachedSceneSize == sceneSize,
            cachedCornerRadius == bs.cornerRadius {
             return cache
         }
-        
-        let width = max(0, sceneSize.width - inset * 2)
+
+        let width  = max(0, sceneSize.width - inset * 2)
         let height = max(0, sceneSize.height - inset * 2)
-        let radius = max(CGFloat(bs.cornerRadius) - inset, 0)
-        let pi = CGFloat.pi
-        
+        let r      = max(CGFloat(bs.cornerRadius) - inset, 0)
+
+        // CW around the screen: top → right → bottom → left.
+        // Each rounded corner is a quintic Bézier whose endpoints are tangent to the
+        // adjoining straight edges AND have zero curvature there — eliminates the
+        // line→arc C2 jump that shows up as a visible "kink" on thick strokes.
+        let tRight = CGPoint(x:  1, y:  0)
+        let tDown  = CGPoint(x:  0, y:  1)
+        let tLeft  = CGPoint(x: -1, y:  0)
+        let tUp    = CGPoint(x:  0, y: -1)
+
         let segs: [BorderSegment] = [
-            BorderSegment(
-                length: max(0, width - 2 * radius), isArc: false,
-                startPoint: CGPoint(x: inset + radius, y: inset),
-                endPoint: CGPoint(x: inset + width - radius, y: inset)),
-            BorderSegment(
-                length: pi / 2 * radius, isArc: true,
-                center: CGPoint(x: inset + width - radius, y: inset + radius),
-                radius: radius, startAngle: -pi / 2, endAngle: 0),
-            BorderSegment(
-                length: max(0, height - 2 * radius), isArc: false,
-                startPoint: CGPoint(x: inset + width, y: inset + radius),
-                endPoint: CGPoint(x: inset + width, y: inset + height - radius)),
-            BorderSegment(
-                length: pi / 2 * radius, isArc: true,
-                center: CGPoint(x: inset + width - radius, y: inset + height - radius),
-                radius: radius, startAngle: 0, endAngle: pi / 2),
-            BorderSegment(
-                length: max(0, width - 2 * radius), isArc: false,
-                startPoint: CGPoint(x: inset + width - radius, y: inset + height),
-                endPoint: CGPoint(x: inset + radius, y: inset + height)),
-            BorderSegment(
-                length: pi / 2 * radius, isArc: true,
-                center: CGPoint(x: inset + radius, y: inset + height - radius),
-                radius: radius, startAngle: pi / 2, endAngle: pi),
-            BorderSegment(
-                length: max(0, height - 2 * radius), isArc: false,
-                startPoint: CGPoint(x: inset, y: inset + height - radius),
-                endPoint: CGPoint(x: inset, y: inset + radius)),
-            BorderSegment(
-                length: pi / 2 * radius, isArc: true,
-                center: CGPoint(x: inset + radius, y: inset + radius),
-                radius: radius, startAngle: pi, endAngle: 3 * pi / 2)
+            // Top edge
+            makeLine(CGPoint(x: inset + r,         y: inset),
+                     CGPoint(x: inset + width - r, y: inset)),
+            // Top-right corner
+            makeBezierCorner(start: CGPoint(x: inset + width - r, y: inset),
+                             end:   CGPoint(x: inset + width,     y: inset + r),
+                             t0: tRight, t1: tDown, r: r),
+            // Right edge
+            makeLine(CGPoint(x: inset + width, y: inset + r),
+                     CGPoint(x: inset + width, y: inset + height - r)),
+            // Bottom-right corner
+            makeBezierCorner(start: CGPoint(x: inset + width,     y: inset + height - r),
+                             end:   CGPoint(x: inset + width - r, y: inset + height),
+                             t0: tDown, t1: tLeft, r: r),
+            // Bottom edge
+            makeLine(CGPoint(x: inset + width - r, y: inset + height),
+                     CGPoint(x: inset + r,         y: inset + height)),
+            // Bottom-left corner
+            makeBezierCorner(start: CGPoint(x: inset + r, y: inset + height),
+                             end:   CGPoint(x: inset,     y: inset + height - r),
+                             t0: tLeft, t1: tUp, r: r),
+            // Left edge
+            makeLine(CGPoint(x: inset, y: inset + height - r),
+                     CGPoint(x: inset, y: inset + r)),
+            // Top-left corner
+            makeBezierCorner(start: CGPoint(x: inset,     y: inset + r),
+                             end:   CGPoint(x: inset + r, y: inset),
+                             t0: tUp, t1: tRight, r: r)
         ]
-        
+
         segmentCache = segs
         cachedSceneSize = sceneSize
         cachedCornerRadius = bs.cornerRadius
         return segs
+    }
+
+    private func makeLine(_ start: CGPoint, _ end: CGPoint) -> BorderSegment {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        return BorderSegment(kind: .line(start: start, end: end),
+                             length: sqrt(dx * dx + dy * dy),
+                             minRadius: .infinity)
+    }
+
+    /// Construct a quintic Bézier corner. P0, P5 fixed at `start`/`end`.
+    /// `t0`, `t1` are the unit tangents (incoming / outgoing line directions).
+    /// P0–P1–P2 colinear along `t0` and P3–P4–P5 colinear along `t1` ⇒ κ = 0 at both
+    /// endpoints (matching the adjoining straight edges' zero curvature).
+    /// Handle constants 0.30 / 0.35 chosen to approximate a quarter-circle footprint.
+    private func makeBezierCorner(start: CGPoint, end: CGPoint,
+                                  t0: CGPoint, t1: CGPoint, r: CGFloat) -> BorderSegment {
+        let a = r * 0.30
+        let b = r * 0.35
+        let p1 = CGPoint(x: start.x + a * t0.x, y: start.y + a * t0.y)
+        let p2 = CGPoint(x: p1.x    + b * t0.x, y: p1.y    + b * t0.y)
+        let p4 = CGPoint(x: end.x   - a * t1.x, y: end.y   - a * t1.y)
+        let p3 = CGPoint(x: p4.x    - b * t1.x, y: p4.y    - b * t1.y)
+        let controls = [start, p1, p2, p3, p4, end]
+        let (lut, length, minRadius) = BorderSegment.buildBezierTables(controls)
+        return BorderSegment(kind: .bezier(controls: controls, arcLUT: lut),
+                             length: length,
+                             minRadius: minRadius)
     }
     
     func segmentAt(distance: CGFloat, segments: [BorderSegment]) -> (Int, CGFloat) {
@@ -173,8 +347,8 @@ extension BorderEffect {
             let (segIdx, localDist) = segmentAt(distance: wrapped, segments: segments)
             let seg = segments[segIdx]
             let localT = seg.length > 0 ? min(localDist / seg.length, 1.0) : 0
-            let point = seg.point(at: localT)
-            
+            let point = seg.sample(at: localT).point
+
             if !isStarted {
                 path.move(to: point)
                 isStarted = true
@@ -182,7 +356,7 @@ extension BorderEffect {
                 path.addLine(to: point)
             }
         }
-        
+
         return path
     }
     
@@ -221,9 +395,9 @@ extension BorderEffect {
             let (segIdx, localDist) = segmentAt(distance: dist, segments: segments)
             let seg = segments[segIdx]
             let localT = seg.length > 0 ? localDist / seg.length : 0
-            points.append(seg.point(at: localT))
+            points.append(seg.sample(at: localT).point)
         }
-        
+
         return points
     }
 }
@@ -265,24 +439,13 @@ extension BorderEffect {
         return vertices
     }
     
-    private struct ArcInfo {
-        var center: CGPoint
-        var radius: CGFloat
-    }
-
-    private struct CapInfo {
-        var radius: CGFloat  // arc.radius of nearest arc within window
-        var blend: CGFloat   // 1 at arc, fades to 0 at window edge
-    }
-
     private struct TrailContext {
         var centerPoints: [CGPoint] = []
         var widths: [CGFloat] = []
         var stripWidths: [CGFloat] = []
-        var colors: [SIMD4<Float>] = []  // pre-converted; avoids per-step NSColor alloc
+        var colors: [SIMD4<Float>] = []      // pre-converted; avoids per-step NSColor alloc
         var alphas: [CGFloat] = []
-        var arcInfos: [ArcInfo?] = []    // nil on straight segments; arc center is y-flipped
-        var capInfos: [CapInfo?] = []    // smooth cap for halfW so corners don't fan to arc.center
+        var tangents: [CGPoint] = []         // unit forward tangent in ctx iteration order (y-flipped)
     }
 
     private func prepareTrailData(
@@ -295,11 +458,14 @@ extension BorderEffect {
         let bs = borderSettings
         let segments = borderSegments()
         let inset = max(CGFloat(bs.baseWidth) / 2, 0)
-        let arcLength = CGFloat.pi / 2 * max(CGFloat(bs.cornerRadius) - inset, 0)
+        // Sample density still scales with the corner-curve length so corners get enough
+        // samples regardless of trail length. cornerRadius - inset is the Bézier corner's
+        // approximate span; use it as the density anchor (same role as the old arcLength).
+        let cornerSpan = max(CGFloat(bs.cornerRadius) - inset, 0)
         let trailLength = CGFloat(bs.tailLength) * perimeterLength
         let steps: Int = {
-            guard arcLength > 0 else { return 120 }
-            let needed = Int(trailLength / arcLength) * 8
+            guard cornerSpan > 0 else { return 120 }
+            let needed = Int(trailLength / cornerSpan) * 8
             return max(120, min(needed, 1200))
         }()
         let capacity = steps + 1
@@ -318,7 +484,7 @@ extension BorderEffect {
         ctx.stripWidths.reserveCapacity(capacity)
         ctx.colors.reserveCapacity(capacity)
         ctx.alphas.reserveCapacity(capacity)
-        ctx.arcInfos.reserveCapacity(capacity)
+        ctx.tangents.reserveCapacity(capacity)
 
         let heightF = sceneSize.height
 
@@ -333,23 +499,17 @@ extension BorderEffect {
             let (segIdx, localDist) = segmentAt(distance: wrapped, segments: segments)
             let seg = segments[segIdx]
             let localT = seg.length > 0 ? min(localDist / seg.length, 1.0) : 0
-            let point = seg.point(at: localT)
+            let (point, tangent) = seg.sample(at: localT)
 
             let baseW = (CGFloat(bs.baseWidth) + CGFloat(amplitude) * 3.0) * stepT
             // Fold y-flip into the append to avoid a separate map pass after the loop.
             ctx.centerPoints.append(CGPoint(x: point.x, y: heightF - point.y))
             ctx.widths.append(baseW)
             ctx.stripWidths.append(baseW * 3.0 * stripScale)
-            // SIMD lerp: register-only ops, zero heap allocation per step.
             ctx.colors.append(colorEndV + (colorStartV - colorEndV) * stepTF)
             ctx.alphas.append(alpha != nil ? CGFloat(alpha ?? 0) : stepT)
-            if seg.isArc {
-                // y-flip the arc center to match centerPoints coordinate space.
-                ctx.arcInfos.append(ArcInfo(center: CGPoint(x: seg.center.x, y: heightF - seg.center.y),
-                                            radius: seg.radius))
-            } else {
-                ctx.arcInfos.append(nil)
-            }
+            // Y-flip the tangent's y component to match centerPoints coordinate space.
+            ctx.tangents.append(CGPoint(x: tangent.x, y: -tangent.y))
         }
 
         ctx.centerPoints.reverse()
@@ -357,48 +517,11 @@ extension BorderEffect {
         ctx.stripWidths.reverse()
         ctx.colors.reverse()
         ctx.alphas.reverse()
-        ctx.arcInfos.reverse()
-
-        // Compute smooth cap info: each sample gets the nearest arc.radius within a window,
-        // with a blend factor that's 1 at the arc and fades linearly to 0 at the window edge.
-        // This lets appendBodyStrip narrow halfW smoothly approaching the corner instead of
-        // a sudden width step at the segment boundary.
-        let n = ctx.centerPoints.count
-        ctx.capInfos = Array(repeating: nil, count: n)
-        let capWindow = 30
-        // Forward pass
-        var lastArcIndex = -capWindow - 1
-        var lastArcRadius: CGFloat = 0
-        for i in 0..<n {
-            if let arc = ctx.arcInfos[i] {
-                lastArcIndex = i
-                lastArcRadius = arc.radius
-            }
-            let dist = i - lastArcIndex
-            if dist <= capWindow {
-                let blend = 1.0 - CGFloat(dist) / CGFloat(capWindow)
-                ctx.capInfos[i] = CapInfo(radius: lastArcRadius, blend: blend)
-            }
-        }
-        // Backward pass
-        var nextArcIndex = n + capWindow + 1
-        var nextArcRadius: CGFloat = 0
-        for i in (0..<n).reversed() {
-            if let arc = ctx.arcInfos[i] {
-                nextArcIndex = i
-                nextArcRadius = arc.radius
-            }
-            let dist = nextArcIndex - i
-            if dist <= capWindow {
-                let blend = 1.0 - CGFloat(dist) / CGFloat(capWindow)
-                if let existing = ctx.capInfos[i] {
-                    if blend > existing.blend {
-                        ctx.capInfos[i] = CapInfo(radius: nextArcRadius, blend: blend)
-                    }
-                } else {
-                    ctx.capInfos[i] = CapInfo(radius: nextArcRadius, blend: blend)
-                }
-            }
+        ctx.tangents.reverse()
+        // After the reverse, ctx[i+1] is "earlier on the path" than ctx[i]. We want
+        // tangents to point in the iteration order (toward ctx[i+1]), so negate.
+        for i in 0..<ctx.tangents.count {
+            ctx.tangents[i] = CGPoint(x: -ctx.tangents[i].x, y: -ctx.tangents[i].y)
         }
         return ctx
     }
@@ -438,50 +561,15 @@ extension BorderEffect {
         let steps = ctx.centerPoints.count - 1
         for i in 0...steps {
             let point = ctx.centerPoints[i]
-
-            // For arc sections use the analytic outward normal (point → away from arc center).
-            // This is exact regardless of sampling density, and unambiguously points outward.
-            // For straight sections fall back to the central-difference tangent normal.
-            let normal: CGPoint
-            var halfW = ctx.stripWidths[i] / 2
-
-            if let arc = ctx.arcInfos[i] {
-                let dx = point.x - arc.center.x
-                let dy = point.y - arc.center.y
-                let d  = sqrt(dx * dx + dy * dy)
-                normal = d > 0 ? CGPoint(x: dx / d, y: dy / d)
-                               : perp(normalize(CGPoint(x: ctx.centerPoints[min(i+1,steps)].x - point.x,
-                                                        y: ctx.centerPoints[min(i+1,steps)].y - point.y)))
-            } else {
-                if i == 0 {
-                    normal = perp(normalize(CGPoint(x: ctx.centerPoints[1].x - point.x,
-                                                    y: ctx.centerPoints[1].y - point.y)))
-                } else if i == steps {
-                    normal = perp(normalize(CGPoint(x: point.x - ctx.centerPoints[i - 1].x,
-                                                    y: point.y - ctx.centerPoints[i - 1].y)))
-                } else {
-                    normal = perp(normalize(CGPoint(x: ctx.centerPoints[i + 1].x - ctx.centerPoints[i - 1].x,
-                                                    y: ctx.centerPoints[i + 1].y - ctx.centerPoints[i - 1].y)))
-                }
-            }
-
-            // Smoothly narrow halfW near corners so the strip doesn't fan to arc.center.
-            // Symmetric (inner = outer) so the edgeDist=0 bright band stays on the centerline.
-            // The cap kicks in within capWindow samples of an arc, full at the arc, fading
-            // to no cap at the window edge — eliminates the sudden width step at boundaries.
-            if let cap = ctx.capInfos[i] {
-                let tightCap = cap.radius * 0.95
-                // Smoothstep blend for a gentler ease at boundaries.
-                let t = cap.blend
-                let smoothBlend = t * t * (3 - 2 * t)
-                halfW -= smoothBlend * max(0, halfW - tightCap)
-            }
+            // Unified normal: perpendicular of the analytic tangent from seg.sample(at:).
+            // No line-vs-curve branch — straight edges and Bézier corners use the same code
+            // path, which is the whole point of moving to a single curve representation.
+            let normal = perp(ctx.tangents[i])
+            let halfW  = ctx.stripWidths[i] / 2
             let innerHalfW = halfW
 
             let color4 = ctx.colors[i]
             let alpha  = Float(ctx.alphas[i])
-            // normal points outward (away from arc center / away from screen interior).
-            // outer vertex: +normal side;  inner vertex: -normal side, clamped at arc sections.
             vertices.append(TrailVertex(position: SIMD2<Float>(Float(point.x + normal.x * halfW),
                                                                Float(point.y + normal.y * halfW)),
                                         color: color4, alpha: alpha, edgeDist: -1.0))

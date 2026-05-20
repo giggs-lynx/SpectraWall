@@ -354,17 +354,10 @@ class BorderEffect: NSObject {
     }
 
     private func updatePerimeterLength() {
-        let bs     = borderSettings
-        let inset  = max(CGFloat(bs.baseWidth) / 2, 0)
-        let width  = max(0, sceneSize.width  - inset * 2)
-        let height = max(0, sceneSize.height - inset * 2)
-        let radius = max(CGFloat(bs.cornerRadius) - inset, 0)
-
-        perimeterLength = max(0,
-            2 * max(0, width  - 2 * radius) +
-            2 * max(0, height - 2 * radius) +
-            2 * .pi * radius
-        )
+        // Sum segment lengths instead of using the closed-form `2 line + 2πR` formula —
+        // the corner segments are now Bézier curves with no analytic arc length, only the
+        // LUT total. borderSegments() is cached on (sceneSize, cornerRadius) so this is free.
+        perimeterLength = borderSegments().reduce(into: CGFloat(0)) { $0 += $1.length }
     }
 
     // MARK: - Main Update Loop
