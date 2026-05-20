@@ -11,7 +11,7 @@ import Metal
 import QuartzCore
 import Combine
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: - Types
 
@@ -29,6 +29,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var popover: NSPopover?
     private var trailRenderers: [NSScreen: BorderTrailRenderer] = [:]
     private var cancellables = Set<AnyCancellable>()
+    /// Event monitors that auto-close the popover when the user clicks outside.
+    /// NSPopover's `.transient` behavior doesn't fire reliably for an LSUIElement app
+    /// whose other windows are at `desktopWindow` level — we drive it ourselves.
+    private var popoverGlobalMonitor: Any?
+    private var popoverLocalMonitor:  Any?
 
     private let logger = Logger(subsystem: AppConstants.bundleId, category: "AppLifecycle")
 
@@ -62,6 +67,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let popover = NSPopover()
         popover.contentViewController = NSHostingController(rootView: PopoverView())
         popover.behavior = .transient
+        popover.delegate = self
         self.popover = popover
     }
 
@@ -71,8 +77,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             popover?.performClose(nil)
         } else {
             popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            // Pin the popover so Mission Control / Show Desktop / hot corners don't
+            // slide it off screen with everything else.
+            if let pw = popover?.contentViewController?.view.window {
+                pw.collectionBehavior.insert([.stationary, .canJoinAllSpaces])
+            }
             popover?.contentViewController?.view.window?.makeKey()
+            installPopoverOutsideClickMonitors()
         }
+    }
+
+    /// Install global + local NSEvent monitors so clicking anywhere outside the
+    /// popover closes it. Global monitor catches clicks in other apps (Finder
+    /// desktop, etc.); local monitor catches clicks in our own windows
+    /// (e.g. Settings panel after opening it from the popover).
+    private func installPopoverOutsideClickMonitors() {
+        removePopoverOutsideClickMonitors()
+        popoverGlobalMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] _ in
+            self?.popover?.performClose(nil)
+        }
+        popoverLocalMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
+            guard let self else { return event }
+            // Don't close if the click landed inside the popover itself.
+            if event.window !== self.popover?.contentViewController?.view.window {
+                self.popover?.performClose(nil)
+            }
+            return event
+        }
+    }
+
+    private func removePopoverOutsideClickMonitors() {
+        if let m = popoverGlobalMonitor { NSEvent.removeMonitor(m); popoverGlobalMonitor = nil }
+        if let m = popoverLocalMonitor  { NSEvent.removeMonitor(m); popoverLocalMonitor  = nil }
+    }
+
+    // MARK: - NSPopoverDelegate
+
+    func popoverWillClose(_ notification: Notification) {
+        removePopoverOutsideClickMonitors()
     }
 
     // MARK: - Desktop Windows
