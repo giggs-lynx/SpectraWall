@@ -214,14 +214,15 @@ class BorderEffect: NSObject {
         smoothedLeft  = smoothedLeft  * (1 - leftCoeff)  + leftAmp  * leftCoeff
         smoothedRight = smoothedRight * (1 - rightCoeff) + rightAmp * rightCoeff
 
-        // Raw amplitude (pre-smoothing) drives the silence fade-out with hysteresis:
-        // enter silence when amp drops below enterThreshold; exit only when amp climbs
-        // above the higher exitThreshold. Noise floor jitter between the two thresholds
-        // is treated as "still silent" so it can't keep resetting the fade timer.
-        let rawAmp = max(leftAmp, rightAmp)
-        if rawAmp < silenceEnterThreshold {
+        // Silence detection uses peak across the FULL spectrum, not just bins 0..<8
+        // (which leftAmp/rightAmp use). High-frequency-only musical passages have
+        // zero bass and would falsely register as silent → trail fades mid-song.
+        // Hysteresis: enter at the low threshold, exit only above the higher one
+        // so noise-floor jitter between the two doesn't keep resetting the fade timer.
+        let peakAmp = max(bins.left.max() ?? 0, bins.right.max() ?? 0)
+        if peakAmp < silenceEnterThreshold {
             if silentSince == nil { silentSince = CACurrentMediaTime() }
-        } else if rawAmp > silenceExitThreshold {
+        } else if peakAmp > silenceExitThreshold {
             silentSince = nil
         }
 

@@ -23,6 +23,10 @@ class SpectrumEffect: NSObject {
     private var lastTickTime:    TimeInterval = 0
     private var cancellables = Set<AnyCancellable>()
 
+    // Cached on the renderQueue via Combine subscription so tick never touches
+    // AppSettings (a SwiftUI-observed ObservableObject) from a background thread.
+    private var cachedMotionStyle: MotionStyle = .snappy
+
     var isVisible: Bool = true
     var opacity: Float  = 1.0
 
@@ -97,6 +101,14 @@ class SpectrumEffect: NSObject {
                 self.lastTickTime   = 0
             }
             .store(in: &cancellables)
+
+        // Cache motionStyle locally so tick doesn't access AppSettings (an
+        // ObservableObject) from this background queue every frame.
+        cachedMotionStyle = AppSettings.shared.motionStyle
+        AppSettings.shared.$motionStyle
+            .receive(on: queue)
+            .sink { [weak self] style in self?.cachedMotionStyle = style }
+            .store(in: &cancellables)
     }
 
     // MARK: - Tick
@@ -113,16 +125,16 @@ class SpectrumEffect: NSObject {
         wasVisible = true
         guard let renderer, let id = rendererID else { return }
 
-        // Apply power curve to audio target first (matches SKAction.resize order in SpriteKit),
-        // then lerp renderedHeight toward the curved target with a 50ms time constant.
+        // TEMP: revert to single exponential lerp (no motionStyle switch). If lag
+        // accumulation disappears with this, the snappy path was the culprit.
         let dt = lastTickTime == 0 ? 0.016 : min(timestamp - lastTickTime, 0.1)
-        lastTickTime = timestamp
         let lerpRate = Float(1.0 - exp(-dt / 0.05))
         let powerCurve = Float(spectrumSettings.powerCurve)
         for i in 0..<binCount {
             let target = pow(smoothed[i], powerCurve)
             renderedHeight[i] += (target - renderedHeight[i]) * lerpRate
         }
+        lastTickTime = timestamp
 
         renderer.updateSpectrum(id: id, data: TrailData(vertices: buildVertices()))
     }

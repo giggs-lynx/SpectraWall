@@ -23,9 +23,10 @@ final class MetalDesktopView: NSView {
         metalLayer.pixelFormat     = .bgra8Unorm
         metalLayer.framebufferOnly = false
         metalLayer.isOpaque        = false
-        // Default is 3 (triple buffered). Lower to 2 so `nextDrawable()` waits less
-        // when GPU is contended by the CA compositor during SwiftUI Settings work —
-        // shallower queue means previous frame finishes sooner.
+        // ROOT-CAUSE TEST: keep at 2 to isolate whether back-pressure (frame-drop
+        // guard in renderer) is the actual fix vs the drawable pool size. If
+        // backlog stays at 0 with this, root cause is missing dispatch
+        // back-pressure, not pool size.
         metalLayer.maximumDrawableCount = 2
         // Use our CAMetalLayer as the view's backing layer directly. Required when
         // wantsLayer=true and we don't want the system to wrap it in a CALayer.

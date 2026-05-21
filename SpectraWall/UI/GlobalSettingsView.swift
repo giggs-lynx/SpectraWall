@@ -66,6 +66,20 @@ struct GlobalSettingsView: View {
 
                 Divider()
 
+                SectionHeader(title: "Motion")
+                VStack(spacing: 10) {
+                    Picker("Animation Style", selection: $appSettings.motionStyle) {
+                        ForEach(MotionStyle.allCases, id: \.self) { style in
+                            Text(style.localized).tag(style)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+
+                Divider()
+
                 HStack {
                     Spacer()
                     Button("Reset to Defaults") {

@@ -6,6 +6,7 @@
 //
 
 import Combine
+import Foundation
 
 struct StereoBins {
     let left: [Float]
@@ -42,6 +43,17 @@ class AudioDataBus {
 
     let spectrumPublisher = PassthroughSubject<StereoBins, Never>()
     let resetPublisher = PassthroughSubject<Void, Never>()
+
+    /// CACurrentMediaTime() at which the most-recent spectrumPublisher.send() ran.
+    /// Subscribers can compare their processing time against this to detect queue
+    /// backlog (sink processing time well after source emit = events piled up).
+    /// Updated immediately before send so subscribers see latest value.
+    var lastSourceEmitTime: TimeInterval = 0
+
+    /// Monotonic counter incremented before every spectrumPublisher.send().
+    /// A sink tracking its own processed count and reading this gives the exact
+    /// number of events queued ahead of its current task — direct backlog measure.
+    var sourceEventCount: UInt64 = 0
 
     private init() {}
 }

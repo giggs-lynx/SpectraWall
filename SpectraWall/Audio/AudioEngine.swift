@@ -7,6 +7,7 @@
 
 import Combine
 import OSLog
+import QuartzCore
 
 class AudioEngine {
     static let shared = AudioEngine()
@@ -103,6 +104,8 @@ class AudioEngine {
         tap.onAudioData = { [weak self] left, right in
             guard let self,
                   let bins = self.analyzer?.analyze(left: left, right: right) else { return }
+            AudioDataBus.shared.lastSourceEmitTime = CACurrentMediaTime()
+            AudioDataBus.shared.sourceEventCount &+= 1
             AudioDataBus.shared.spectrumPublisher.send(bins)
         }
         activation(tap)

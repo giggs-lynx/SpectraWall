@@ -42,6 +42,13 @@ class AppSettings: ObservableObject {
         }
     }
 
+    /// Global animation style. Affects how Orb and Spectrum chase their audio-driven
+    /// targets between frames. Per-effect override would be over-engineering for
+    /// what is really a feel preference.
+    @Published var motionStyle: MotionStyle {
+        didSet { UserDefaults.standard.set(motionStyle.rawValue, forKey: "motionStyle") }
+    }
+
     private init() {
         let initialized = UserDefaults.standard.bool(forKey: "enabledDisplayIDsInitialized")
         if initialized {
@@ -54,5 +61,7 @@ class AppSettings: ObservableObject {
             UserDefaults.standard.set(Array(initial).map { Int64($0) }, forKey: "enabledDisplayIDs")
             UserDefaults.standard.set(true, forKey: "enabledDisplayIDsInitialized")
         }
+        let storedMotion = UserDefaults.standard.string(forKey: "motionStyle") ?? MotionStyle.snappy.rawValue
+        motionStyle = MotionStyle(rawValue: storedMotion) ?? .snappy
     }
 }
