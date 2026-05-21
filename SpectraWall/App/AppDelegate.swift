@@ -44,42 +44,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         AudioEngine.shared.start()
         setupDesktopWindows()
         startObservingScreenChanges()
-        installAudioDiagnostic()
-    }
-
-    // MARK: - DEBUG: audio pipeline diagnostics (writes to macOS unified log
-    // so we can pull it with: log show --predicate 'subsystem == "com.spectrawall.app" AND category == "AudioDiag"' --last 5m)
-    private let audioDiagLog = Logger(subsystem: AppConstants.bundleId, category: "AudioDiag")
-    private let userMarkLog  = Logger(subsystem: AppConstants.bundleId, category: "UserMark")
-    private var audioDiagLastTime: TimeInterval = 0
-    private var audioDiagCount: Int = 0
-    private var audioDiagFirstTime: TimeInterval = 0
-
-    private func installAudioDiagnostic() {
-        AudioDataBus.shared.spectrumPublisher
-            .sink { [weak self] bins in
-                guard let self else { return }
-                let now = CACurrentMediaTime()
-                let lAmp = bins.leftAmplitude()
-                let rAmp = bins.rightAmplitude()
-                if self.audioDiagFirstTime == 0 { self.audioDiagFirstTime = now }
-                let elapsed = now - self.audioDiagFirstTime
-                // Gap detector: alert if no audio event for >200ms (normal rate ~10ms)
-                if self.audioDiagLastTime > 0 {
-                    let gap = now - self.audioDiagLastTime
-                    if gap > 0.2 {
-                        self.audioDiagLog.warning("GAP \(Int(gap * 1000), privacy: .public)ms at t=\(elapsed, privacy: .public)s — no events")
-                    }
-                }
-                self.audioDiagLastTime = now
-                self.audioDiagCount += 1
-                // Heartbeat every 60 events (~600ms at 100Hz audio rate)
-                if self.audioDiagCount % 60 == 0 {
-                    let diff = abs(lAmp - rAmp)
-                    self.audioDiagLog.info("t=\(elapsed, privacy: .public)s L=\(lAmp, privacy: .public) R=\(rAmp, privacy: .public) Δ=\(diff, privacy: .public) n=\(self.audioDiagCount, privacy: .public)")
-                }
-            }
-            .store(in: &cancellables)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -112,9 +76,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if popover?.isShown == true {
             popover?.performClose(nil)
         } else {
-            // DEBUG: status-item click doubles as a "user mark" — point the menu bar
-            // icon at the visual moment you want to remember; log shows correlate.
-            userMarkLog.info("MARK at t=\(CACurrentMediaTime(), privacy: .public)")
             popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             // Pin the popover so Mission Control / Show Desktop / hot corners don't
             // slide it off screen with everything else.

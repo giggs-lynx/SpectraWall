@@ -4,17 +4,16 @@
 //
 //  Created by Giggs Lynx on 2026/5/2.
 //
-//  The renderer drives a CAMetalLayer directly (not MTKView) so its draw loop can be
-//  invoked by a CVDisplayLink on a private serial queue. This keeps the visualizer
-//  ticking at vsync even when the main thread is blocked by SwiftUI work
-//  (Settings panel / popover first-render, ColorPickers etc.).
+//  The renderer drives a CAMetalLayer directly (not MTKView) via CAMetalDisplayLink,
+//  which delivers the next drawable and target vsync timestamp to the delegate so
+//  the render loop runs at the display refresh rate without blocking on
+//  `nextDrawable()` acquire. Work happens on a private serial render queue.
 //
 
 import AppKit
 import Metal
 import QuartzCore
 import simd
-import os.log
 
 struct TrailVertex {
     var position: SIMD2<Float>
@@ -65,22 +64,6 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
     private var tickClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
     private let lock = NSLock()
-
-    // DEBUG: render-loop diagnostic, schema matches the 0dc2830 bisect branch so the
-    // same `log show --predicate 'subsystem == "com.spectrawall.app"'` works on both.
-    // STALL = interval > 30 ms (≈ 3 missed vsync at 120 Hz). Heartbeat reports avg
-    // tick / render ms and slow-frame ratio (work > 10 ms).
-    private let renderDiagLog = Logger(subsystem: "com.spectrawall.app", category: "RenderDiag")
-    private var lastDrawTime: TimeInterval = 0
-    private var diagFirstTime: TimeInterval = 0
-    private var diagFrameCount: Int = 0
-    private var diagNextHeartbeat: TimeInterval = 0
-    private var diagSlowFrames: Int = 0
-    private var diagTickMsSum: Double = 0
-    private var diagRenderMsSum: Double = 0
-    private var diagDrawableMsSum: Double = 0   // time blocked in nextDrawable()
-    private var diagEncodeMsSum: Double = 0     // time encoding + committing
-    private var diagFramesInWindow: Int = 0
 
     // MARK: - Initialization
 
@@ -252,49 +235,11 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// and `presentTime` is the predicted vsync at which to flip.
     func draw(drawable: CAMetalDrawable, presentTime: CFTimeInterval) {
         let now = CACurrentMediaTime()
-        if diagFirstTime == 0 { diagFirstTime = now; diagNextHeartbeat = now + 1.0 }
-        let interval = lastDrawTime > 0 ? now - lastDrawTime : 0
-        if interval > 0.030 {
-            let intervalMs = Int(interval * 1000)
-            let elapsed = now - self.diagFirstTime
-            renderDiagLog.warning("""
-                STALL interval=\(intervalMs, privacy: .public)ms \
-                at t=\(elapsed, privacy: .public)s
-                """)
-        }
-        diagFrameCount += 1
-        diagFramesInWindow += 1
-        if now >= diagNextHeartbeat {
-            lock.lock(); let tcCount = tickClients.count; lock.unlock()
-            let avgTick   = diagFramesInWindow > 0 ? diagTickMsSum / Double(diagFramesInWindow) : 0
-            let avgRender = diagFramesInWindow > 0 ? diagRenderMsSum / Double(diagFramesInWindow) : 0
-            let avgDrawable = diagFramesInWindow > 0 ? diagDrawableMsSum / Double(diagFramesInWindow) : 0
-            let avgEncode   = diagFramesInWindow > 0 ? diagEncodeMsSum   / Double(diagFramesInWindow) : 0
-            renderDiagLog.info("""
-                alive frames=\(self.diagFrameCount, privacy: .public) \
-                tickClients=\(tcCount, privacy: .public) \
-                avgTickMs=\(avgTick, privacy: .public) \
-                avgRenderMs=\(avgRender, privacy: .public) \
-                avgDrawableMs=\(avgDrawable, privacy: .public) \
-                avgEncodeMs=\(avgEncode, privacy: .public) \
-                slowFrames=\(self.diagSlowFrames, privacy: .public)/\(self.diagFramesInWindow, privacy: .public)
-                """)
-            diagNextHeartbeat = now + 5.0
-            diagTickMsSum = 0
-            diagRenderMsSum = 0
-            diagDrawableMsSum = 0
-            diagEncodeMsSum = 0
-            diagSlowFrames = 0
-            diagFramesInWindow = 0
-        }
-        lastDrawTime = now
-
         lock.lock()
         let ticks = Array(tickClients.values)
         let sceneSizeSnap = screenSize
         lock.unlock()
         for tick in ticks { tick(now) }
-        let afterTicks = CACurrentMediaTime()
         // No nextDrawable() — caller supplied an already-acquired drawable.
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
@@ -330,16 +275,6 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         // `present(_:atTime:)` with it is explicitly disallowed and throws.
         commandBuffer.present(drawable)
         commandBuffer.commit()
-
-        let frameEnd = CACurrentMediaTime()
-        let tickMs   = (afterTicks - now) * 1000
-        let encodeMs = (frameEnd - afterTicks) * 1000
-        diagTickMsSum   += tickMs
-        diagRenderMsSum += encodeMs       // alias: there's no drawable wait now
-        diagEncodeMsSum += encodeMs
-        // diagDrawableMsSum left at 0 — the metric is no longer meaningful since
-        // the framework hands us the drawable. Log will report ~0 for it.
-        if (frameEnd - now) > 0.010 { diagSlowFrames += 1 }
     }
 
     // MARK: - Private helpers
