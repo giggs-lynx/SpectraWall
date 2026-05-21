@@ -7,7 +7,8 @@
 
 import SwiftUI
 import OSLog
-import MetalKit
+import Metal
+import QuartzCore
 import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -16,7 +17,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private struct DesktopWindowSet {
         let window: NSWindow
-        let mtkView: MTKView
+        let metalView: MetalDesktopView
+        let renderer: EffectsRenderer
         let coordinator: EffectsCoordinator
     }
 
@@ -85,10 +87,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowSets = []
         trailRenderers = [:]
 
-        // Stop render loops and hide immediately (synchronous).
+        // Invalidate each renderer's CAMetalDisplayLink and hide windows. Invalidate
+        // breaks the link's strong reference to the delegate and stops new callbacks;
+        // a sync drain on the render queue flushes any in-flight frame.
         for set in oldSets {
-            set.mtkView.isPaused = true
+            set.renderer.invalidate()
             set.window.orderOut(nil)
+        }
+        for set in oldSets {
+            set.renderer.renderQueue.sync { }
         }
 
         // Create new windows on the updated screen list.
@@ -99,9 +106,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Defer the actual dealloc by one run loop so any CVDisplayLink
-        // callbacks already in flight on a background thread can finish
-        // before the objects they reference are freed.
+        // Keep oldSets alive one more main-runloop hop in case any stragglers
+        // reference them via Unmanaged pointers.
         DispatchQueue.main.async { _ = oldSets }
     }
 
@@ -128,41 +134,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let containerView = NSView(frame: NSRect(origin: .zero, size: size))
         containerView.wantsLayer = true
 
-        // Match the display's native refresh rate so every frame aligns with VSync.
-        // Capping ProMotion (120 Hz) to 60 fps causes judder because frames land on
-        // alternating VSync pairs unevenly. Time-based smoothing handles any frame rate.
-        let nativeFPS = screen.maximumFramesPerSecond
+        // Custom CAMetalLayer-backed NSView — replaces MTKView so the renderer's
+        // draw loop runs on a private queue driven by CVDisplayLink (below)
+        // instead of MTKView's internal main-thread display callback.
+        let metalView = MetalDesktopView(frame: NSRect(origin: .zero, size: size))
+        guard let renderer = EffectsRenderer(metalLayer: metalView.metalLayer, screen: screen) else { return nil }
 
-        // MTKView — sole render surface after full Metal migration
-        let mtkView = MTKView(frame: NSRect(origin: .zero, size: size))
-        mtkView.layer?.isOpaque = false
-        mtkView.layer?.backgroundColor = .clear
-        mtkView.wantsLayer = true
-        guard let renderer = BorderTrailRenderer(mtkView: mtkView) else { return nil }
-
-        mtkView.delegate = renderer
         trailRenderers[screen] = renderer
         BorderTrailRendererRegistry.shared.register(renderer, for: screen)
 
         let scale = screen.backingScaleFactor
         renderer.setBackingScaleFactor(scale)
-        // Pin the shader's vertex normalization basis to the scene size in
-        // points. This is independent of the Metal drawable size, which
-        // AppKit may resize at any time.
         renderer.setSceneSize(size)
-        let drawableSize = CGSize(width: size.width * scale, height: size.height * scale)
-        mtkView.drawableSize = drawableSize
-        // Override the 60 fps default set inside BorderTrailRenderer.init.
-        mtkView.preferredFramesPerSecond = nativeFPS
+        metalView.setLayerSize(size, scale: scale)
 
-        containerView.addSubview(mtkView)
+        containerView.addSubview(metalView)
+
+        // The renderer creates and drives its own CAMetalDisplayLink (macOS 14+)
+        // internally. No need to wire CVDisplayLink here any more.
 
         // Coordinator manages all effect lifecycles; must be created AFTER
         // the renderer is registered so findRenderer(for:) succeeds.
         let coordinator = EffectsCoordinator(size: size, screen: screen)
 
         window.contentView = containerView
-        return DesktopWindowSet(window: window, mtkView: mtkView, coordinator: coordinator)
+        return DesktopWindowSet(window: window,
+                                metalView: metalView,
+                                renderer: renderer,
+                                coordinator: coordinator)
     }
 
     private func startObservingScreenChanges() {
@@ -180,6 +179,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] _ in self?.setupDesktopWindows() }
             .store(in: &cancellables)
     }
+
 }
 
 // MARK: - NSScreen helpers

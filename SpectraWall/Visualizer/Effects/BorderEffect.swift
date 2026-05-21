@@ -99,9 +99,11 @@ class BorderEffect: NSObject {
         super.init()
 
         setupStrokes()
+        // findRenderer FIRST: subscribeToAudio uses trailRenderer?.renderQueue
+        // so the audio sink runs on the same private serial queue as tick().
+        findRenderer(for: screen)
         subscribeToAudio()
         observeSettings()
-        findRenderer(for: screen)
     }
 
     private func findRenderer(for screen: NSScreen) {
@@ -180,15 +182,19 @@ class BorderEffect: NSObject {
     }
 
     private func subscribeToAudio() {
+        // Receive on the renderer's private queue so audio-driven state writes happen
+        // on the SAME serial queue as tick() reads — no locks needed, no main-thread
+        // dependency, audio keeps flowing even when main is blocked by SwiftUI work.
+        let queue: DispatchQueue = trailRenderer?.renderQueue ?? .main
         AudioDataBus.shared.spectrumPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: queue)
             .sink { [weak self] bins in
                 self?.updateAmplitude(bins: bins)
             }
             .store(in: &cancellables)
 
         AudioDataBus.shared.resetPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: queue)
             .sink { [weak self] _ in
                 self?.reset()
             }

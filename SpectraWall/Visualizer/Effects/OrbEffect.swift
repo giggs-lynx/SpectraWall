@@ -53,9 +53,10 @@ class OrbEffect: NSObject {
         self.opacity   = Float(settings.opacity)
         self.isVisible = settings.isVisible
         super.init()
+        // findRenderer FIRST so subscribeToAudio receives on renderer.renderQueue.
+        findRenderer(for: screen)
         subscribeToAudio()
         observeSettings()
-        findRenderer(for: screen)
     }
 
     private func findRenderer(for screen: NSScreen) {
@@ -89,13 +90,15 @@ class OrbEffect: NSObject {
     }
 
     private func subscribeToAudio() {
+        // Same queue as renderer's tick — no locks, no main-thread dependency.
+        let queue: DispatchQueue = renderer?.renderQueue ?? .main
         AudioDataBus.shared.spectrumPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: queue)
             .sink { [weak self] bins in self?.onAudioBins(bins) }
             .store(in: &cancellables)
 
         AudioDataBus.shared.resetPublisher
-            .receive(on: DispatchQueue.main)
+            .receive(on: queue)
             .sink { [weak self] _ in self?.reset() }
             .store(in: &cancellables)
     }
