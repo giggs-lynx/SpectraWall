@@ -59,7 +59,7 @@ struct ColorData: Codable, Equatable {
             if let parsed = try? ColorData.parseHex(hex) {
                 self = parsed
             } else {
-                ColorData.log.error("""
+                AppLog.persist.error("""
                     Invalid colour hex \"\(hex, privacy: .public)\" — falling \
                     back to default white.
                     """)
@@ -73,8 +73,6 @@ struct ColorData: Codable, Equatable {
         blue = try kv.decode(Double.self, forKey: .blue)
         alpha = try kv.decode(Double.self, forKey: .alpha)
     }
-
-    fileprivate static let log = Logger(subsystem: AppConstants.bundleId, category: "ColorData")
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()

@@ -36,7 +36,6 @@ final class XDGStorage {
     /// next save. Cleared on relaunch after the user fixes/removes the file.
     private(set) var configFileIsBroken: Bool = false
 
-    private let log = Logger(subsystem: AppConstants.bundleId, category: "XDGStorage")
     private let appSlug = "spectrawall"
 
     private init() {
@@ -79,7 +78,7 @@ final class XDGStorage {
             configFileIsBroken = false
             return config
         } catch {
-            log.error("""
+            AppLog.persist.error("""
                 config.json decode failed — refusing further writes to protect \
                 user data. \(error.localizedDescription, privacy: .public)
                 """)
@@ -90,7 +89,7 @@ final class XDGStorage {
 
     func saveConfig(_ config: AppConfig) {
         guard !configFileIsBroken else {
-            log.error("Refusing to save config.json — on-disk file failed to decode.")
+            AppLog.persist.error("Refusing to save config.json — on-disk file failed to decode.")
             return
         }
         save(config, to: configFileURL)
@@ -113,7 +112,7 @@ final class XDGStorage {
 
     func saveScene(_ scene: SceneSettings) {
         guard !configFileIsBroken else {
-            log.error("Refusing to save scene — config.json failed to decode.")
+            AppLog.persist.error("Refusing to save scene — config.json failed to decode.")
             return
         }
         save(scene, to: sceneFileURL(for: scene.id))
@@ -153,7 +152,7 @@ final class XDGStorage {
             let data = try Data(contentsOf: url)
             return try JSONDecoder().decode(type, from: data)
         } catch {
-            log.error("""
+            AppLog.persist.error("""
                 Failed to load \(url.lastPathComponent, privacy: .public): \
                 \(error.localizedDescription, privacy: .public)
                 """)
@@ -189,7 +188,7 @@ final class XDGStorage {
             }
             try cleaned.write(to: url, options: .atomic)
         } catch {
-            log.error("""
+            AppLog.persist.error("""
                 Failed to save \(url.lastPathComponent, privacy: .public): \
                 \(error.localizedDescription, privacy: .public)
                 """)
@@ -293,7 +292,7 @@ final class XDGStorage {
     }
 
     private func migrateFromPerNameSceneFiles() {
-        log.info("Migrating per-name scene files → scene-<uuid>.json layout…")
+        AppLog.persist.info("Migrating per-name scene files → scene-<uuid>.json layout…")
         guard let urls = try? FileManager.default.contentsOfDirectory(
             at: scenesDirURL, includingPropertiesForKeys: nil
         ) else { return }
@@ -313,7 +312,7 @@ final class XDGStorage {
     }
 
     private func migrateFromCombinedScenesFile() {
-        log.info("Splitting combined scenes.json into per-uuid scene files…")
+        AppLog.persist.info("Splitting combined scenes.json into per-uuid scene files…")
         guard let data = try? Data(contentsOf: legacyCombinedScenesFileURL),
               let tree = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let scenesAny = tree["scenes"],
@@ -332,7 +331,7 @@ final class XDGStorage {
     }
 
     private func migrateFromCombinedConfig(_ tree: [String: Any]) {
-        log.info("Extracting scenes from combined config.json…")
+        AppLog.persist.info("Extracting scenes from combined config.json…")
         guard let scenesAny = tree["scenes"],
               let scenesData = try? JSONSerialization.data(withJSONObject: scenesAny),
               let scenes = try? JSONDecoder().decode([SceneSettings].self, from: scenesData)
@@ -350,7 +349,7 @@ final class XDGStorage {
     }
 
     private func migrateFromSandboxPlist(_ plist: [String: Any]) {
-        log.info("Migrating from legacy sandbox container plist…")
+        AppLog.persist.info("Migrating from legacy sandbox container plist…")
 
         let motionStyleRaw = plist["motionStyle"] as? String ?? MotionStyle.snappy.rawValue
         let motionStyle = MotionStyle(rawValue: motionStyleRaw) ?? .snappy
@@ -390,7 +389,7 @@ final class XDGStorage {
             activeScene: activeID
         ))
         saveState(AppState(version: 1, enabledDisplayIDsInitialized: initialized))
-        log.info("""
+        AppLog.persist.info("""
             Migration done. scenes=\(scenes.count, privacy: .public) \
             active=\(activeID?.uuidString ?? "(none)", privacy: .public)
             """)

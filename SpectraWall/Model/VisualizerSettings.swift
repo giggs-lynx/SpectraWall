@@ -8,13 +8,11 @@
 import SwiftUI
 import Combine
 import ServiceManagement
-import os.log
+import OSLog
 
 class VisualizerSettings: ObservableObject {
     static let shared = VisualizerSettings()
-    
-    private let logger = Logger(subsystem: AppConstants.bundleId, category: "VisualizerSettings")
-    
+
     @AppStorage("bassAttenuation") var bassAttenuation: Double = 30.0
     
     private init() {}
@@ -38,7 +36,7 @@ extension VisualizerSettings {
                 }
                 objectWillChange.send()
             } catch {
-                logger.error("LaunchAtLogin error: \(error.localizedDescription)")
+                AppLog.lifecycle.error("LaunchAtLogin error: \(error.localizedDescription)")
             }
         }
     }

@@ -7,15 +7,13 @@
 
 import SwiftUI
 import ServiceManagement
-import os
+import OSLog
 
 struct GlobalSettingsView: View {
     @ObservedObject var visualizerSettings = VisualizerSettings.shared
     @ObservedObject var appSettings = AppSettings.shared
     @State private var launchAtLogin: Bool = SMAppService.mainApp.status == .enabled
     @State private var screens: [NSScreen] = NSScreen.screens
-
-    private let logger = Logger(subsystem: AppConstants.bundleId, category: "GlobalSettingsView")
 
     var body: some View {
         ScrollView {
@@ -31,7 +29,7 @@ struct GlobalSettingsView: View {
                                     try SMAppService.mainApp.unregister()
                                 }
                             } catch {
-                                logger.error("LaunchAtLogin error: \(error)")
+                                AppLog.lifecycle.error("LaunchAtLogin error: \(error)")
                                 launchAtLogin = SMAppService.mainApp.status == .enabled
                             }
                         }

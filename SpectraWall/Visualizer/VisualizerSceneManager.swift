@@ -30,7 +30,6 @@ class VisualizerSceneManager: ObservableObject {
     /// instead of losing it to the next orphan sweep.
     private var unreadableSceneIDs: [UUID] = []
 
-    private let logger = Logger(subsystem: AppConstants.bundleId, category: "Persistence")
     private let saveSubject = PassthroughSubject<Void, Never>()
     private var saveCancellable: AnyCancellable?
 
@@ -181,7 +180,7 @@ class VisualizerSceneManager: ObservableObject {
                 // File on disk but undecodable — preserve it for the user to
                 // hand-repair instead of treating it as an orphan.
                 unreadable.append(uuid)
-                logger.error("""
+                AppLog.persist.error("""
                     Skipping unreadable scene \(uuid.uuidString, privacy: .public). \
                     File preserved on disk; fix or remove manually.
                     """)

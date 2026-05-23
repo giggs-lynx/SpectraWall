@@ -7,7 +7,7 @@
 
 import AppKit
 import AudioToolbox
-import os
+import OSLog
 
 struct AudioApp {
     let pid: pid_t
@@ -19,9 +19,7 @@ struct AudioApp {
 class AudioProcessMonitor {
     var onAppsChanged: (([AudioApp]) -> Void)?
     private(set) var activeApps: [AudioApp] = []
-    
-    private let logger = Logger(subsystem: AppConstants.bundleId, category: "AudioProcessMonitor")
-    
+
     private var processListListenerBlock: AudioObjectPropertyListenerBlock?
     private var processListenerBlocks: [AudioObjectID: AudioObjectPropertyListenerBlock] = [:]
     private var monitoredProcesses: Set<AudioObjectID> = []
@@ -177,7 +175,7 @@ class AudioProcessMonitor {
         
         let status = AudioObjectRemovePropertyListenerBlock(objectID, &address, .main, block)
         if status != noErr && status != OSStatus(kAudioHardwareBadObjectError) {
-            logger.error("Failed to remove listener for \(objectID): \(status)")
+            AppLog.audio.error("Failed to remove listener for \(objectID): \(status)")
         }
     }
     

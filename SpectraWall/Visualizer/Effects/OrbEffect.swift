@@ -8,7 +8,6 @@
 import AppKit
 import simd
 import Combine
-import OSLog
 
 class OrbEffect: NSObject {
 
@@ -49,25 +48,6 @@ class OrbEffect: NSObject {
     }
 
     private let fanSegments = 32
-
-    // DEBUG: per-orb L/R sync diagnostic. Logs the channelMode + currentScale at
-    // throttled rate so we can compare two orbs ingesting the same audio event.
-    private static let orbDiagLog = Logger(subsystem: "com.spectrawall.app", category: "OrbDiag")
-    private static let orbTickDiagLog = Logger(subsystem: "com.spectrawall.app", category: "OrbTickDiag")
-    private static let orbLagDiagLog = Logger(subsystem: "com.spectrawall.app", category: "OrbLagDiag")
-    private var orbDiagCount: Int = 0
-    private var orbDiagFirstTime: TimeInterval = 0
-    private var orbTickDiagCount: Int = 0
-    private var lastAudioBinsTime: TimeInterval = 0
-    private var maxGapInWindow: TimeInterval = 0
-    private var maxLatencyInWindow: TimeInterval = 0
-    private var audioEventCountInWindow: Int = 0
-    private var windowStartTime: TimeInterval = 0
-    /// Total events this sink has processed. AudioDataBus.sourceEventCount minus
-    /// this = backlog size at the moment the sink reads it. If it grows over time
-    /// → renderQueue can't keep up with source rate (THE accumulation pattern).
-    private var mySinkEventCount: UInt64 = 0
-    private var maxBacklogInWindow: UInt64 = 0
 
     // MARK: - Initialization
 
@@ -165,50 +145,6 @@ class OrbEffect: NSObject {
     private func onAudioBins(_ bins: StereoBins) {
         let os = orbSettings
 
-        // DEBUG: track inter-arrival of audio sink invocations to detect renderQueue
-        // backlog. If audio is emitted at ~100Hz, gap should be ~10ms. If gap grows,
-        // sink is being delivered late (queue saturated).
-        let nowMark = CACurrentMediaTime()
-        if windowStartTime == 0 { windowStartTime = nowMark }
-        if lastAudioBinsTime > 0 {
-            let gap = nowMark - lastAudioBinsTime
-            if gap > maxGapInWindow { maxGapInWindow = gap }
-        }
-        lastAudioBinsTime = nowMark
-        audioEventCountInWindow += 1
-        // True source-to-sink latency: source updated lastSourceEmitTime BEFORE
-        // emitting; if our sink processes events real-time, lag is the small
-        // queue-dispatch delay (~ms). If sink is N seconds behind, lag grows
-        // because source has advanced N seconds while we processed older events.
-        let srcEmit = AudioDataBus.shared.lastSourceEmitTime
-        let latency = srcEmit > 0 ? nowMark - srcEmit : 0
-        if abs(latency) > self.maxLatencyInWindow { self.maxLatencyInWindow = abs(latency) }
-        // Backlog measure: source has emitted N events, sink has processed M.
-        // (N - M - 1) = events queued ahead of THIS sink invocation. Grows = backlog.
-        mySinkEventCount &+= 1
-        let backlog = AudioDataBus.shared.sourceEventCount &- mySinkEventCount
-        if backlog > maxBacklogInWindow { maxBacklogInWindow = backlog }
-        if nowMark - windowStartTime >= 2.0 {
-            let elapsed = nowMark - windowStartTime
-            let rate = Double(audioEventCountInWindow) / elapsed
-            let gapMs = Int(self.maxGapInWindow * 1000)
-            let latMs = Int(self.maxLatencyInWindow * 1000)
-            let n = self.audioEventCountInWindow
-            let bk = self.maxBacklogInWindow
-            Self.orbLagDiagLog.info("""
-                rate=\(rate, privacy: .public)Hz \
-                maxGap=\(gapMs, privacy: .public)ms \
-                maxLatency=\(latMs, privacy: .public)ms \
-                maxBacklog=\(bk, privacy: .public) \
-                n=\(n, privacy: .public)
-                """)
-            windowStartTime = nowMark
-            audioEventCountInWindow = 0
-            maxGapInWindow = 0
-            maxLatencyInWindow = 0
-            maxBacklogInWindow = 0
-        }
-
         let leftAmp  = bins.leftAmplitude()
         let rightAmp = bins.rightAmplitude()
         let lCoeff   = leftAmp  > smoothedLeft  ? Float(os.attack) : Float(os.release)
@@ -236,29 +172,6 @@ class OrbEffect: NSObject {
         let clampedT = max(0, min(1, t))
         let silenceGate = clampedT * clampedT * (3 - 2 * clampedT)
         currentScale = silenceGate * min(1.0 + amplitude * Float(os.boost), 2.5)
-
-        // DEBUG: heartbeat per-orb. Throttle to every 30 events (~300ms @ 100Hz)
-        // so the log lines from left orb and right orb interleave cleanly for
-        // post-hoc comparison via `log show ... category == "OrbDiag"`.
-        orbDiagCount += 1
-        if orbDiagCount % 90 == 0 {
-            let now = CACurrentMediaTime()
-            if orbDiagFirstTime == 0 { orbDiagFirstTime = now }
-            let elapsed = now - orbDiagFirstTime
-            let modeStr: String
-            switch settings.channelMode {
-            case .stereo: modeStr = "stereo"
-            case .mono:   modeStr = "mono"
-            case .left:   modeStr = "left"
-            case .right:  modeStr = "right"
-            }
-            let scale = self.currentScale
-            Self.orbDiagLog.info("""
-                t=\(elapsed, privacy: .public)s mode=\(modeStr, privacy: .public) \
-                amp=\(amplitude, privacy: .public) scale=\(scale, privacy: .public) \
-                L=\(leftAmp, privacy: .public) R=\(rightAmp, privacy: .public)
-                """)
-        }
 
         let intensity = bins.amplitude(for: settings.channelMode, binRange: 0..<4)
         currentInnerColor = lerpColor(from: os.innerColorLow, to: os.innerColorHigh, t: intensity)

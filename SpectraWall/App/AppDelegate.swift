@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import OSLog
 import Metal
 import QuartzCore
 import Combine
@@ -34,8 +33,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// whose other windows are at `desktopWindow` level — we drive it ourselves.
     private var popoverGlobalMonitor: Any?
     private var popoverLocalMonitor:  Any?
-
-    private let logger = Logger(subsystem: AppConstants.bundleId, category: "AppLifecycle")
 
     // MARK: - Lifecycle
 

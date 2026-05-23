@@ -6,7 +6,6 @@
 //
 
 import Combine
-import OSLog
 import QuartzCore
 
 class AudioEngine {
@@ -16,8 +15,6 @@ class AudioEngine {
     private var tapManager: AudioTapManager?
     private var analyzer: AudioAnalyzer?
     private var settingsCancellable: AnyCancellable?
-
-    private let logger = Logger(subsystem: AppConstants.bundleId, category: "AudioEngine")
 
     private init() {}
 

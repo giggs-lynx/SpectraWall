@@ -6,13 +6,11 @@
 //
 
 import AudioToolbox
-import os
+import OSLog
 
 class AudioTapManager {
     var onAudioData: (([Float], [Float]) -> Void)?
-    
-    private let logger = Logger(subsystem: AppConstants.bundleId, category: "AudioTapManager")
-    
+
     private var tapID: AudioObjectID = .unknown
     private var aggregateDeviceID: AudioObjectID = .unknown
     private var deviceProcID: AudioDeviceIOProcID?
@@ -55,7 +53,7 @@ class AudioTapManager {
         var tapObjectID: AudioObjectID = .unknown
         let tapStatus = AudioHardwareCreateProcessTap(tapDesc, &tapObjectID)
         guard tapStatus == noErr else {
-            logger.error("Failed to create tap, OSStatus = \(tapStatus)")
+            AppLog.audio.error("Failed to create tap, OSStatus = \(tapStatus)")
             return
         }
         tapID = tapObjectID
@@ -72,7 +70,7 @@ class AudioTapManager {
         var aggID: AudioObjectID = .unknown
         let aggStatus = AudioHardwareCreateAggregateDevice(aggDesc as CFDictionary, &aggID)
         guard aggStatus == noErr else {
-            logger.error("Failed to create aggregate device, OSStatus = \(aggStatus)")
+            AppLog.audio.error("Failed to create aggregate device, OSStatus = \(aggStatus)")
             return
         }
         aggregateDeviceID = aggID
@@ -100,7 +98,7 @@ class AudioTapManager {
         var tapObjectID: AudioObjectID = .unknown
         let tapStatus = AudioHardwareCreateProcessTap(tapDesc, &tapObjectID)
         guard tapStatus == noErr else {
-            logger.error("Failed to create global tap, OSStatus = \(tapStatus)")
+            AppLog.audio.error("Failed to create global tap, OSStatus = \(tapStatus)")
             return
         }
         tapID = tapObjectID
@@ -116,7 +114,7 @@ class AudioTapManager {
         var aggID: AudioObjectID = .unknown
         let aggStatus = AudioHardwareCreateAggregateDevice(aggDesc as CFDictionary, &aggID)
         guard aggStatus == noErr else {
-            logger.error("Failed to create global aggregate device, OSStatus = \(aggStatus)")
+            AppLog.audio.error("Failed to create global aggregate device, OSStatus = \(aggStatus)")
             return
         }
         aggregateDeviceID = aggID
@@ -178,7 +176,7 @@ class AudioTapManager {
         }
         
         guard err == noErr, let procID else {
-            logger.error("Failed to create IO proc, OSStatus = \(err)")
+            AppLog.audio.error("Failed to create IO proc, OSStatus = \(err)")
             return
         }
         
@@ -186,7 +184,7 @@ class AudioTapManager {
         
         let startErr = AudioDeviceStart(deviceID, procID)
         guard startErr == noErr else {
-            logger.error("Failed to start device, OSStatus = \(startErr)")
+            AppLog.audio.error("Failed to start device, OSStatus = \(startErr)")
             return
         }
     }
