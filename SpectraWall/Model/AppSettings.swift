@@ -37,31 +37,49 @@ class AppSettings: ObservableObject {
 
     /// Display IDs of screens where SpectraWall should render. Empty = no screens.
     @Published var enabledDisplayIDs: Set<CGDirectDisplayID> {
-        didSet {
-            UserDefaults.standard.set(Array(enabledDisplayIDs).map { Int64($0) }, forKey: "enabledDisplayIDs")
-        }
+        didSet { writeConfig { $0.enabledDisplayIDs = enabledDisplayIDs.sorted() } }
     }
 
     /// Global animation style. Affects how Orb and Spectrum chase their audio-driven
     /// targets between frames. Per-effect override would be over-engineering for
     /// what is really a feel preference.
     @Published var motionStyle: MotionStyle {
-        didSet { UserDefaults.standard.set(motionStyle.rawValue, forKey: "motionStyle") }
+        didSet { writeConfig { $0.motionStyle = motionStyle } }
     }
 
     private init() {
-        let initialized = UserDefaults.standard.bool(forKey: "enabledDisplayIDsInitialized")
-        if initialized {
-            let stored = UserDefaults.standard.array(forKey: "enabledDisplayIDs") as? [Int64] ?? []
-            enabledDisplayIDs = Set(stored.map { CGDirectDisplayID($0) })
+        let config = XDGStorage.shared.loadConfig() ?? AppConfig()
+        let state = XDGStorage.shared.loadState() ?? AppState()
+
+        if state.enabledDisplayIDsInitialized {
+            enabledDisplayIDs = Set(config.enabledDisplayIDs)
         } else {
             // First launch: enable only the primary display by default.
-            let initial: Set<CGDirectDisplayID> = [CGMainDisplayID()]
-            enabledDisplayIDs = initial
-            UserDefaults.standard.set(Array(initial).map { Int64($0) }, forKey: "enabledDisplayIDs")
-            UserDefaults.standard.set(true, forKey: "enabledDisplayIDsInitialized")
+            enabledDisplayIDs = [CGMainDisplayID()]
         }
-        let storedMotion = UserDefaults.standard.string(forKey: "motionStyle") ?? MotionStyle.snappy.rawValue
-        motionStyle = MotionStyle(rawValue: storedMotion) ?? .snappy
+        motionStyle = config.motionStyle
+
+        // After all stored properties are initialized we can safely persist
+        // any first-launch defaults.
+        if !state.enabledDisplayIDsInitialized {
+            writeConfig { $0.enabledDisplayIDs = enabledDisplayIDs.sorted() }
+            writeState { $0.enabledDisplayIDsInitialized = true }
+        }
+    }
+
+    /// Mutate AppConfig on disk. Reads current value (so we don't clobber other
+    /// owners' fields like `scenes` written by VisualizerSceneManager), applies
+    /// the mutation, writes back atomically. XDGStorage.saveConfig is a no-op
+    /// while config.json is broken, so this naturally degrades to read-only.
+    private func writeConfig(_ mutate: (inout AppConfig) -> Void) {
+        var config = XDGStorage.shared.loadConfig() ?? AppConfig()
+        mutate(&config)
+        XDGStorage.shared.saveConfig(config)
+    }
+
+    private func writeState(_ mutate: (inout AppState) -> Void) {
+        var state = XDGStorage.shared.loadState() ?? AppState()
+        mutate(&state)
+        XDGStorage.shared.saveState(state)
     }
 }

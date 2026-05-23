@@ -35,8 +35,11 @@ enum ChannelMode: String, Codable, CaseIterable {
 // MARK: - Main Layer Settings
 
 class LayerSettings: ObservableObject, Identifiable, Codable {
+    /// Runtime-only identity for SwiftUI ForEach. Not persisted to JSON; each
+    /// decode generates a fresh UUID. Layers have no cross-session reference
+    /// (no equivalent of activeSceneIndex), so this is purely an in-memory tag.
     var id: UUID
-    
+
     @Published var name: String
     @Published var isVisible: Bool
     @Published var channelMode: ChannelMode
@@ -79,10 +82,14 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
     required convenience init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let effectType = try container.decode(EffectType.self, forKey: .effectType)
-        
+
         self.init(effectType: effectType)
 
-        self.id = try container.decode(UUID.self, forKey: .id)
+        // id stays optional in decoder so post-migration JSON (no id field)
+        // still decodes; falls back to the fresh UUID set in init().
+        if let storedID = try? container.decodeIfPresent(UUID.self, forKey: .id) {
+            self.id = storedID
+        }
         self.name = try container.decode(String.self, forKey: .name)
         self.isVisible = try container.decode(Bool.self, forKey: .isVisible)
         self.channelMode = try container.decode(ChannelMode.self, forKey: .channelMode)
@@ -119,8 +126,8 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
     
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(id, forKey: .id)
+
+        // id is intentionally not encoded — see property doc.
         try container.encode(name, forKey: .name)
         try container.encode(isVisible, forKey: .isVisible)
         try container.encode(channelMode, forKey: .channelMode)

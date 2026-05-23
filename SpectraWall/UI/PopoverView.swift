@@ -69,7 +69,7 @@ struct PopoverView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(sceneManager.scenes) { scene in
-                    let isActive = sceneManager.activeSceneID == scene.id
+                    let isActive = sceneManager.activeScene === scene
                     HStack(spacing: 8) {
                         Image(systemName: isActive ? "circle.fill" : "circle")
                             .foregroundColor(isActive ? .accentColor : .secondary)

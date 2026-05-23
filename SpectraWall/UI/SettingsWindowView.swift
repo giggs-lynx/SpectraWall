@@ -119,7 +119,7 @@ struct SceneListColumn: View {
                     ForEach(sceneManager.scenes) { scene in
                         SceneRow(
                             scene: scene,
-                            isActive: sceneManager.activeSceneID == scene.id,
+                            isActive: sceneManager.activeScene === scene,
                             onDuplicate: {
                                 let copy = sceneManager.duplicateScene(scene)
                                 selectedSceneID = copy.id
