@@ -37,6 +37,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     // MARK: - Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Register every effect kind with EffectRegistry before the renderer
+        // tries to compile pipelines from the registry.
+        EffectRegistry.bootstrap()
+
         setupMenuBar()
         AudioEngine.shared.start()
         setupDesktopWindows()

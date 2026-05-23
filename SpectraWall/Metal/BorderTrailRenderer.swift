@@ -108,10 +108,10 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
     private var tickClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
     private let lock = NSLock()
 
-    /// Order pipelines are drawn in each frame. Maintains the previous
-    /// border → spectrum → orb back-to-front layering. C4 derives this from
-    /// EffectRegistry; for now it's hard-coded.
-    private let drawOrder: [EffectType] = [.border, .spectrum, .orb]
+    /// Order pipelines are drawn in each frame, derived from the registry's
+    /// renderOrder values. Fixed at init time so the draw loop doesn't have
+    /// to consult the registry every frame.
+    private var drawOrder: [EffectType] = []
 
     // MARK: - Initialization
 
@@ -133,32 +133,28 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
         super.init()
 
-        // Bootstrap the three current effect pipelines. C4 replaces this with
-        // an iteration over EffectRegistry.all so a 4th effect requires no
-        // renderer changes.
-        let bootstrap: [(EffectType, PipelineSpec)] = [
-            (.border,   PipelineSpec(vertexFunctionName: "border_vertex",
-                                     fragmentFunctionName: "border_fragment",
-                                     blendMode: .additive)),
-            (.spectrum, PipelineSpec(vertexFunctionName: "spectrum_vertex",
-                                     fragmentFunctionName: "spectrum_fragment",
-                                     blendMode: .alphaBlend)),
-            (.orb,      PipelineSpec(vertexFunctionName: "orb_vertex",
-                                     fragmentFunctionName: "orb_fragment",
-                                     blendMode: .additive))
-        ]
-        for (type, spec) in bootstrap {
+        // Compile a pipeline for every registered effect. Caller is responsible
+        // for calling EffectRegistry.bootstrap() before the first renderer is
+        // built (AppDelegate.applicationDidFinishLaunching does this at app
+        // launch). If the registry is empty the renderer still works, just
+        // draws nothing.
+        let registry = EffectRegistry.all
+        for (type, descriptor) in registry {
             guard let pipeline = Self.makePipeline(device: device,
                                                    library: library,
-                                                   spec: spec) else {
+                                                   spec: descriptor.pipelineSpec) else {
                 AppLog.render.error("Failed to compile pipeline for \(type.rawValue, privacy: .public)")
                 return nil
             }
             pipelines[type] = pipeline
         }
 
+        drawOrder = registry.values
+            .sorted { $0.renderOrder < $1.renderOrder }
+            .map(\.type)
+
         AppLog.render.info(
-            "EffectsRenderer initialized: displayID=\(displayID, privacy: .public)"
+            "EffectsRenderer initialized: displayID=\(displayID, privacy: .public) effects=\(self.drawOrder.count, privacy: .public)"
         )
 
         // CAMetalDisplayLink delivers callbacks on whichever runloop we add it to.

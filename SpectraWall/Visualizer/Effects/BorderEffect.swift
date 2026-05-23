@@ -7,6 +7,7 @@
 
 import AppKit
 import QuartzCore
+import SwiftUI
 
 class BorderEffect: BaseEffect {
 
@@ -368,4 +369,26 @@ class BorderEffect: BaseEffect {
 
         renderer.updateTrail(id: id, data: TrailData(vertices: allVertices))
     }
+}
+
+// MARK: - EffectDescriptor
+
+extension BorderEffect {
+    static let descriptor = EffectDescriptor(
+        type: .border,
+        displayName: "Border",
+        iconAssetName: "border",
+        renderOrder: 0,
+        makeDefaultSettings: { BorderSettings.defaults },
+        settingsCodec: .make(BorderSettings.self),
+        makeEffect: { size, layer, screen in
+            BorderEffect(size: size, layer: layer, screen: screen)
+        },
+        makeSettingsView: { AnyView(BorderSettingsSection(layer: $0)) },
+        pipelineSpec: PipelineSpec(
+            vertexFunctionName: "border_vertex",
+            fragmentFunctionName: "border_fragment",
+            blendMode: .additive
+        )
+    )
 }

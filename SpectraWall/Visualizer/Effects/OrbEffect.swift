@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import SwiftUI
 import simd
 
 class OrbEffect: BaseEffect {
@@ -149,4 +150,26 @@ class OrbEffect: BaseEffect {
         let a = alphaOverride ?? (Float(lo.alpha) + (Float(hi.alpha) - Float(lo.alpha)) * t)
         return SIMD4(r, g, b, a)
     }
+}
+
+// MARK: - EffectDescriptor
+
+extension OrbEffect {
+    static let descriptor = EffectDescriptor(
+        type: .orb,
+        displayName: "Orb",
+        iconAssetName: "orb",
+        renderOrder: 20,
+        makeDefaultSettings: { OrbSettings.defaults },
+        settingsCodec: .make(OrbSettings.self),
+        makeEffect: { size, layer, screen in
+            OrbEffect(size: size, layer: layer, screen: screen)
+        },
+        makeSettingsView: { AnyView(OrbSettingsSection(layer: $0)) },
+        pipelineSpec: PipelineSpec(
+            vertexFunctionName: "orb_vertex",
+            fragmentFunctionName: "orb_fragment",
+            blendMode: .additive
+        )
+    )
 }

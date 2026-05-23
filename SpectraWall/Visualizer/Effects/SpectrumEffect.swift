@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import SwiftUI
 import simd
 
 class SpectrumEffect: BaseEffect {
@@ -231,4 +232,26 @@ class SpectrumEffect: BaseEffect {
         }
         return SIMD4(rgb, a)
     }
+}
+
+// MARK: - EffectDescriptor
+
+extension SpectrumEffect {
+    static let descriptor = EffectDescriptor(
+        type: .spectrum,
+        displayName: "Spectrum",
+        iconAssetName: "spectrum",
+        renderOrder: 10,
+        makeDefaultSettings: { SpectrumSettings.defaults },
+        settingsCodec: .make(SpectrumSettings.self),
+        makeEffect: { size, layer, screen in
+            SpectrumEffect(size: size, layer: layer, screen: screen)
+        },
+        makeSettingsView: { AnyView(SpectrumSettingsSection(layer: $0)) },
+        pipelineSpec: PipelineSpec(
+            vertexFunctionName: "spectrum_vertex",
+            fragmentFunctionName: "spectrum_fragment",
+            blendMode: .alphaBlend
+        )
+    )
 }
