@@ -7,126 +7,39 @@
 
 import AppKit
 import simd
-import Combine
 
-class SpectrumEffect: NSObject {
+class SpectrumEffect: BaseEffect {
 
     // MARK: - Properties
 
-    private let binCount   = 96
+    private let binCount = 96
     private let barSpacing: CGFloat = 4
-    private var sceneSize: CGSize
-    private var settings: LayerSettings
 
-    private var smoothed:        [Float] = Array(repeating: 0, count: 96)
-    private var renderedHeight:  [Float] = Array(repeating: 0, count: 96)
-    private var lastTickTime:    TimeInterval = 0
-    private var cancellables = Set<AnyCancellable>()
-
-    // Cached on the renderQueue via Combine subscription so tick never touches
-    // AppSettings (a SwiftUI-observed ObservableObject) from a background thread.
-    private var cachedMotionStyle: MotionStyle = .snappy
-
-    var isVisible: Bool = true
-    var opacity: Float  = 1.0
-
-    private var isStopped  = false
-    private var wasVisible = true  // tracks last visibility to clear data on hide
-
-    weak var renderer: EffectsRenderer?
-    var rendererID: ObjectIdentifier?
+    private var smoothed:       [Float] = Array(repeating: 0, count: 96)
+    private var renderedHeight: [Float] = Array(repeating: 0, count: 96)
+    private var lastTickTime:   TimeInterval = 0
 
     private var spectrumSettings: SpectrumSettings {
-        settings.effectSettings as? SpectrumSettings ?? .defaults
+        layer.effectSettings as? SpectrumSettings ?? .defaults
     }
 
-    // MARK: - Initialization
+    override class var effectTypeName: String { "Spectrum" }
 
-    init(size: CGSize, settings: LayerSettings, screen: NSScreen) {
-        self.sceneSize = size
-        self.settings  = settings
-        self.opacity   = Float(settings.opacity)
-        self.isVisible = settings.isVisible
-        super.init()
-        // findRenderer FIRST so subscribeToAudio receives on renderer.renderQueue.
-        findRenderer(for: screen)
-        subscribeToAudio()
-        observeSettings()
+    // MARK: - BaseEffect hooks
+
+    override func removeFromRenderer() {
+        renderer?.removeSpectrum(id: id)
     }
 
-    private func findRenderer(for screen: NSScreen) {
-        renderer = EffectsRendererRegistry.shared.renderer(for: screen)
-        let id = ObjectIdentifier(self)
-        rendererID = id
-        renderer?.registerTickClient(id: id, tick: { [weak self] t in self?.tick(timestamp: t) })
+    override func onReset() {
+        smoothed       = Array(repeating: 0, count: binCount)
+        renderedHeight = Array(repeating: 0, count: binCount)
+        lastTickTime   = 0
     }
 
-    func stop() {
-        isStopped = true
-        if let id = rendererID {
-            renderer?.unregisterTickClient(id: id)
-            renderer?.removeSpectrum(id: id)
-        }
-    }
+    override func onTick(_ timestamp: TimeInterval) {
+        guard let renderer else { return }
 
-    deinit { stop() }
-
-    // MARK: - Observation
-
-    private func observeSettings() {
-        settings.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                self.opacity   = Float(self.settings.opacity)
-                self.isVisible = self.settings.isVisible
-            }
-            .store(in: &cancellables)
-    }
-
-    private func subscribeToAudio() {
-        // Same queue as renderer's tick — no locks, no main-thread dependency.
-        let queue: DispatchQueue = renderer?.renderQueue ?? .main
-        AudioDataBus.shared.spectrumPublisher
-            .receive(on: queue)
-            .sink { [weak self] bins in self?.onAudioBins(bins) }
-            .store(in: &cancellables)
-
-        AudioDataBus.shared.resetPublisher
-            .receive(on: queue)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                self.smoothed       = Array(repeating: 0, count: self.binCount)
-                self.renderedHeight = Array(repeating: 0, count: self.binCount)
-                self.lastTickTime   = 0
-            }
-            .store(in: &cancellables)
-
-        // Cache motionStyle locally so tick doesn't access AppSettings (an
-        // ObservableObject) from this background queue every frame.
-        cachedMotionStyle = AppSettings.shared.motionStyle
-        AppSettings.shared.$motionStyle
-            .receive(on: queue)
-            .sink { [weak self] style in self?.cachedMotionStyle = style }
-            .store(in: &cancellables)
-    }
-
-    // MARK: - Tick
-
-    func tick(timestamp: TimeInterval) {
-        guard !isStopped else { return }
-        guard isVisible else {
-            if wasVisible, let id = rendererID {
-                renderer?.removeSpectrum(id: id)
-                wasVisible = false
-            }
-            return
-        }
-        wasVisible = true
-        guard let renderer, let id = rendererID else { return }
-
-        // TEMP: revert to single exponential lerp (no motionStyle switch). If lag
-        // accumulation disappears with this, the snappy path was the culprit.
         let dt = lastTickTime == 0 ? 0.016 : min(timestamp - lastTickTime, 0.1)
         let lerpRate = Float(1.0 - exp(-dt / 0.05))
         let powerCurve = Float(spectrumSettings.powerCurve)
@@ -139,10 +52,20 @@ class SpectrumEffect: NSObject {
         renderer.updateSpectrum(id: id, data: TrailData(vertices: buildVertices()))
     }
 
+    override func onAudio(_ bins: StereoBins) {
+        let ss       = spectrumSettings
+        let selected = selectedBins(from: bins)
+        for i in 0..<smoothed.count {
+            guard i < selected.count else { break }
+            let coeff   = selected[i] > smoothed[i] ? Float(ss.attack) : Float(ss.release)
+            smoothed[i] = smoothed[i] * (1 - coeff) + selected[i] * coeff
+        }
+    }
+
     // MARK: - Audio
 
     private func selectedBins(from stereo: StereoBins) -> [Float] {
-        switch settings.channelMode {
+        switch layer.channelMode {
         case .stereo:
             let half = binCount / 2
             return Array(stereo.left.prefix(half)) + Array(stereo.right.prefix(half).reversed())
@@ -155,21 +78,11 @@ class SpectrumEffect: NSObject {
         }
     }
 
-    private func onAudioBins(_ bins: StereoBins) {
-        let ss       = spectrumSettings
-        let selected = selectedBins(from: bins)
-        for i in 0..<smoothed.count {
-            guard i < selected.count else { break }
-            let coeff    = selected[i] > smoothed[i] ? Float(ss.attack) : Float(ss.release)
-            smoothed[i]  = smoothed[i] * (1 - coeff) + selected[i] * coeff
-        }
-    }
-
     // MARK: - Vertex Building
 
     private func buildVertices() -> [TrailVertex] {
         let ss     = spectrumSettings
-        let curved = renderedHeight  // already power-curved in tick()
+        let curved = renderedHeight  // already power-curved in onTick
         let gain   = CGFloat(ss.gain)
         let half   = binCount / 2
 
@@ -180,15 +93,15 @@ class SpectrumEffect: NSObject {
         case .bottom, .top:
             let totalWidth = sceneSize.width * CGFloat(ss.width)
             let barWidth   = max(1, (totalWidth - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
-            let leftEdgeX  = (sceneSize.width - totalWidth) * CGFloat(settings.positionX)
-            let baseY      = sceneSize.height * CGFloat(settings.positionY)
+            let leftEdgeX  = (sceneSize.width - totalWidth) * CGFloat(layer.positionX)
+            let baseY      = sceneSize.height * CGFloat(layer.positionY)
             let maxH       = sceneSize.height * CGFloat(ss.maxHeight)
 
             for i in 0..<binCount {
                 let barH     = max(1, min(CGFloat(curved[i]) * maxH * gain, maxH))
                 let barLeft  = Float(leftEdgeX + CGFloat(i) * (barWidth + barSpacing))
                 let barRight = barLeft + Float(barWidth)
-                let isRight  = settings.channelMode == .stereo && i >= half
+                let isRight  = layer.channelMode == .stereo && i >= half
                 let color    = barColorSIMD(for: i, value: curved[i], isRight: isRight)
 
                 let (baseYF, tipYF): (Float, Float)
@@ -210,15 +123,15 @@ class SpectrumEffect: NSObject {
         case .left, .right:
             let totalHeight = sceneSize.height * CGFloat(ss.width)
             let barHeight   = max(1, (totalHeight - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
-            let botEdgeY    = (sceneSize.height - totalHeight) * CGFloat(settings.positionY)
-            let baseX       = sceneSize.width * CGFloat(settings.positionX)
+            let botEdgeY    = (sceneSize.height - totalHeight) * CGFloat(layer.positionY)
+            let baseX       = sceneSize.width * CGFloat(layer.positionX)
             let maxW        = sceneSize.width * CGFloat(ss.maxHeight)
 
             for i in 0..<binCount {
                 let barW    = max(1, min(CGFloat(curved[i]) * maxW * gain, maxW))
                 let barBot  = Float(botEdgeY + CGFloat(i) * (barHeight + barSpacing))
                 let barTop  = barBot + Float(barHeight)
-                let isRight = settings.channelMode == .stereo && i >= half
+                let isRight = layer.channelMode == .stereo && i >= half
                 let color   = barColorSIMD(for: i, value: curved[i], isRight: isRight)
 
                 let (baseXF, tipXF): (Float, Float)
@@ -259,7 +172,7 @@ class SpectrumEffect: NSObject {
     private func barColorSIMD(for index: Int, value: Float, isRight: Bool) -> SIMD4<Float> {
         let ss = spectrumSettings
         let cs: ChannelColorSettings
-        if settings.channelMode == .stereo && !ss.colorSync {
+        if layer.channelMode == .stereo && !ss.colorSync {
             cs = isRight ? ss.rightColorSettings : ss.leftColorSettings
         } else {
             cs = ss.colorSettings
@@ -273,7 +186,7 @@ class SpectrumEffect: NSObject {
             let lo = SIMD4<Float>(Float(cs.gradientColorLow.red),  Float(cs.gradientColorLow.green),
                                   Float(cs.gradientColorLow.blue), Float(cs.gradientColorLow.alpha))
             let hi = SIMD4<Float>(Float(cs.gradientColorHigh.red), Float(cs.gradientColorHigh.green),
-                                  Float(cs.gradientColorHigh.blue),Float(cs.gradientColorHigh.alpha))
+                                  Float(cs.gradientColorHigh.blue), Float(cs.gradientColorHigh.alpha))
             return lo + (hi - lo) * t
         case .solid:
             return SIMD4<Float>(Float(cs.solidColor.red), Float(cs.solidColor.green),
@@ -282,7 +195,7 @@ class SpectrumEffect: NSObject {
     }
 
     private func rainbowRatio(for index: Int) -> CGFloat {
-        if settings.channelMode == .stereo {
+        if layer.channelMode == .stereo {
             let half = binCount / 2
             return index < half
                 ? CGFloat(index) / CGFloat(half - 1)
@@ -292,7 +205,7 @@ class SpectrumEffect: NSObject {
     }
 
     private func gradientRatio(for index: Int) -> CGFloat {
-        if settings.channelMode == .stereo {
+        if layer.channelMode == .stereo {
             let half = binCount / 2
             return index < half
                 ? CGFloat(index) / CGFloat(half - 1)

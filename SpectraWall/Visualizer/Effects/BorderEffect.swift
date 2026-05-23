@@ -7,25 +7,22 @@
 
 import AppKit
 import QuartzCore
-import Combine
 
-class BorderEffect: NSObject {
+class BorderEffect: BaseEffect {
 
-    // MARK: - Properties (Settings & State)
-
-    private var settings: LayerSettings
-    private var cancellables = Set<AnyCancellable>()
+    // MARK: - Settings access
 
     var borderSettings: BorderSettings {
-        settings.effectSettings as? BorderSettings ?? .defaults
+        layer.effectSettings as? BorderSettings ?? .defaults
     }
+
+    // MARK: - Stroke state
 
     struct StrokeState {
         var progress: Double = 0.0
     }
 
     var strokes: [StrokeState] = []
-
     var smoothedLeft: Float = 0
     var smoothedRight: Float = 0
     var lastAmplitudeLeft: Float = 0
@@ -34,23 +31,20 @@ class BorderEffect: NSObject {
     private var lastUpdateTime: TimeInterval = 0
     var perimeterLength: CGFloat = 0
 
-    // MARK: - Visibility
+    // MARK: - Fade-out tracking
 
-    var isVisible: Bool = true
-    var opacity: Float = 1.0
-    private var wasVisible = true
-    private var trailHidden = false
-
-    // Silence fade-out: tracks when raw audio went below threshold.
-    // After a short grace period the trail fades to 0 over fadeDuration; any audio
-    // clearly above the resume threshold clears silentSince and the trail snaps back.
-    // Hysteresis: enter silence at the low threshold, exit only above the high one —
-    // prevents system audio noise floor jitter from continually resetting the timer.
+    /// Silence fade-out: tracks when raw audio went below threshold.
+    /// After a short grace period the trail fades to 0 over fadeDuration; any audio
+    /// clearly above the resume threshold clears silentSince and the trail snaps back.
+    /// Hysteresis: enter silence at the low threshold, exit only above the high one —
+    /// prevents system audio noise floor jitter from continually resetting the timer.
     private var silentSince: TimeInterval?
     private let silenceEnterThreshold: Float = 0.02
     private let silenceExitThreshold: Float  = 0.1
     private let silenceGrace: TimeInterval = 0.2
     private let silenceFadeDuration: TimeInterval = 0.8
+
+    private var trailHidden = false
 
     // MARK: - Scale Pulse Echo
 
@@ -72,78 +66,67 @@ class BorderEffect: NSObject {
     let echoLayerDelay: CGFloat  = 3.0
     let maxScaleGhosts: Int      = 20
 
-    // MARK: - Properties (Caching)
+    // MARK: - Segment cache
 
-    var sceneSize: CGSize = .zero
     var segmentCache: [BorderSegment]?
     var cachedSceneSize: CGSize = .zero
     var cachedCornerRadius: Double = -1
     let trailSegments = 20
 
-    weak var trailRenderer: BorderTrailRenderer?
-    var rendererID: ObjectIdentifier?
+    // MARK: - Settings-change tracking
 
-    // MARK: - Stopped flag
+    private var lastStrokeCount: Int = 0
+    private var lastCornerRadius: Double = 0
+    private var lastBaseWidth: Double = 0
 
-    private var isStopped = false
+    private var lastEchoTime: TimeInterval = 0
+    private let minEchoInterval: TimeInterval = 0.12
+
+    override class var effectTypeName: String { "Border" }
 
     // MARK: - Initialization
 
-    init(size: CGSize, settings: LayerSettings, screen: NSScreen) {
-        self.sceneSize = size
-        self.settings  = settings
-        self.opacity   = Float(settings.opacity)
+    override init(size: CGSize, layer: LayerSettings, screen: NSScreen) {
+        let bs = (layer.effectSettings as? BorderSettings) ?? .defaults
+        self.lastStrokeCount  = bs.strokeCount
+        self.lastCornerRadius = bs.cornerRadius
+        self.lastBaseWidth    = bs.baseWidth
         // Start in silent state so the trail is invisible until audio arrives,
         // rather than animating around the screen on launch with no audio yet.
-        self.silentSince = CACurrentMediaTime() - silenceGrace - silenceFadeDuration
-        super.init()
-
+        self.silentSince = CACurrentMediaTime() - 0.2 - 0.8
+        super.init(size: size, layer: layer, screen: screen)
         setupStrokes()
-        // findRenderer FIRST: subscribeToAudio uses trailRenderer?.renderQueue
-        // so the audio sink runs on the same private serial queue as tick().
-        findRenderer(for: screen)
-        subscribeToAudio()
-        observeSettings()
     }
 
-    private func findRenderer(for screen: NSScreen) {
-        trailRenderer = BorderTrailRendererRegistry.shared.renderer(for: screen)
-        let id = ObjectIdentifier(self)
-        rendererID = id
-        trailRenderer?.registerTickClient(id: id, tick: { [weak self] t in self?.tick(timestamp: t) })
+    // MARK: - BaseEffect hooks
+
+    override func removeFromRenderer() {
+        renderer?.removeTrail(id: id)
     }
 
-    func stop() {
-        isStopped = true
-        if let id = rendererID {
-            trailRenderer?.unregisterTickClient(id: id)
-            trailRenderer?.removeTrail(id: id)
+    override func onLayerSettingsChanged() {
+        let bs = borderSettings
+        if bs.strokeCount  != lastStrokeCount  ||
+           bs.cornerRadius != lastCornerRadius ||
+           bs.baseWidth    != lastBaseWidth {
+            lastStrokeCount  = bs.strokeCount
+            lastCornerRadius = bs.cornerRadius
+            lastBaseWidth    = bs.baseWidth
+            setupStrokes()
+        } else {
+            updateVisuals()
         }
     }
 
-    deinit {
-        stop()
-    }
-
-    func tick(timestamp: TimeInterval) {
-        guard !isStopped else { return }
-        guard isVisible else {
-            if wasVisible, let id = rendererID {
-                trailRenderer?.removeTrail(id: id)
-                wasVisible = false
-            }
-            return
-        }
-        wasVisible = true
-
+    override func onTick(_ timestamp: TimeInterval) {
         // Smooth fade-out when audio has been silent past the grace period.
         // Fade applies uniformly to main trail + ghosts; once fully faded, drop
         // queued ghosts (some are still in their pre-render delay) and reset the
         // dt anchor so the next resumed frame doesn't see a huge deltaTime.
         let fade = currentFadeAlpha()
         if fade <= 0 {
-            if !trailHidden, let id = rendererID {
-                trailRenderer?.removeTrail(id: id)
+            if !trailHidden {
+                renderer?.removeTrail(id: id)
                 scaleGhosts.removeAll()
                 lastUpdateTime = 0
                 trailHidden = true
@@ -155,50 +138,16 @@ class BorderEffect: NSObject {
         update(timestamp, fadeAlpha: fade)
     }
 
-    // MARK: - Lifecycle & Observation
-
-    private func observeSettings() {
-        var lastCount  = borderSettings.strokeCount
-        var lastRadius = borderSettings.cornerRadius
-        var lastWidth  = borderSettings.baseWidth
-
-        settings.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                let bs = self.borderSettings
-                if bs.strokeCount != lastCount ||
-                   bs.cornerRadius != lastRadius ||
-                   bs.baseWidth    != lastWidth {
-                    lastCount  = bs.strokeCount
-                    lastRadius = bs.cornerRadius
-                    lastWidth  = bs.baseWidth
-                    self.setupStrokes()
-                } else {
-                    self.updateVisuals()
-                }
-            }
-            .store(in: &cancellables)
+    override func onAudio(_ bins: StereoBins) {
+        updateAmplitude(bins: bins)
     }
 
-    private func subscribeToAudio() {
-        // Receive on the renderer's private queue so audio-driven state writes happen
-        // on the SAME serial queue as tick() reads — no locks needed, no main-thread
-        // dependency, audio keeps flowing even when main is blocked by SwiftUI work.
-        let queue: DispatchQueue = trailRenderer?.renderQueue ?? .main
-        AudioDataBus.shared.spectrumPublisher
-            .receive(on: queue)
-            .sink { [weak self] bins in
-                self?.updateAmplitude(bins: bins)
-            }
-            .store(in: &cancellables)
-
-        AudioDataBus.shared.resetPublisher
-            .receive(on: queue)
-            .sink { [weak self] _ in
-                self?.reset()
-            }
-            .store(in: &cancellables)
+    override func onReset() {
+        smoothedLeft       = 0
+        smoothedRight      = 0
+        lastAmplitudeLeft  = 0
+        lastAmplitudeRight = 0
+        scaleGhosts        = []
     }
 
     // MARK: - Audio
@@ -243,9 +192,6 @@ class BorderEffect: NSObject {
         if t >= 1 { return 0 }
         return Float(1 - t)
     }
-
-    private var lastEchoTime: TimeInterval = 0
-    private let minEchoInterval: TimeInterval = 0.12
 
     private func detectAndSpawnEcho() {
         guard scaleGhosts.count < maxScaleGhosts else { return }
@@ -356,7 +302,6 @@ class BorderEffect: NSObject {
     }
 
     private func updateVisuals() {
-        opacity = Float(settings.opacity)
         updatePerimeterLength()
     }
 
@@ -388,7 +333,7 @@ class BorderEffect: NSObject {
             strokes[strokeIndex].progress = progress
         }
 
-        guard let renderer = trailRenderer, let id = rendererID else { return }
+        guard let renderer else { return }
 
         var allVertices: [TrailVertex] = []
         allVertices.reserveCapacity(300 * strokes.count + 300 * scaleGhosts.count)
@@ -423,15 +368,4 @@ class BorderEffect: NSObject {
 
         renderer.updateTrail(id: id, data: TrailData(vertices: allVertices))
     }
-
-    // MARK: - Reset
-
-    func reset() {
-        smoothedLeft       = 0
-        smoothedRight      = 0
-        lastAmplitudeLeft  = 0
-        lastAmplitudeRight = 0
-        scaleGhosts        = []
-    }
 }
-

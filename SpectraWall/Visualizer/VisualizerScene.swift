@@ -101,15 +101,15 @@ class EffectsCoordinator: NSObject {
             switch layer.effectType {
             case .border:
                 if borderEffects[layer.id] == nil {
-                    borderEffects[layer.id] = BorderEffect(size: size, settings: layer, screen: screen)
+                    borderEffects[layer.id] = BorderEffect(size: size, layer: layer, screen: screen)
                 }
             case .spectrum:
                 if spectrumEffects[layer.id] == nil {
-                    spectrumEffects[layer.id] = SpectrumEffect(size: size, settings: layer, screen: screen)
+                    spectrumEffects[layer.id] = SpectrumEffect(size: size, layer: layer, screen: screen)
                 }
             case .orb:
                 if orbEffects[layer.id] == nil {
-                    orbEffects[layer.id] = OrbEffect(size: size, settings: layer, screen: screen)
+                    orbEffects[layer.id] = OrbEffect(size: size, layer: layer, screen: screen)
                 }
             }
             updateEffectVisuals(for: layer)

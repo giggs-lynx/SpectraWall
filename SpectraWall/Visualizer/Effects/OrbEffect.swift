@@ -7,20 +7,15 @@
 
 import AppKit
 import simd
-import Combine
 
-class OrbEffect: NSObject {
+class OrbEffect: BaseEffect {
 
     // MARK: - Properties
-
-    private var sceneSize: CGSize
-    private var settings: LayerSettings
-    private var cancellables = Set<AnyCancellable>()
 
     private var smoothedLeft:  Float = 0
     private var smoothedRight: Float = 0
 
-    // Derived from audio each callback; read in tick (both on main thread)
+    // Derived from audio each callback; read in onTick (same renderQueue).
     private var currentScale:      Float = 0
     private var currentInnerColor: SIMD4<Float> = SIMD4(0.2, 0.4, 1.0, 1.0)
     private var currentOuterColor: SIMD4<Float> = SIMD4(0.2, 0.4, 1.0, 0.15)
@@ -30,108 +25,32 @@ class OrbEffect: NSObject {
     private var renderedOuterScale: Float = 0
     private var lastTickTime: TimeInterval = 0
 
-    // Cached on the renderQueue via Combine subscription so tick never touches
-    // AppSettings (a SwiftUI-observed ObservableObject) from a background thread.
-    private var cachedMotionStyle: MotionStyle = .snappy
-
-    var isVisible: Bool = true
-    var opacity:   Float = 1.0
-
-    private var isStopped  = false
-    private var wasVisible = true
-
-    weak var renderer: EffectsRenderer?
-    var rendererID: ObjectIdentifier?
-
     private var orbSettings: OrbSettings {
-        settings.effectSettings as? OrbSettings ?? .defaults
+        layer.effectSettings as? OrbSettings ?? .defaults
     }
 
     private let fanSegments = 32
 
-    // MARK: - Initialization
+    override class var effectTypeName: String { "Orb" }
 
-    init(size: CGSize, settings: LayerSettings, screen: NSScreen) {
-        self.sceneSize = size
-        self.settings  = settings
-        self.opacity   = Float(settings.opacity)
-        self.isVisible = settings.isVisible
-        super.init()
-        // findRenderer FIRST so subscribeToAudio receives on renderer.renderQueue.
-        findRenderer(for: screen)
-        subscribeToAudio()
-        observeSettings()
+    // MARK: - BaseEffect hooks
+
+    override func removeFromRenderer() {
+        renderer?.removeOrb(id: id)
     }
 
-    private func findRenderer(for screen: NSScreen) {
-        renderer = EffectsRendererRegistry.shared.renderer(for: screen)
-        let id = ObjectIdentifier(self)
-        rendererID = id
-        renderer?.registerTickClient(id: id, tick: { [weak self] t in self?.tick(timestamp: t) })
+    override func onReset() {
+        smoothedLeft       = 0
+        smoothedRight      = 0
+        currentScale       = 0
+        renderedInnerScale = 0
+        renderedOuterScale = 0
+        lastTickTime       = 0
     }
 
-    func stop() {
-        isStopped = true
-        if let id = rendererID {
-            renderer?.unregisterTickClient(id: id)
-            renderer?.removeOrb(id: id)
-        }
-    }
+    override func onTick(_ timestamp: TimeInterval) {
+        guard let renderer else { return }
 
-    deinit { stop() }
-
-    // MARK: - Observation
-
-    private func observeSettings() {
-        settings.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                self.opacity   = Float(self.settings.opacity)
-                self.isVisible = self.settings.isVisible
-            }
-            .store(in: &cancellables)
-    }
-
-    private func subscribeToAudio() {
-        // Same queue as renderer's tick — no locks, no main-thread dependency.
-        let queue: DispatchQueue = renderer?.renderQueue ?? .main
-        AudioDataBus.shared.spectrumPublisher
-            .receive(on: queue)
-            .sink { [weak self] bins in self?.onAudioBins(bins) }
-            .store(in: &cancellables)
-
-        AudioDataBus.shared.resetPublisher
-            .receive(on: queue)
-            .sink { [weak self] _ in self?.reset() }
-            .store(in: &cancellables)
-
-        // Cache motionStyle locally so tick doesn't access AppSettings (an
-        // ObservableObject) from this background queue every frame. Initial value
-        // is read once here on main during init (safe), then updated via sink.
-        cachedMotionStyle = AppSettings.shared.motionStyle
-        AppSettings.shared.$motionStyle
-            .receive(on: queue)
-            .sink { [weak self] style in self?.cachedMotionStyle = style }
-            .store(in: &cancellables)
-    }
-
-    // MARK: - Tick
-
-    func tick(timestamp: TimeInterval) {
-        guard !isStopped else { return }
-        guard isVisible else {
-            if wasVisible, let id = rendererID {
-                renderer?.removeOrb(id: id)
-                wasVisible = false
-            }
-            return
-        }
-        wasVisible = true
-        guard let renderer, let id = rendererID else { return }
-
-        // TEMP: revert to single exponential lerp (no motionStyle switch). If lag
-        // accumulation disappears with this, the snappy path was the culprit.
         let dt = lastTickTime == 0 ? 0.016 : min(timestamp - lastTickTime, 0.1)
         renderedInnerScale += (currentScale - renderedInnerScale) * Float(1.0 - exp(-dt / 0.05))
         renderedOuterScale += (currentScale - renderedOuterScale) * Float(1.0 - exp(-dt / 0.08))
@@ -140,9 +59,7 @@ class OrbEffect: NSObject {
         renderer.updateOrb(id: id, data: buildOrbData())
     }
 
-    // MARK: - Audio
-
-    private func onAudioBins(_ bins: StereoBins) {
+    override func onAudio(_ bins: StereoBins) {
         let os = orbSettings
 
         let leftAmp  = bins.leftAmplitude()
@@ -153,7 +70,7 @@ class OrbEffect: NSObject {
         smoothedRight = smoothedRight * (1 - rCoeff) + rightAmp * rCoeff
 
         let amplitude: Float
-        switch settings.channelMode {
+        switch layer.channelMode {
         case .stereo, .mono: amplitude = (smoothedLeft + smoothedRight) / 2
         case .left:          amplitude = smoothedLeft
         case .right:         amplitude = smoothedRight
@@ -173,27 +90,18 @@ class OrbEffect: NSObject {
         let silenceGate = clampedT * clampedT * (3 - 2 * clampedT)
         currentScale = silenceGate * min(1.0 + amplitude * Float(os.boost), 2.5)
 
-        let intensity = bins.amplitude(for: settings.channelMode, binRange: 0..<4)
+        let intensity = bins.amplitude(for: layer.channelMode, binRange: 0..<4)
         currentInnerColor = lerpColor(from: os.innerColorLow, to: os.innerColorHigh, t: intensity)
         currentOuterColor = lerpColor(from: os.outerColorLow, to: os.outerColorHigh, t: intensity,
                                       alphaOverride: Float(os.outerOpacity))
-    }
-
-    private func reset() {
-        smoothedLeft       = 0
-        smoothedRight      = 0
-        currentScale       = 0
-        renderedInnerScale = 0
-        renderedOuterScale = 0
-        lastTickTime       = 0
     }
 
     // MARK: - Vertex Building
 
     private func buildOrbData() -> TrailData {
         let os = orbSettings
-        let cx = Float(sceneSize.width  * settings.positionX)
-        let cy = Float(sceneSize.height * settings.positionY)
+        let cx = Float(sceneSize.width  * layer.positionX)
+        let cy = Float(sceneSize.height * layer.positionY)
         let center = SIMD2<Float>(cx, cy)
 
         let innerR = Float(os.baseRadius) * renderedInnerScale
