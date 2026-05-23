@@ -2,6 +2,10 @@
 //  VisualizerScene.swift
 //  SpectraWall
 //
+//  EffectsCoordinator owns the live `[UUID: any Effect]` set for one screen.
+//  Effect construction goes through EffectRegistry; the coordinator itself
+//  doesn't know which concrete classes exist.
+//
 
 import AppKit
 import Combine
@@ -12,10 +16,8 @@ class EffectsCoordinator: NSObject {
     private let screen: NSScreen
     private let size: CGSize
 
-    // Metal-based effects
-    private var borderEffects: [UUID: BorderEffect] = [:]
-    private var spectrumEffects: [UUID: SpectrumEffect] = [:]
-    private var orbEffects: [UUID: OrbEffect] = [:]
+    /// Live effects on this screen, keyed by their layer UUID.
+    private var effects: [UUID: any Effect] = [:]
 
     private var cancellables = Set<AnyCancellable>()
     private var perLayerCancellables = Set<AnyCancellable>()
@@ -68,6 +70,10 @@ class EffectsCoordinator: NSObject {
             return
         }
 
+        AppLog.scene.info(
+            "Active scene switched: \(scene.name, privacy: .public) (id=\(scene.id, privacy: .public))"
+        )
+
         currentSceneID = scene.id
         syncActiveSceneLayers()
 
@@ -85,54 +91,51 @@ class EffectsCoordinator: NSObject {
               scene.id == currentSceneID else { return }
 
         let newLayers = scene.layers
-        let newIDs    = Set(newLayers.map { $0.id })
-        let existing  = Set(borderEffects.keys)
-            .union(Set(spectrumEffects.keys))
-            .union(Set(orbEffects.keys))
+        let newIDs    = Set(newLayers.map(\.id))
 
-        // Remove orphaned effects
-        for id in existing.subtracting(newIDs) {
-            borderEffects[id]?.stop();   borderEffects.removeValue(forKey: id)
-            spectrumEffects[id]?.stop(); spectrumEffects.removeValue(forKey: id)
-            orbEffects[id]?.stop();      orbEffects.removeValue(forKey: id)
+        // Remove orphaned effects in a single pass over the unified dict.
+        for id in Set(effects.keys).subtracting(newIDs) {
+            effects[id]?.stop()
+            effects.removeValue(forKey: id)
         }
 
-        // Add or update
-        for layer in newLayers {
-            switch layer.effectType {
-            case .border:
-                if borderEffects[layer.id] == nil {
-                    borderEffects[layer.id] = BorderEffect(size: size, layer: layer, screen: screen)
-                }
-            case .spectrum:
-                if spectrumEffects[layer.id] == nil {
-                    spectrumEffects[layer.id] = SpectrumEffect(size: size, layer: layer, screen: screen)
-                }
-            case .orb:
-                if orbEffects[layer.id] == nil {
-                    orbEffects[layer.id] = OrbEffect(size: size, layer: layer, screen: screen)
-                }
-            default:
-                // Unknown EffectType — registry-driven dispatch lands in C6.
-                AppLog.scene.error("Unknown effect type \(layer.effectType.rawValue, privacy: .public); skipping")
+        // Create any layer that doesn't have a live effect yet. The registry
+        // owns the type → factory mapping; an unknown effectType logs and
+        // skips so a forward-compat scene file (referencing a future kind we
+        // don't yet ship) doesn't crash the app.
+        for layer in newLayers where effects[layer.id] == nil {
+            guard let descriptor = EffectRegistry.descriptor(for: layer.effectType) else {
+                AppLog.scene.error(
+                    "No descriptor for effect type \(layer.effectType.rawValue, privacy: .public); skipping layer"
+                )
                 continue
             }
+            guard let effect = descriptor.makeEffect(size, layer, screen) else {
+                AppLog.scene.error(
+                    "Factory returned nil for effect type \(layer.effectType.rawValue, privacy: .public)"
+                )
+                continue
+            }
+            effects[layer.id] = effect
+        }
+
+        // Apply visibility / opacity from the layer onto each live effect.
+        for layer in newLayers {
             updateEffectVisuals(for: layer)
         }
     }
 
     private func updateEffectVisuals(for layer: LayerSettings) {
-        if let e = borderEffects[layer.id]  { e.isVisible = layer.isVisible; e.opacity = Float(layer.opacity); return }
-        if let e = spectrumEffects[layer.id] { e.isVisible = layer.isVisible; e.opacity = Float(layer.opacity); return }
-        if let e = orbEffects[layer.id]     { e.isVisible = layer.isVisible; e.opacity = Float(layer.opacity); return }
+        guard var effect = effects[layer.id] else { return }
+        effect.isVisible = layer.isVisible
+        effect.opacity = Float(layer.opacity)
     }
 
     // MARK: - Cleanup
 
     private func stopAllEffects() {
-        borderEffects.values.forEach  { $0.stop() }; borderEffects.removeAll()
-        spectrumEffects.values.forEach { $0.stop() }; spectrumEffects.removeAll()
-        orbEffects.values.forEach     { $0.stop() }; orbEffects.removeAll()
+        effects.values.forEach { $0.stop() }
+        effects.removeAll()
     }
 
     deinit { stopAllEffects() }
