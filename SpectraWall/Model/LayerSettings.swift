@@ -87,28 +87,26 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
         self.positionY = try container.decode(Double.self, forKey: .positionY)
         self.opacity = try container.decode(Double.self, forKey: .opacity)
 
-        switch effectType {
-        case .spectrum:
-            self.effectSettings = try container.decode(SpectrumSettings.self, forKey: .effectSettings)
-        case .orb:
-            self.effectSettings = try container.decode(OrbSettings.self, forKey: .effectSettings)
-        case .border:
-            self.effectSettings = try container.decode(BorderSettings.self, forKey: .effectSettings)
-        default:
-            // EffectType is now extensible (RawRepresentable<String>) so the
-            // compiler can't prove exhaustiveness. C5 swaps this whole branch
-            // for descriptor-driven decode; until then, fall back to Spectrum.
-            self.effectSettings = SpectrumSettings.defaults
+        if let descriptor = EffectRegistry.descriptor(for: effectType) {
+            // Hand the codec the sub-decoder for `effectSettings`. Reading the
+            // nested value via `superDecoder(forKey:)` is wire-compatible with
+            // the prior `container.decode(SpectrumSettings.self, forKey:)`
+            // approach — both pull the same JSON object out of the keyed
+            // container and let the concrete settings type drive its own
+            // Codable synthesis.
+            let nested = try container.superDecoder(forKey: .effectSettings)
+            self.effectSettings = try descriptor.settingsCodec.decode(nested)
         }
+        // else: unknown effect type — leave the Spectrum default already
+        // installed by self.init(effectType:). C8's UI dispatch keeps this
+        // from surfacing in practice; we just don't crash.
     }
 
+    /// Default settings struct for a kind of effect. Driven by the registry
+    /// so adding a fourth effect requires no change here.
     static func defaultSettings(for effectType: EffectType) -> any EffectSettings {
-        switch effectType {
-        case .spectrum: return SpectrumSettings.defaults
-        case .orb:      return OrbSettings.defaults
-        case .border:   return BorderSettings.defaults
-        default:        return SpectrumSettings.defaults
-        }
+        EffectRegistry.descriptor(for: effectType)?.makeDefaultSettings()
+            ?? SpectrumSettings.defaults
     }
 
     func resetToDefaults() {
@@ -132,15 +130,9 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
         try container.encode(opacity, forKey: .opacity)
         try container.encode(effectType, forKey: .effectType)
 
-        switch effectSettings {
-        case let spectrum as SpectrumSettings:
-            try container.encode(spectrum, forKey: .effectSettings)
-        case let orb as OrbSettings:
-            try container.encode(orb, forKey: .effectSettings)
-        case let border as BorderSettings:
-            try container.encode(border, forKey: .effectSettings)
-        default:
-            break
+        if let descriptor = EffectRegistry.descriptor(for: effectType) {
+            let nested = container.superEncoder(forKey: .effectSettings)
+            try descriptor.settingsCodec.encode(effectSettings, nested)
         }
     }
 }
