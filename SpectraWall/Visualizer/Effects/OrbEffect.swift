@@ -36,10 +36,6 @@ class OrbEffect: BaseEffect {
 
     // MARK: - BaseEffect hooks
 
-    override func removeFromRenderer() {
-        renderer?.removeOrb(id: id)
-    }
-
     override func onReset() {
         smoothedLeft       = 0
         smoothedRight      = 0
@@ -57,7 +53,7 @@ class OrbEffect: BaseEffect {
         renderedOuterScale += (currentScale - renderedOuterScale) * Float(1.0 - exp(-dt / 0.08))
         lastTickTime = timestamp
 
-        renderer.updateOrb(id: id, data: buildOrbData())
+        renderer.submit(id: id, type: .orb, mesh: buildOrbData())
     }
 
     override func onAudio(_ bins: StereoBins) {
@@ -99,7 +95,7 @@ class OrbEffect: BaseEffect {
 
     // MARK: - Vertex Building
 
-    private func buildOrbData() -> TrailData {
+    private func buildOrbData() -> EffectMesh {
         let os = orbSettings
         let cx = Float(sceneSize.width  * layer.positionX)
         let cy = Float(sceneSize.height * layer.positionY)
@@ -108,7 +104,7 @@ class OrbEffect: BaseEffect {
         let innerR = Float(os.baseRadius) * renderedInnerScale
         let outerR = Float(os.baseRadius) * renderedOuterScale * Float(os.outerRadiusMultiplier)
 
-        var vertices: [TrailVertex] = []
+        var vertices: [EffectVertex] = []
         vertices.reserveCapacity(fanSegments * 3 * 2)
 
         // Outer glow first (drawn underneath inner orb); negative edgeDist = glow mode in shader
@@ -119,15 +115,15 @@ class OrbEffect: BaseEffect {
         appendFan(to: &vertices, center: center, radius: innerR,
                   color: currentInnerColor, alpha: opacity, outerEdgeDist: +1)
 
-        return TrailData(vertices: vertices, primitiveType: .triangle)
+        return EffectMesh(vertices: vertices, primitiveType: .triangle)
     }
 
-    private func appendFan(to vertices: inout [TrailVertex],
+    private func appendFan(to vertices: inout [EffectVertex],
                             center: SIMD2<Float>, radius: Float,
                             color: SIMD4<Float>, alpha: Float,
                             outerEdgeDist: Float) {
         let step = Float.pi * 2 / Float(fanSegments)
-        let centerVert = TrailVertex(position: center, color: color, alpha: alpha, edgeDist: 0)
+        let centerVert = EffectVertex(position: center, color: color, alpha: alpha, edgeDist: 0)
 
         for i in 0..<fanSegments {
             let a0 = step * Float(i)
@@ -135,8 +131,8 @@ class OrbEffect: BaseEffect {
             let p0 = SIMD2<Float>(center.x + cos(a0) * radius, center.y + sin(a0) * radius)
             let p1 = SIMD2<Float>(center.x + cos(a1) * radius, center.y + sin(a1) * radius)
             vertices.append(centerVert)
-            vertices.append(TrailVertex(position: p0, color: color, alpha: alpha, edgeDist: outerEdgeDist))
-            vertices.append(TrailVertex(position: p1, color: color, alpha: alpha, edgeDist: outerEdgeDist))
+            vertices.append(EffectVertex(position: p0, color: color, alpha: alpha, edgeDist: outerEdgeDist))
+            vertices.append(EffectVertex(position: p1, color: color, alpha: alpha, edgeDist: outerEdgeDist))
         }
     }
 

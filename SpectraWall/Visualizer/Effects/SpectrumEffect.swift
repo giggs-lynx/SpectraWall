@@ -28,10 +28,6 @@ class SpectrumEffect: BaseEffect {
 
     // MARK: - BaseEffect hooks
 
-    override func removeFromRenderer() {
-        renderer?.removeSpectrum(id: id)
-    }
-
     override func onReset() {
         smoothed       = Array(repeating: 0, count: binCount)
         renderedHeight = Array(repeating: 0, count: binCount)
@@ -50,7 +46,7 @@ class SpectrumEffect: BaseEffect {
         }
         lastTickTime = timestamp
 
-        renderer.updateSpectrum(id: id, data: TrailData(vertices: buildVertices()))
+        renderer.submit(id: id, type: .spectrum, mesh: EffectMesh(vertices: buildVertices()))
     }
 
     override func onAudio(_ bins: StereoBins) {
@@ -81,13 +77,13 @@ class SpectrumEffect: BaseEffect {
 
     // MARK: - Vertex Building
 
-    private func buildVertices() -> [TrailVertex] {
+    private func buildVertices() -> [EffectVertex] {
         let ss     = spectrumSettings
         let curved = renderedHeight  // already power-curved in onTick
         let gain   = CGFloat(ss.gain)
         let half   = binCount / 2
 
-        var vertices: [TrailVertex] = []
+        var vertices: [EffectVertex] = []
         vertices.reserveCapacity(binCount * 4 + (binCount - 1) * 3)
 
         switch ss.anchor {
@@ -114,10 +110,10 @@ class SpectrumEffect: BaseEffect {
                     tipYF  = Float(baseY - barH)
                 }
 
-                let v0 = TrailVertex(position: SIMD2(barLeft,  baseYF), color: color, alpha: opacity, edgeDist: -1)
-                let v1 = TrailVertex(position: SIMD2(barLeft,  tipYF),  color: color, alpha: opacity, edgeDist: +1)
-                let v2 = TrailVertex(position: SIMD2(barRight, baseYF), color: color, alpha: opacity, edgeDist: -1)
-                let v3 = TrailVertex(position: SIMD2(barRight, tipYF),  color: color, alpha: opacity, edgeDist: +1)
+                let v0 = EffectVertex(position: SIMD2(barLeft,  baseYF), color: color, alpha: opacity, edgeDist: -1)
+                let v1 = EffectVertex(position: SIMD2(barLeft,  tipYF),  color: color, alpha: opacity, edgeDist: +1)
+                let v2 = EffectVertex(position: SIMD2(barRight, baseYF), color: color, alpha: opacity, edgeDist: -1)
+                let v3 = EffectVertex(position: SIMD2(barRight, tipYF),  color: color, alpha: opacity, edgeDist: +1)
                 appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
             }
 
@@ -145,10 +141,10 @@ class SpectrumEffect: BaseEffect {
                 }
 
                 // For horizontal bars, strip order: (base,bot)→(tip,bot)→(base,top)→(tip,top)
-                let v0 = TrailVertex(position: SIMD2(baseXF, barBot), color: color, alpha: opacity, edgeDist: -1)
-                let v1 = TrailVertex(position: SIMD2(tipXF,  barBot), color: color, alpha: opacity, edgeDist: +1)
-                let v2 = TrailVertex(position: SIMD2(baseXF, barTop), color: color, alpha: opacity, edgeDist: -1)
-                let v3 = TrailVertex(position: SIMD2(tipXF,  barTop), color: color, alpha: opacity, edgeDist: +1)
+                let v0 = EffectVertex(position: SIMD2(baseXF, barBot), color: color, alpha: opacity, edgeDist: -1)
+                let v1 = EffectVertex(position: SIMD2(tipXF,  barBot), color: color, alpha: opacity, edgeDist: +1)
+                let v2 = EffectVertex(position: SIMD2(baseXF, barTop), color: color, alpha: opacity, edgeDist: -1)
+                let v3 = EffectVertex(position: SIMD2(tipXF,  barTop), color: color, alpha: opacity, edgeDist: +1)
                 appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
             }
         }
@@ -156,9 +152,9 @@ class SpectrumEffect: BaseEffect {
         return vertices
     }
 
-    private func appendBar(to vertices: inout [TrailVertex],
-                           v0: TrailVertex, v1: TrailVertex,
-                           v2: TrailVertex, v3: TrailVertex) {
+    private func appendBar(to vertices: inout [EffectVertex],
+                           v0: EffectVertex, v1: EffectVertex,
+                           v2: EffectVertex, v3: EffectVertex) {
         if !vertices.isEmpty {
             let lastV = vertices.last!
             vertices.append(lastV)

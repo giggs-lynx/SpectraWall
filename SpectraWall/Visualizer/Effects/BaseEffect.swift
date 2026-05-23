@@ -58,7 +58,7 @@ class BaseEffect: Effect {
     func stop() {
         guard !isStopped else { return }
         isStopped = true
-        renderer?.unregisterTickClient(id: id)
+        renderer?.removeFrameClient(id: id)
         removeFromRenderer()
         AppLog.effect.info(
             "stop type=\(Self.effectTypeName, privacy: .public) layer=\(self.layer.id, privacy: .public)"
@@ -78,10 +78,12 @@ class BaseEffect: Effect {
     /// Called when AudioDataBus.resetPublisher fires (audio source switched).
     func onReset() {}
 
-    /// Drop our submission from the renderer. Subclasses route this to the
-    /// correct renderer API (`removeTrail` / `removeSpectrum` / `removeOrb`)
-    /// — in C9 the renderer is generalised and this becomes a single call.
-    func removeFromRenderer() {}
+    /// Drop our submission from the renderer. Default implementation issues
+    /// the unified `remove(id:)`; subclasses can override if they need to
+    /// clear additional internal state at removal time.
+    func removeFromRenderer() {
+        renderer?.remove(id: id)
+    }
 
     /// Called on every layer.objectWillChange after the base class has
     /// refreshed `opacity` and `isVisible`. Default does nothing; effects
@@ -112,7 +114,7 @@ class BaseEffect: Effect {
     private func attachToRenderer(for screen: NSScreen) {
         renderer = EffectsRendererRegistry.shared.renderer(for: screen)
         let myID = id
-        renderer?.registerTickClient(id: myID) { [weak self] t in
+        renderer?.addFrameClient(id: myID) { [weak self] t in
             self?.tick(timestamp: t)
         }
     }

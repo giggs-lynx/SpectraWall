@@ -101,10 +101,6 @@ class BorderEffect: BaseEffect {
 
     // MARK: - BaseEffect hooks
 
-    override func removeFromRenderer() {
-        renderer?.removeTrail(id: id)
-    }
-
     override func onLayerSettingsChanged() {
         let bs = borderSettings
         if bs.strokeCount  != lastStrokeCount  ||
@@ -127,7 +123,7 @@ class BorderEffect: BaseEffect {
         let fade = currentFadeAlpha()
         if fade <= 0 {
             if !trailHidden {
-                renderer?.removeTrail(id: id)
+                renderer?.remove(id: id)
                 scaleGhosts.removeAll()
                 lastUpdateTime = 0
                 trailHidden = true
@@ -238,9 +234,9 @@ class BorderEffect: BaseEffect {
 
     // MARK: - Scale Ghost Update
 
-    private func updateScaleGhosts(deltaTime: TimeInterval) -> [TrailVertex] {
+    private func updateScaleGhosts(deltaTime: TimeInterval) -> [EffectVertex] {
         let dt = CGFloat(deltaTime)
-        var ghostVertices: [TrailVertex] = []
+        var ghostVertices: [EffectVertex] = []
 
         for index in (0..<scaleGhosts.count).reversed() {
             if scaleGhosts[index].delay > 0 {
@@ -263,7 +259,7 @@ class BorderEffect: BaseEffect {
             let alpha  = Float(echoStartAlpha * max(0, 1.0 - pow(lifetime, 1.2))) * opacity
 
             let ghost = scaleGhosts[index]
-            let data = buildGhostTrailData(
+            let data = buildGhostEffectMesh(
                 strokeIndex: ghost.strokeIndex,
                 progressOffset: ghost.progressOffset,
                 amplitude: ghost.amplitude,
@@ -336,11 +332,11 @@ class BorderEffect: BaseEffect {
 
         guard let renderer else { return }
 
-        var allVertices: [TrailVertex] = []
+        var allVertices: [EffectVertex] = []
         allVertices.reserveCapacity(300 * strokes.count + 300 * scaleGhosts.count)
 
         for strokeIndex in 0..<strokes.count {
-            let data = buildTrailData(strokeIndex: strokeIndex)
+            let data = buildEffectMesh(strokeIndex: strokeIndex)
             if !allVertices.isEmpty,
                let last = allVertices.last,
                let first = data.vertices.first {
@@ -367,7 +363,7 @@ class BorderEffect: BaseEffect {
             }
         }
 
-        renderer.updateTrail(id: id, data: TrailData(vertices: allVertices))
+        renderer.submit(id: id, type: .border, mesh: EffectMesh(vertices: allVertices))
     }
 }
 

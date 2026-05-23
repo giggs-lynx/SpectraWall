@@ -411,8 +411,8 @@ extension BorderEffect {
         width: CGFloat,
         color: SIMD4<Float>,
         alpha: Float
-    ) -> [TrailVertex] {
-        var vertices: [TrailVertex] = []
+    ) -> [EffectVertex] {
+        var vertices: [EffectVertex] = []
         let half = width / 2
         for index in 0..<points.count {
             let point = points[index]
@@ -427,11 +427,11 @@ extension BorderEffect {
                 let next = points[index + 1]
                 normal = perp(normalize(CGPoint(x: next.x - prev.x, y: next.y - prev.y)))
             }
-            vertices.append(TrailVertex(
+            vertices.append(EffectVertex(
                 position: SIMD2(Float(point.x + normal.x * half), Float(point.y + normal.y * half)),
                 color: color, alpha: alpha, edgeDist: -1.0
             ))
-            vertices.append(TrailVertex(
+            vertices.append(EffectVertex(
                 position: SIMD2(Float(point.x - normal.x * half), Float(point.y - normal.y * half)),
                 color: color, alpha: alpha, edgeDist: 1.0
             ))
@@ -448,7 +448,7 @@ extension BorderEffect {
         var tangents: [CGPoint] = []         // unit forward tangent in ctx iteration order (y-flipped)
     }
 
-    private func prepareTrailData(
+    private func prepareEffectMesh(
         progress: Double,
         amplitude: Float,
         stripScale: CGFloat,
@@ -526,7 +526,7 @@ extension BorderEffect {
         return ctx
     }
 
-    private func appendHeadFan(ctx: TrailContext, to vertices: inout [TrailVertex]) {
+    private func appendHeadFan(ctx: TrailContext, to vertices: inout [EffectVertex]) {
         let hCenter = ctx.centerPoints[0]
         let hDir = normalize(CGPoint(x: hCenter.x - ctx.centerPoints[1].x, y: hCenter.y - ctx.centerPoints[1].y))
         let hNormal = perp(hDir)
@@ -539,9 +539,9 @@ extension BorderEffect {
             let angle = CGFloat(fanIndex) / CGFloat(fanSteps) * .pi
             let ox = hNormal.x * cos(angle) * hRadius + hDir.x * sin(angle) * hRadius
             let oy = hNormal.y * cos(angle) * hRadius + hDir.y * sin(angle) * hRadius
-            vertices.append(TrailVertex(position: SIMD2<Float>(Float(hCenter.x), Float(hCenter.y)),
+            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x), Float(hCenter.y)),
                                         color: hColor, alpha: hAlpha, edgeDist: 0.0))
-            vertices.append(TrailVertex(position: SIMD2<Float>(Float(hCenter.x + ox), Float(hCenter.y + oy)),
+            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x + ox), Float(hCenter.y + oy)),
                                         color: hColor, alpha: hAlpha, edgeDist: 1.0))
         }
         
@@ -551,13 +551,13 @@ extension BorderEffect {
             let halfW = ctx.stripWidths[0] / 2
             vertices.append(lastFan)
             vertices.append(lastFan)
-            vertices.append(TrailVertex(position: SIMD2<Float>(Float(hCenter.x + firstNormal.x * halfW),
+            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x + firstNormal.x * halfW),
                                                                Float(hCenter.y + firstNormal.y * halfW)),
                                         color: hColor, alpha: hAlpha, edgeDist: -1.0))
         }
     }
     
-    private func appendBodyStrip(ctx: TrailContext, to vertices: inout [TrailVertex]) {
+    private func appendBodyStrip(ctx: TrailContext, to vertices: inout [EffectVertex]) {
         let steps = ctx.centerPoints.count - 1
         for i in 0...steps {
             let point = ctx.centerPoints[i]
@@ -570,10 +570,10 @@ extension BorderEffect {
 
             let color4 = ctx.colors[i]
             let alpha  = Float(ctx.alphas[i])
-            vertices.append(TrailVertex(position: SIMD2<Float>(Float(point.x + normal.x * halfW),
+            vertices.append(EffectVertex(position: SIMD2<Float>(Float(point.x + normal.x * halfW),
                                                                Float(point.y + normal.y * halfW)),
                                         color: color4, alpha: alpha, edgeDist: -1.0))
-            vertices.append(TrailVertex(position: SIMD2<Float>(Float(point.x - normal.x * innerHalfW),
+            vertices.append(EffectVertex(position: SIMD2<Float>(Float(point.x - normal.x * innerHalfW),
                                                                Float(point.y - normal.y * innerHalfW)),
                                         color: color4, alpha: alpha, edgeDist: 1.0))
         }
@@ -585,17 +585,17 @@ extension BorderEffect {
         amplitude: Float,
         stripScale: CGFloat,
         alpha: Float?
-    ) -> [TrailVertex] {
-        let ctx = prepareTrailData(progress: progress, amplitude: amplitude, stripScale: stripScale,
+    ) -> [EffectVertex] {
+        let ctx = prepareEffectMesh(progress: progress, amplitude: amplitude, stripScale: stripScale,
                                    strokeIndex: strokeIndex, alpha: alpha)
-        var vertices: [TrailVertex] = []
+        var vertices: [EffectVertex] = []
         vertices.reserveCapacity(ctx.centerPoints.count * 2 + 40)
         appendHeadFan(ctx: ctx, to: &vertices)
         appendBodyStrip(ctx: ctx, to: &vertices)
         return vertices
     }
     
-    func buildTrailData(strokeIndex: Int) -> TrailData {
+    func buildEffectMesh(strokeIndex: Int) -> EffectMesh {
         let amplitude: Float = strokes.count == 1
         ? (smoothedLeft + smoothedRight) / 2
         : (strokeIndex == 0 ? smoothedLeft : smoothedRight)
@@ -606,16 +606,16 @@ extension BorderEffect {
             stripScale: 1.0,
             alpha: nil
         )
-        return TrailData(vertices: vertices)
+        return EffectMesh(vertices: vertices)
     }
     
-    func buildGhostTrailData(
+    func buildGhostEffectMesh(
         strokeIndex: Int,
         progressOffset: Double,
         amplitude: Float,
         scale: CGFloat,
         alpha: Float
-    ) -> TrailData {
+    ) -> EffectMesh {
         let progress = (strokes[strokeIndex].progress + progressOffset)
             .truncatingRemainder(dividingBy: 1.0)
         var vertices = buildTrailVertices(
@@ -633,6 +633,6 @@ extension BorderEffect {
             vertices[i].position = screenCenter + (vertices[i].position - screenCenter) * scaleF
         }
 
-        return TrailData(vertices: vertices)
+        return EffectMesh(vertices: vertices)
     }
 }

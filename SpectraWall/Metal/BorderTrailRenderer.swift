@@ -11,9 +11,8 @@
 //
 //  Storage / API is unified by EffectType: every effect submits a mesh tagged
 //  with its type; the renderer looks up the matching pipeline from a single
-//  dict. Per-kind `updateTrail` / `updateSpectrum` / `updateOrb` shims still
-//  exist for transitional call sites but forward to `submit(id:type:mesh:)`.
-//  C9 drops the shims.
+//  dict. Pipelines, draw order and the effect catalogue all come from
+//  EffectRegistry.
 //
 
 import AppKit
@@ -22,23 +21,21 @@ import OSLog
 import QuartzCore
 import simd
 
-struct TrailVertex {
+/// A single vertex submitted to the renderer. `edgeDist` is the
+/// signed normalised distance from the geometry's centerline / center,
+/// used by the fragment shaders for anti-aliasing and glow shaping.
+struct EffectVertex {
     var position: SIMD2<Float>
     var color: SIMD4<Float>
     var alpha: Float
     var edgeDist: Float
 }
 
-struct TrailData {
-    var vertices: [TrailVertex]
+/// Generic geometry container submitted to the renderer.
+struct EffectMesh {
+    var vertices: [EffectVertex]
     var primitiveType: MTLPrimitiveType = .triangleStrip
 }
-
-/// Generic geometry container submitted to the renderer. Aliased to TrailData
-/// during the renderer-rename transition; C9 makes EffectMesh the canonical
-/// name and drops the alias.
-typealias EffectMesh = TrailData
-typealias EffectVertex = TrailVertex
 
 /// How an effect's pipeline blends into the framebuffer.
 enum BlendMode {
@@ -105,7 +102,7 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
     private var screenSize: SIMD2<Float> = .zero
     private var backingScaleFactor: CGFloat = 1.0
 
-    private var tickClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
+    private var frameClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
     private let lock = NSLock()
 
     /// Order pipelines are drawn in each frame, derived from the registry's
@@ -228,31 +225,14 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         lock.lock(); submissions.removeValue(forKey: id); lock.unlock()
     }
 
-    // MARK: - Per-kind shims (deprecated; C9 removes these)
+    // MARK: - Frame tick registry
 
-    func updateTrail(id: ObjectIdentifier, data: TrailData) {
-        submit(id: id, type: .border, mesh: data)
-    }
-    func removeTrail(id: ObjectIdentifier) { remove(id: id) }
-
-    func updateSpectrum(id: ObjectIdentifier, data: TrailData) {
-        submit(id: id, type: .spectrum, mesh: data)
-    }
-    func removeSpectrum(id: ObjectIdentifier) { remove(id: id) }
-
-    func updateOrb(id: ObjectIdentifier, data: TrailData) {
-        submit(id: id, type: .orb, mesh: data)
-    }
-    func removeOrb(id: ObjectIdentifier) { remove(id: id) }
-
-    // MARK: - Tick registry
-
-    func registerTickClient(id: ObjectIdentifier, tick: @escaping (TimeInterval) -> Void) {
-        lock.lock(); tickClients[id] = tick; lock.unlock()
+    func addFrameClient(id: ObjectIdentifier, tick: @escaping (TimeInterval) -> Void) {
+        lock.lock(); frameClients[id] = tick; lock.unlock()
     }
 
-    func unregisterTickClient(id: ObjectIdentifier) {
-        lock.lock(); tickClients.removeValue(forKey: id); lock.unlock()
+    func removeFrameClient(id: ObjectIdentifier) {
+        lock.lock(); frameClients.removeValue(forKey: id); lock.unlock()
     }
 
     // MARK: - CAMetalDisplayLink delegate
@@ -278,7 +258,7 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
     func draw(drawable: CAMetalDrawable, presentTime: CFTimeInterval) {
         let now = CACurrentMediaTime()
         lock.lock()
-        let ticks = Array(tickClients.values)
+        let ticks = Array(frameClients.values)
         let sceneSizeSnap = screenSize
         let submissionsSnap = submissions
         let pipelinesSnap = pipelines
