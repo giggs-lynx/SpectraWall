@@ -286,17 +286,15 @@ struct EffectListColumn: View {
 
     private var addEffectMenu: some View {
         Menu {
-            Button("Spectrum") {
-                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .spectrum)
-                selectedLayerID = layer.id
-            }
-            Button("Orb") {
-                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .orb)
-                selectedLayerID = layer.id
-            }
-            Button("Border") {
-                let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: .border)
-                selectedLayerID = layer.id
+            ForEach(EffectRegistry.allTypes, id: \.self) { type in
+                if let descriptor = EffectRegistry.descriptor(for: type) {
+                    Button {
+                        let layer = VisualizerSceneManager.shared.addLayer(to: scene, effectType: type)
+                        selectedLayerID = layer.id
+                    } label: {
+                        Text(descriptor.displayName)
+                    }
+                }
             }
         } label: {
             Image(systemName: "plus")
@@ -345,14 +343,7 @@ struct EffectRow: View {
     }
 
     private var effectIcon: some View {
-        let name: String = {
-            switch layer.effectType {
-            case .spectrum: return "spectrum"
-            case .orb:      return "orb"
-            case .border:   return "border"
-            default:        return "spectrum"
-            }
-        }()
+        let name = EffectRegistry.descriptor(for: layer.effectType)?.iconAssetName ?? "spectrum"
         return Image(name)
             .renderingMode(.template)
             .resizable()

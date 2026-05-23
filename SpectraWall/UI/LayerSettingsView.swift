@@ -38,23 +38,14 @@ struct LayerSettingsView: View {
                 // pays its one-time creation cost (~400ms for ColorPickers).
                 // Subsequent switches between already-instantiated types are
                 // just frame collapses, no rebuild.
-                if instantiatedTypes.contains(.spectrum) {
-                    SpectrumSettingsSection(layer: layer)
-                        .frame(height: layer.effectType == .spectrum ? nil : 0)
-                        .clipped()
-                        .allowsHitTesting(layer.effectType == .spectrum)
-                }
-                if instantiatedTypes.contains(.orb) {
-                    OrbSettingsSection(layer: layer)
-                        .frame(height: layer.effectType == .orb ? nil : 0)
-                        .clipped()
-                        .allowsHitTesting(layer.effectType == .orb)
-                }
-                if instantiatedTypes.contains(.border) {
-                    BorderSettingsSection(layer: layer)
-                        .frame(height: layer.effectType == .border ? nil : 0)
-                        .clipped()
-                        .allowsHitTesting(layer.effectType == .border)
+                ForEach(EffectRegistry.allTypes, id: \.self) { type in
+                    if instantiatedTypes.contains(type),
+                       let descriptor = EffectRegistry.descriptor(for: type) {
+                        descriptor.makeSettingsView(layer)
+                            .frame(height: layer.effectType == type ? nil : 0)
+                            .clipped()
+                            .allowsHitTesting(layer.effectType == type)
+                    }
                 }
 
                 Divider()
