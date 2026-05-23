@@ -16,8 +16,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private struct DesktopWindowSet {
         let window: NSWindow
-        let metalView: MetalDesktopView
-        let renderer: EffectsRenderer
+        let metalView: EffectsHostView
+        let renderer: EffectRenderer
         let coordinator: EffectsCoordinator
     }
 
@@ -26,7 +26,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var windowSets: [DesktopWindowSet] = []
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
-    private var trailRenderers: [NSScreen: BorderTrailRenderer] = [:]
     private var cancellables = Set<AnyCancellable>()
     /// Event monitors that auto-close the popover when the user clicks outside.
     /// NSPopover's `.transient` behavior doesn't fire reliably for an LSUIElement app
@@ -132,7 +131,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func setupDesktopWindows() {
         let oldSets = windowSets
         windowSets = []
-        trailRenderers = [:]
 
         // Invalidate each renderer's CAMetalDisplayLink and hide windows. Invalidate
         // breaks the link's strong reference to the delegate and stops new callbacks;
@@ -184,11 +182,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Custom CAMetalLayer-backed NSView — replaces MTKView so the renderer's
         // draw loop runs on a private queue driven by CVDisplayLink (below)
         // instead of MTKView's internal main-thread display callback.
-        let metalView = MetalDesktopView(frame: NSRect(origin: .zero, size: size))
-        guard let renderer = EffectsRenderer(metalLayer: metalView.metalLayer, screen: screen) else { return nil }
+        let metalView = EffectsHostView(frame: NSRect(origin: .zero, size: size))
+        guard let renderer = EffectRenderer(metalLayer: metalView.metalLayer, screen: screen) else { return nil }
 
-        trailRenderers[screen] = renderer
-        BorderTrailRendererRegistry.shared.register(renderer, for: screen)
+        EffectRendererRegistry.shared.register(renderer, for: screen)
 
         let scale = screen.backingScaleFactor
         renderer.setSceneSize(size)

@@ -3,7 +3,7 @@
 //  SpectraWall
 //
 //  Per-effect plug-in record. One descriptor per EffectType collects everything
-//  EffectsCoordinator, EffectsRenderer, LayerSettings's Codable, and the UI
+//  EffectsCoordinator, EffectRenderer, LayerSettings's Codable, and the UI
 //  need to know about a kind of effect. Adding a new effect = writing the
 //  subclass + a static descriptor + EffectRegistry.register(...).
 //

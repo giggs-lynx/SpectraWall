@@ -82,7 +82,7 @@ class AudioAnalyzer {
     }
 
     private func chromaticScaleBins(magnitudes: [Float]) -> [Float] {
-        let settings = VisualizerSettings.shared
+        let settings = AnalyzerSettings.shared
         let sampleRate: Float = 48000
         let freqPerBin = sampleRate / Float(fftSize)
         let baseFreq: Float = 27.5

@@ -72,7 +72,7 @@ struct PipelineSpec {
     let blendMode: BlendMode
 }
 
-class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
+class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
     // MARK: - Metal objects
 
@@ -158,7 +158,7 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
             .map(\.type)
 
         AppLog.render.info(
-            "EffectsRenderer initialized: displayID=\(displayID, privacy: .public) effects=\(self.drawOrder.count, privacy: .public)"
+            "EffectRenderer initialized: displayID=\(displayID, privacy: .public) effects=\(self.drawOrder.count, privacy: .public)"
         )
 
         // CAMetalDisplayLink delivers callbacks on whichever runloop we add it to.
@@ -203,7 +203,7 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
     func invalidate() {
         displayLink?.invalidate()
         displayLink = nil
-        AppLog.render.info("EffectsRenderer invalidated")
+        AppLog.render.info("EffectRenderer invalidated")
     }
 
     // MARK: - Configuration
@@ -352,7 +352,3 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         commandBuffer.commit()
     }
 }
-
-// MARK: - Backward compatibility typealias
-// Remove after all call sites are updated to EffectsRenderer.
-typealias BorderTrailRenderer = EffectsRenderer

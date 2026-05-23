@@ -1,5 +1,5 @@
 //
-//  MetalDesktopView.swift
+//  EffectsHostView.swift
 //  SpectraWall
 //
 //  A minimal NSView whose backing layer is a CAMetalLayer. Replaces MTKView so the
@@ -12,7 +12,7 @@ import AppKit
 import Metal
 import QuartzCore
 
-final class MetalDesktopView: NSView {
+final class EffectsHostView: NSView {
 
     let metalLayer = CAMetalLayer()
 

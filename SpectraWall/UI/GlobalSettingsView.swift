@@ -10,7 +10,7 @@ import ServiceManagement
 import OSLog
 
 struct GlobalSettingsView: View {
-    @ObservedObject var visualizerSettings = VisualizerSettings.shared
+    @ObservedObject var visualizerSettings = AnalyzerSettings.shared
     @ObservedObject var appSettings = AppSettings.shared
     @State private var launchAtLogin: Bool = SMAppService.mainApp.status == .enabled
     @State private var screens: [NSScreen] = NSScreen.screens

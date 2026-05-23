@@ -192,38 +192,6 @@ extension BorderEffect {
     func perp(_ vector: CGPoint) -> CGPoint {
         CGPoint(x: -vector.y, y: vector.x)
     }
-    
-    func interpolateNSColor(from startColor: NSColor, to endColor: NSColor, progress: CGFloat) -> NSColor {
-        NSColor(
-            red: startColor.redComponent + (endColor.redComponent - startColor.redComponent) * progress,
-            green: startColor.greenComponent + (endColor.greenComponent - startColor.greenComponent) * progress,
-            blue: startColor.blueComponent + (endColor.blueComponent - startColor.blueComponent) * progress,
-            alpha: 1.0
-        )
-    }
-    
-    func interpolateColor(from startColor: NSColor, to endColor: NSColor, progress: CGFloat) -> NSColor {
-        interpolateNSColor(from: startColor, to: endColor, progress: progress)
-    }
-    
-    func boundingCenter(of points: [CGPoint]) -> CGPoint {
-        guard !points.isEmpty else { return .zero }
-        let minX = points.map { $0.x }.min() ?? 0
-        let maxX = points.map { $0.x }.max() ?? 0
-        let minY = points.map { $0.y }.min() ?? 0
-        let maxY = points.map { $0.y }.max() ?? 0
-        return CGPoint(x: (minX + maxX) / 2, y: (minY + maxY) / 2)
-    }
-    
-    func makeRelativePath(points: [CGPoint], center: CGPoint) -> CGPath {
-        let path = CGMutablePath()
-        guard let first = points.first else { return path }
-        path.move(to: CGPoint(x: first.x - center.x, y: first.y - center.y))
-        for point in points.dropFirst() {
-            path.addLine(to: CGPoint(x: point.x - center.x, y: point.y - center.y))
-        }
-        return path
-    }
 }
 
 // MARK: - Border Segments & Path

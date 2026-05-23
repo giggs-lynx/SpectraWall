@@ -29,7 +29,7 @@ class BaseEffect: Effect {
     // MARK: - State
 
     let sceneSize: CGSize
-    weak var renderer: EffectsRenderer?
+    weak var renderer: EffectRenderer?
     var cancellables = Set<AnyCancellable>()
 
     private(set) var isStopped = false
@@ -112,7 +112,7 @@ class BaseEffect: Effect {
     // MARK: - Wiring
 
     private func attachToRenderer(for screen: NSScreen) {
-        renderer = EffectsRendererRegistry.shared.renderer(for: screen)
+        renderer = EffectRendererRegistry.shared.renderer(for: screen)
         let myID = id
         renderer?.addFrameClient(id: myID) { [weak self] t in
             self?.tick(timestamp: t)
