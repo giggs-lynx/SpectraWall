@@ -191,7 +191,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         BorderTrailRendererRegistry.shared.register(renderer, for: screen)
 
         let scale = screen.backingScaleFactor
-        renderer.setBackingScaleFactor(scale)
         renderer.setSceneSize(size)
         metalView.setLayerSize(size, scale: scale)
 

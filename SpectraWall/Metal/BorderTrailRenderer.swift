@@ -100,10 +100,16 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
     private var buffers: [ObjectIdentifier: MTLBuffer] = [:]
 
     private var screenSize: SIMD2<Float> = .zero
-    private var backingScaleFactor: CGFloat = 1.0
 
     private var frameClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
-    private let lock = NSLock()
+
+    /// Identifies our `renderQueue` from any thread so mutators can decide
+    /// whether to mutate directly (when already on renderQueue, e.g. an
+    /// effect's onTick) or hop via async dispatch (when called from main
+    /// during scene setup / teardown). Replaces the previous NSLock-guarded
+    /// dual-thread access; mutations are now strictly serialized through
+    /// the queue itself rather than a lock.
+    private static let renderQueueKey = DispatchSpecificKey<UInt8>()
 
     /// Order pipelines are drawn in each frame, derived from the registry's
     /// renderOrder values. Fixed at init time so the draw loop doesn't have
@@ -124,6 +130,7 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         let displayID = screen?.displayID ?? 0
         self.renderQueue  = DispatchQueue(label: "spectrawall.renderer.\(displayID)",
                                           qos: .userInteractive)
+        renderQueue.setSpecific(key: Self.renderQueueKey, value: 1)
         metalLayer.device = device
 
         guard let library = device.makeDefaultLibrary() else { return nil }
@@ -201,38 +208,57 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
     // MARK: - Configuration
 
-    func setBackingScaleFactor(_ scale: CGFloat) {
-        lock.lock(); backingScaleFactor = scale; lock.unlock()
-    }
-
     /// Set the logical scene size that vertex coordinates are expressed in.
-    /// Locked because it's written from main (window setup) and read from renderQueue.
+    /// Called from main during window setup; dispatch sync to guarantee the
+    /// first `draw()` sees a non-zero `screenSize` even if it fires moments
+    /// after this returns.
     func setSceneSize(_ size: CGSize) {
         let v = SIMD2<Float>(Float(size.width), Float(size.height))
-        lock.lock(); screenSize = v; lock.unlock()
+        onRenderQueue(.sync) { self.screenSize = v }
     }
 
     // MARK: - Unified submission API
 
     /// Submit (or replace) an effect's geometry for the next frame.
     func submit(id: ObjectIdentifier, type: EffectType, mesh: EffectMesh) {
-        lock.lock(); submissions[id] = (type, mesh); lock.unlock()
+        onRenderQueue(.async) { self.submissions[id] = (type, mesh) }
     }
 
     /// Drop an effect's geometry. Buffers associated with the id are pruned
     /// inside the next `draw()` pass.
     func remove(id: ObjectIdentifier) {
-        lock.lock(); submissions.removeValue(forKey: id); lock.unlock()
+        onRenderQueue(.async) { self.submissions.removeValue(forKey: id) }
     }
 
     // MARK: - Frame tick registry
 
     func addFrameClient(id: ObjectIdentifier, tick: @escaping (TimeInterval) -> Void) {
-        lock.lock(); frameClients[id] = tick; lock.unlock()
+        onRenderQueue(.async) { self.frameClients[id] = tick }
     }
 
     func removeFrameClient(id: ObjectIdentifier) {
-        lock.lock(); frameClients.removeValue(forKey: id); lock.unlock()
+        onRenderQueue(.async) { self.frameClients.removeValue(forKey: id) }
+    }
+
+    // MARK: - Dispatch helper
+
+    private enum DispatchMode { case sync, async }
+
+    /// Run `body` on `renderQueue`. If already on `renderQueue` (e.g. an
+    /// effect's onTick reaches in to call `submit`), run inline so the
+    /// mutation lands before the current frame finishes drawing — async
+    /// dispatch would push it to the next frame. From any other queue,
+    /// async dispatch unless the caller explicitly needs sync semantics
+    /// (only `setSceneSize` does, to satisfy first-draw initialization).
+    private func onRenderQueue(_ mode: DispatchMode, _ body: @escaping () -> Void) {
+        if DispatchQueue.getSpecific(key: Self.renderQueueKey) == 1 {
+            body()
+            return
+        }
+        switch mode {
+        case .sync:  renderQueue.sync(execute: body)
+        case .async: renderQueue.async(execute: body)
+        }
     }
 
     // MARK: - CAMetalDisplayLink delegate
@@ -257,14 +283,17 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// and `presentTime` is the predicted vsync at which to flip.
     func draw(drawable: CAMetalDrawable, presentTime: CFTimeInterval) {
         let now = CACurrentMediaTime()
-        lock.lock()
+        // We're already on renderQueue (via the displayLink delegate's sync
+        // hop) and every mutator now serializes through this same queue, so
+        // direct access is safe — no lock or snapshot required. Tick clients
+        // can mutate submissions reentrantly via their submit/remove calls;
+        // those run inline (same-queue fast path in onRenderQueue) so the
+        // mutations land in time for the draw loop below.
         let ticks = Array(frameClients.values)
+        for tick in ticks { tick(now) }
         let sceneSizeSnap = screenSize
         let submissionsSnap = submissions
         let pipelinesSnap = pipelines
-        lock.unlock()
-
-        for tick in ticks { tick(now) }
 
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
