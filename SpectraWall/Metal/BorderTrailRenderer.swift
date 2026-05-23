@@ -9,9 +9,16 @@
 //  the render loop runs at the display refresh rate without blocking on
 //  `nextDrawable()` acquire. Work happens on a private serial render queue.
 //
+//  Storage / API is unified by EffectType: every effect submits a mesh tagged
+//  with its type; the renderer looks up the matching pipeline from a single
+//  dict. Per-kind `updateTrail` / `updateSpectrum` / `updateOrb` shims still
+//  exist for transitional call sites but forward to `submit(id:type:mesh:)`.
+//  C9 drops the shims.
+//
 
 import AppKit
 import Metal
+import OSLog
 import QuartzCore
 import simd
 
@@ -25,6 +32,47 @@ struct TrailVertex {
 struct TrailData {
     var vertices: [TrailVertex]
     var primitiveType: MTLPrimitiveType = .triangleStrip
+}
+
+/// Generic geometry container submitted to the renderer. Aliased to TrailData
+/// during the renderer-rename transition; C9 makes EffectMesh the canonical
+/// name and drops the alias.
+typealias EffectMesh = TrailData
+typealias EffectVertex = TrailVertex
+
+/// How an effect's pipeline blends into the framebuffer.
+enum BlendMode {
+    case additive
+    case alphaBlend
+
+    func apply(to attachment: MTLRenderPipelineColorAttachmentDescriptor) {
+        attachment.isBlendingEnabled = true
+        switch self {
+        case .additive:
+            attachment.rgbBlendOperation           = .add
+            attachment.alphaBlendOperation         = .add
+            attachment.sourceRGBBlendFactor        = .sourceAlpha
+            attachment.destinationRGBBlendFactor   = .one
+            attachment.sourceAlphaBlendFactor      = .sourceAlpha
+            attachment.destinationAlphaBlendFactor = .one
+        case .alphaBlend:
+            attachment.rgbBlendOperation           = .add
+            attachment.alphaBlendOperation         = .add
+            attachment.sourceRGBBlendFactor        = .sourceAlpha
+            attachment.destinationRGBBlendFactor   = .oneMinusSourceAlpha
+            attachment.sourceAlphaBlendFactor      = .sourceAlpha
+            attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        }
+    }
+}
+
+/// Pipeline declaration provided by each effect descriptor. Pure data; the
+/// renderer compiles the actual `MTLRenderPipelineState` from a `PipelineSpec`
+/// during init.
+struct PipelineSpec {
+    let vertexFunctionName: String
+    let fragmentFunctionName: String
+    let blendMode: BlendMode
 }
 
 class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
@@ -45,25 +93,25 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
     private var displayLink: CAMetalDisplayLink?
 
     private let commandQueue: MTLCommandQueue
-    private let borderPipelineState: MTLRenderPipelineState    // additive; border trail
-    private let spectrumPipelineState: MTLRenderPipelineState  // alpha blend; spectrum bars
-    private let orbPipelineState: MTLRenderPipelineState       // additive; orb glow
+
+    // MARK: - Unified pipeline + submission storage
+
+    private var pipelines: [EffectType: MTLRenderPipelineState] = [:]
+    private var submissions: [ObjectIdentifier: (EffectType, EffectMesh)] = [:]
+    /// Per-effect GPU buffer cache. Only touched on `renderQueue` inside `draw`,
+    /// so no lock is required — `submit` / `remove` only mutate `submissions`.
+    private var buffers: [ObjectIdentifier: MTLBuffer] = [:]
 
     private var screenSize: SIMD2<Float> = .zero
     private var backingScaleFactor: CGFloat = 1.0
 
-    // MARK: - Per-effect data and buffer caches
-
-    private(set) var trails: [ObjectIdentifier: TrailData] = [:]       // Border
-    private var spectrumData: [ObjectIdentifier: TrailData] = [:]      // Spectrum
-    private var orbData: [ObjectIdentifier: TrailData] = [:]           // Orb
-
-    private var borderBuffers: [ObjectIdentifier: MTLBuffer] = [:]
-    private var spectrumBuffers: [ObjectIdentifier: MTLBuffer] = [:]
-    private var orbBuffers: [ObjectIdentifier: MTLBuffer] = [:]
-
     private var tickClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
     private let lock = NSLock()
+
+    /// Order pipelines are drawn in each frame. Maintains the previous
+    /// border → spectrum → orb back-to-front layering. C4 derives this from
+    /// EffectRegistry; for now it's hard-coded.
+    private let drawOrder: [EffectType] = [.border, .spectrum, .orb]
 
     // MARK: - Initialization
 
@@ -79,64 +127,39 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         let displayID = screen?.displayID ?? 0
         self.renderQueue  = DispatchQueue(label: "spectrawall.renderer.\(displayID)",
                                           qos: .userInteractive)
-
-        // Make sure layer + device agree (it's harmless if already set).
         metalLayer.device = device
 
         guard let library = device.makeDefaultLibrary() else { return nil }
 
-        // Helper that builds a pipeline with named shader functions and a blend configurator.
-        func makePipeline(vertex: String, fragment: String,
-                          blend: (MTLRenderPipelineColorAttachmentDescriptor) -> Void)
-            -> MTLRenderPipelineState?
-        {
-            guard
-                let vf = library.makeFunction(name: vertex),
-                let ff = library.makeFunction(name: fragment)
-            else { return nil }
-            let desc = MTLRenderPipelineDescriptor()
-            desc.vertexFunction    = vf
-            desc.fragmentFunction  = ff
-            // MSAA disabled in this revision — CAMetalLayer's drawable texture is
-            // single-sample, so MSAA would require an offscreen multisample texture
-            // + resolve pass. Acceptable for now; effects use alpha-blended smoothstep
-            // edges so visual difference is small.
-            desc.rasterSampleCount = 1
-            desc.colorAttachments[0].pixelFormat = .bgra8Unorm
-            if let att = desc.colorAttachments[0] {
-                att.isBlendingEnabled = true
-                blend(att)
-            }
-            return try? device.makeRenderPipelineState(descriptor: desc)
-        }
-
-        let additive: (MTLRenderPipelineColorAttachmentDescriptor) -> Void = { att in
-            att.rgbBlendOperation           = .add
-            att.alphaBlendOperation         = .add
-            att.sourceRGBBlendFactor        = .sourceAlpha
-            att.destinationRGBBlendFactor   = .one
-            att.sourceAlphaBlendFactor      = .sourceAlpha
-            att.destinationAlphaBlendFactor = .one
-        }
-        let alphaBlend: (MTLRenderPipelineColorAttachmentDescriptor) -> Void = { att in
-            att.rgbBlendOperation           = .add
-            att.alphaBlendOperation         = .add
-            att.sourceRGBBlendFactor        = .sourceAlpha
-            att.destinationRGBBlendFactor   = .oneMinusSourceAlpha
-            att.sourceAlphaBlendFactor      = .sourceAlpha
-            att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
-        }
-
-        guard
-            let bp = makePipeline(vertex: "border_vertex",   fragment: "border_fragment",   blend: additive),
-            let sp = makePipeline(vertex: "spectrum_vertex",  fragment: "spectrum_fragment", blend: alphaBlend),
-            let op = makePipeline(vertex: "orb_vertex",       fragment: "orb_fragment",      blend: additive)
-        else { return nil }
-
-        self.borderPipelineState   = bp
-        self.spectrumPipelineState = sp
-        self.orbPipelineState      = op
         super.init()
+
+        // Bootstrap the three current effect pipelines. C4 replaces this with
+        // an iteration over EffectRegistry.all so a 4th effect requires no
+        // renderer changes.
+        let bootstrap: [(EffectType, PipelineSpec)] = [
+            (.border,   PipelineSpec(vertexFunctionName: "border_vertex",
+                                     fragmentFunctionName: "border_fragment",
+                                     blendMode: .additive)),
+            (.spectrum, PipelineSpec(vertexFunctionName: "spectrum_vertex",
+                                     fragmentFunctionName: "spectrum_fragment",
+                                     blendMode: .alphaBlend)),
+            (.orb,      PipelineSpec(vertexFunctionName: "orb_vertex",
+                                     fragmentFunctionName: "orb_fragment",
+                                     blendMode: .additive))
+        ]
+        for (type, spec) in bootstrap {
+            guard let pipeline = Self.makePipeline(device: device,
+                                                   library: library,
+                                                   spec: spec) else {
+                AppLog.render.error("Failed to compile pipeline for \(type.rawValue, privacy: .public)")
+                return nil
+            }
+            pipelines[type] = pipeline
+        }
+
+        AppLog.render.info(
+            "EffectsRenderer initialized: displayID=\(displayID, privacy: .public)"
+        )
 
         // CAMetalDisplayLink delivers callbacks on whichever runloop we add it to.
         // Adding to the main runloop in .common mode means the delegate fires on
@@ -152,12 +175,35 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         self.displayLink = link
     }
 
+    private static func makePipeline(device: MTLDevice,
+                                     library: MTLLibrary,
+                                     spec: PipelineSpec) -> MTLRenderPipelineState? {
+        guard
+            let vf = library.makeFunction(name: spec.vertexFunctionName),
+            let ff = library.makeFunction(name: spec.fragmentFunctionName)
+        else { return nil }
+        let desc = MTLRenderPipelineDescriptor()
+        desc.vertexFunction    = vf
+        desc.fragmentFunction  = ff
+        // MSAA disabled in this revision — CAMetalLayer's drawable texture is
+        // single-sample, so MSAA would require an offscreen multisample texture
+        // + resolve pass. Acceptable for now; effects use alpha-blended smoothstep
+        // edges so visual difference is small.
+        desc.rasterSampleCount = 1
+        desc.colorAttachments[0].pixelFormat = .bgra8Unorm
+        if let att = desc.colorAttachments[0] {
+            spec.blendMode.apply(to: att)
+        }
+        return try? device.makeRenderPipelineState(descriptor: desc)
+    }
+
     /// Stop driving the renderer. Must be called before the renderer is released
     /// so the display link's strong reference to its delegate (us) is broken and
     /// no further callbacks fire after teardown.
     func invalidate() {
         displayLink?.invalidate()
         displayLink = nil
+        AppLog.render.info("EffectsRenderer invalidated")
     }
 
     // MARK: - Configuration
@@ -173,35 +219,35 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         lock.lock(); screenSize = v; lock.unlock()
     }
 
-    // MARK: - Border API
+    // MARK: - Unified submission API
+
+    /// Submit (or replace) an effect's geometry for the next frame.
+    func submit(id: ObjectIdentifier, type: EffectType, mesh: EffectMesh) {
+        lock.lock(); submissions[id] = (type, mesh); lock.unlock()
+    }
+
+    /// Drop an effect's geometry. Buffers associated with the id are pruned
+    /// inside the next `draw()` pass.
+    func remove(id: ObjectIdentifier) {
+        lock.lock(); submissions.removeValue(forKey: id); lock.unlock()
+    }
+
+    // MARK: - Per-kind shims (deprecated; C9 removes these)
 
     func updateTrail(id: ObjectIdentifier, data: TrailData) {
-        lock.lock(); trails[id] = data; lock.unlock()
+        submit(id: id, type: .border, mesh: data)
     }
-
-    func removeTrail(id: ObjectIdentifier) {
-        lock.lock(); trails.removeValue(forKey: id); lock.unlock()
-    }
-
-    // MARK: - Spectrum API
+    func removeTrail(id: ObjectIdentifier) { remove(id: id) }
 
     func updateSpectrum(id: ObjectIdentifier, data: TrailData) {
-        lock.lock(); spectrumData[id] = data; lock.unlock()
+        submit(id: id, type: .spectrum, mesh: data)
     }
-
-    func removeSpectrum(id: ObjectIdentifier) {
-        lock.lock(); spectrumData.removeValue(forKey: id); lock.unlock()
-    }
-
-    // MARK: - Orb API
+    func removeSpectrum(id: ObjectIdentifier) { remove(id: id) }
 
     func updateOrb(id: ObjectIdentifier, data: TrailData) {
-        lock.lock(); orbData[id] = data; lock.unlock()
+        submit(id: id, type: .orb, mesh: data)
     }
-
-    func removeOrb(id: ObjectIdentifier) {
-        lock.lock(); orbData.removeValue(forKey: id); lock.unlock()
-    }
+    func removeOrb(id: ObjectIdentifier) { remove(id: id) }
 
     // MARK: - Tick registry
 
@@ -238,9 +284,12 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         lock.lock()
         let ticks = Array(tickClients.values)
         let sceneSizeSnap = screenSize
+        let submissionsSnap = submissions
+        let pipelinesSnap = pipelines
         lock.unlock()
+
         for tick in ticks { tick(now) }
-        // No nextDrawable() — caller supplied an already-acquired drawable.
+
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
         let pass = MTLRenderPassDescriptor()
@@ -257,62 +306,45 @@ class EffectsRenderer: NSObject, CAMetalDisplayLinkDelegate {
         var sceneSizeForShader = sceneSizeSnap
         encoder.setVertexBytes(&sceneSizeForShader, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
 
-        lock.lock()
-        let borderSnap   = trails
-        let spectrumSnap = spectrumData
-        let orbSnap      = orbData
-        lock.unlock()
+        // Group submissions by type so we set the pipeline once per group.
+        var byType: [EffectType: [(ObjectIdentifier, EffectMesh)]] = [:]
+        for (id, payload) in submissionsSnap {
+            byType[payload.0, default: []].append((id, payload.1))
+        }
 
-        drawEffects(snapshot: borderSnap,   pipeline: borderPipelineState,
-                    buffers: &borderBuffers,   encoder: encoder)
-        drawEffects(snapshot: spectrumSnap, pipeline: spectrumPipelineState,
-                    buffers: &spectrumBuffers, encoder: encoder)
-        drawEffects(snapshot: orbSnap,      pipeline: orbPipelineState,
-                    buffers: &orbBuffers,      encoder: encoder)
+        for type in drawOrder {
+            guard let pipeline = pipelinesSnap[type], let group = byType[type] else { continue }
+            encoder.setRenderPipelineState(pipeline)
+            for (id, mesh) in group {
+                guard mesh.vertices.count >= 3 else { continue }
+                let byteCount = mesh.vertices.count * MemoryLayout<EffectVertex>.stride
+                let buf: MTLBuffer
+                if let existing = buffers[id], existing.length >= byteCount {
+                    existing.contents().copyMemory(from: mesh.vertices, byteCount: byteCount)
+                    buf = existing
+                } else {
+                    guard let newBuf = metalDevice.makeBuffer(
+                        bytes: mesh.vertices,
+                        length: byteCount,
+                        options: .storageModeShared
+                    ) else { continue }
+                    buffers[id] = newBuf
+                    buf = newBuf
+                }
+                encoder.setVertexBuffer(buf, offset: 0, index: 0)
+                encoder.drawPrimitives(type: mesh.primitiveType, vertexStart: 0, vertexCount: mesh.vertices.count)
+            }
+        }
+
+        // Prune buffers whose submissions have been removed since last frame.
+        let activeIds = Set(submissionsSnap.keys)
+        buffers = buffers.filter { activeIds.contains($0.key) }
 
         encoder.endEncoding()
         // CAMetalDisplayLink handles vsync timing internally; calling
         // `present(_:atTime:)` with it is explicitly disallowed and throws.
         commandBuffer.present(drawable)
         commandBuffer.commit()
-    }
-
-    // MARK: - Private helpers
-
-    private func drawEffects(
-        snapshot: [ObjectIdentifier: TrailData],
-        pipeline: MTLRenderPipelineState,
-        buffers: inout [ObjectIdentifier: MTLBuffer],
-        encoder: MTLRenderCommandEncoder
-    ) {
-        guard !snapshot.isEmpty else { return }
-
-        let activeIds = Set(snapshot.keys)
-        buffers = buffers.filter { activeIds.contains($0.key) }
-
-        encoder.setRenderPipelineState(pipeline)
-
-        for (id, data) in snapshot {
-            guard data.vertices.count >= 3 else { continue }
-
-            let byteCount = data.vertices.count * MemoryLayout<TrailVertex>.stride
-            let buf: MTLBuffer
-            if let existing = buffers[id], existing.length >= byteCount {
-                existing.contents().copyMemory(from: data.vertices, byteCount: byteCount)
-                buf = existing
-            } else {
-                guard let newBuf = metalDevice.makeBuffer(
-                    bytes: data.vertices,
-                    length: byteCount,
-                    options: .storageModeShared
-                ) else { continue }
-                buffers[id] = newBuf
-                buf = newBuf
-            }
-
-            encoder.setVertexBuffer(buf, offset: 0, index: 0)
-            encoder.drawPrimitives(type: data.primitiveType, vertexStart: 0, vertexCount: data.vertices.count)
-        }
     }
 }
 

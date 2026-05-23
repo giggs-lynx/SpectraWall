@@ -9,16 +9,6 @@ import SwiftUI
 import Combine
 import Foundation
 
-enum EffectType: String, Codable, CaseIterable {
-    case spectrum = "Spectrum"
-    case orb = "Orb"
-    case border = "Border"
-    
-    var localized: LocalizedStringResource {
-        LocalizedStringResource(stringLiteral: rawValue)
-    }
-}
-
 enum ChannelMode: String, Codable, CaseIterable {
     case stereo, left, right, mono
     
@@ -104,6 +94,11 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
             self.effectSettings = try container.decode(OrbSettings.self, forKey: .effectSettings)
         case .border:
             self.effectSettings = try container.decode(BorderSettings.self, forKey: .effectSettings)
+        default:
+            // EffectType is now extensible (RawRepresentable<String>) so the
+            // compiler can't prove exhaustiveness. C5 swaps this whole branch
+            // for descriptor-driven decode; until then, fall back to Spectrum.
+            self.effectSettings = SpectrumSettings.defaults
         }
     }
 
@@ -112,6 +107,7 @@ class LayerSettings: ObservableObject, Identifiable, Codable {
         case .spectrum: return SpectrumSettings.defaults
         case .orb:      return OrbSettings.defaults
         case .border:   return BorderSettings.defaults
+        default:        return SpectrumSettings.defaults
         }
     }
 

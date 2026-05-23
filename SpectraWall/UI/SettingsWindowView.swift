@@ -350,6 +350,7 @@ struct EffectRow: View {
             case .spectrum: return "spectrum"
             case .orb:      return "orb"
             case .border:   return "border"
+            default:        return "spectrum"
             }
         }()
         return Image(name)

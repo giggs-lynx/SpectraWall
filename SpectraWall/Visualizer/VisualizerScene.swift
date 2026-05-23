@@ -5,6 +5,7 @@
 
 import AppKit
 import Combine
+import OSLog
 
 class EffectsCoordinator: NSObject {
 
@@ -111,6 +112,10 @@ class EffectsCoordinator: NSObject {
                 if orbEffects[layer.id] == nil {
                     orbEffects[layer.id] = OrbEffect(size: size, layer: layer, screen: screen)
                 }
+            default:
+                // Unknown EffectType — registry-driven dispatch lands in C6.
+                AppLog.scene.error("Unknown effect type \(layer.effectType.rawValue, privacy: .public); skipping")
+                continue
             }
             updateEffectVisuals(for: layer)
         }
