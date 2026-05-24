@@ -60,12 +60,28 @@ class BorderEffect: BaseEffect {
     var scaleGhosts: [ScaleGhost] = []
 
     let echoThreshold: Float     = 0.08
-    let echoDecaySpeed: CGFloat  = 1.5
-    let echoMaxScale: CGFloat    = 5.0
-    let echoStartAlpha: CGFloat  = 0.25
-    let echoLayerCount: Int      = 3
-    let echoLayerDelay: CGFloat  = 3.0
+    // ghost decay speed comes from borderSettings.pulseDecay (lifetime ≈ 1/decay)
+    // Width/length deltas at pulseSize=1. Final peak scale at runtime =
+    //   1 + borderSettings.pulseSize × delta
+    // Width/length ratio (1.1 : 0.05 = 22:1) stays constant across pulseSize,
+    // so the silhouette grows the same shape no matter how big the user
+    // slides Pulse Size.
+    let echoWidthDelta: CGFloat   = 1.1      // pulseSize=1 → width  × 2.1
+    let echoLengthDelta: CGFloat  = 0.05     // pulseSize=1 → length × 1.05
+    // ghost fill alpha at lifetime=0 comes from borderSettings.pulseOpacity
+    let echoAlphaCurve: CGFloat  = 2.5     // alpha decays as (1 - t^curve);
+                                           // higher = stays visible longer
+                                           // before snapping out at the end.
     let maxScaleGhosts: Int      = 20
+
+    // Per-stroke flash that runs on the main trail at the instant a pulse
+    // spawns its ghost — a quick "energy burst" feel before the ghost takes
+    // over. Decays exponentially with ~120ms half-life; while flashing the
+    // stroke's colour is lerped toward white and its alpha boosted.
+    var strokeFlashIntensity: [Float] = []
+    let flashHalfLife: TimeInterval = 0.12
+    let flashWhiteMixAtPeak: Float  = 0.7  // colour toward white
+    let flashAlphaBoostAtPeak: Float = 0.5 // alpha bump
 
     // MARK: - Segment cache
 
@@ -221,15 +237,22 @@ class BorderEffect: BaseEffect {
     // MARK: - Spawn Scale Pulse
 
     private func spawnScalePulse(strokeIndex: Int, amplitude: Float) {
-        for layerIndex in 0..<echoLayerCount {
-            scaleGhosts.append(ScaleGhost(
-                lifetime: -0.05,
-                delay: CGFloat(layerIndex) * echoLayerDelay,
-                progressOffset: 0.0,
-                strokeIndex: strokeIndex,
-                amplitude: amplitude
-            ))
+        // Light up the corresponding stroke on the main trail; decayed each
+        // frame in update().
+        if strokeIndex < strokeFlashIntensity.count {
+            strokeFlashIntensity[strokeIndex] = 1.0
         }
+        // One ghost per pulse — earlier versions spawned three echoes spaced
+        // by `echoLayerDelay`, but with a 1-second ghost lifetime they never
+        // overlapped visually and read as three isolated pulses instead of a
+        // single burst.
+        scaleGhosts.append(ScaleGhost(
+            lifetime: -0.05,
+            delay: 0,
+            progressOffset: 0.0,
+            strokeIndex: strokeIndex,
+            amplitude: amplitude
+        ))
     }
 
     // MARK: - Scale Ghost Update
@@ -244,7 +267,7 @@ class BorderEffect: BaseEffect {
                 continue
             }
 
-            scaleGhosts[index].lifetime += dt * echoDecaySpeed
+            scaleGhosts[index].lifetime += dt * CGFloat(borderSettings.pulseDecay)
             let lifetime = scaleGhosts[index].lifetime
 
             if lifetime >= 1.0 {
@@ -255,15 +278,18 @@ class BorderEffect: BaseEffect {
             guard lifetime >= 0 else { continue }
 
             let easedT = 1.0 - pow(max(0, 1.0 - lifetime), 4)
-            let scale  = 1.0 + easedT * (echoMaxScale - 1.0)
-            let alpha  = Float(echoStartAlpha * max(0, 1.0 - pow(lifetime, 1.2))) * opacity
+            let pulseSize = CGFloat(borderSettings.pulseSize)
+            let widthScale  = 1.0 + easedT * pulseSize * echoWidthDelta
+            let lengthScale = 1.0 + easedT * pulseSize * echoLengthDelta
+            let pulseOpacity = CGFloat(borderSettings.pulseOpacity)
+            let alpha  = Float(pulseOpacity * max(0, 1.0 - pow(lifetime, echoAlphaCurve))) * opacity
 
             let ghost = scaleGhosts[index]
-            let data = buildGhostEffectMesh(
+            let data = buildScaledGhostMesh(
                 strokeIndex: ghost.strokeIndex,
-                progressOffset: ghost.progressOffset,
                 amplitude: ghost.amplitude,
-                scale: CGFloat(scale),
+                widthScale: CGFloat(widthScale),
+                lengthScale: CGFloat(lengthScale),
                 alpha: alpha
             )
 
@@ -293,6 +319,7 @@ class BorderEffect: BaseEffect {
             state.progress = count == 2 ? Double(strokeIndex) * 0.5 : 0.0
             strokes.append(state)
         }
+        strokeFlashIntensity = Array(repeating: 0, count: count)
 
         updatePerimeterLength()
         updateVisuals()
@@ -319,6 +346,13 @@ class BorderEffect: BaseEffect {
 
         let deltaTime     = currentTime - lastUpdateTime
         lastUpdateTime    = currentTime
+
+        // Decay per-stroke flash. exp(-dt / halfLife) approximates the
+        // commonly-expected "halves every halfLife" feel.
+        let flashDecay = Float(exp(-deltaTime / flashHalfLife))
+        for i in 0..<strokeFlashIntensity.count {
+            strokeFlashIntensity[i] *= flashDecay
+        }
 
         let bs            = borderSettings
         let deltaProgress = bs.speed * deltaTime * (bs.clockwise ? 1 : -1)

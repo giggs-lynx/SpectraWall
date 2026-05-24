@@ -41,6 +41,12 @@ vertex VertexOut border_vertex(
 }
 
 fragment float4 border_fragment(VertexOut in [[stage_in]]) {
+    // Sentinel: edgeDist >= 2.0 = uniform fill mode (used by border ghost's
+    // filled silhouette so the whole interior renders at full colour/alpha
+    // instead of fading to transparent at the strip edges like the trail.
+    if (in.edgeDist >= 1.5) {
+        return float4(in.color.rgb, in.color.a * in.alpha);
+    }
     float d          = abs(in.edgeDist);
     float glow = exp(-d * d * 5.0);
     float core = smoothstep(0.15, 0.0, d);

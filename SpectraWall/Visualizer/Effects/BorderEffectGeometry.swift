@@ -421,7 +421,8 @@ extension BorderEffect {
         amplitude: Float,
         stripScale: CGFloat,
         strokeIndex: Int,
-        alpha: Float?
+        alpha: Float?,
+        tailLengthOverride: Double? = nil
     ) -> TrailContext {
         let bs = borderSettings
         let segments = borderSegments()
@@ -430,7 +431,10 @@ extension BorderEffect {
         // samples regardless of trail length. cornerRadius - inset is the Bézier corner's
         // approximate span; use it as the density anchor (same role as the old arcLength).
         let cornerSpan = max(CGFloat(bs.cornerRadius) - inset, 0)
-        let trailLength = CGFloat(bs.tailLength) * perimeterLength
+        // Ghost callers pass an overridden tailLength so the silhouette can grow
+        // longer along the path direction (true equiscale with the width).
+        let effectiveTailLength = CGFloat(tailLengthOverride ?? Double(bs.tailLength))
+        let trailLength = effectiveTailLength * perimeterLength
         let steps: Int = {
             guard cornerSpan > 0 else { return 120 }
             let needed = Int(trailLength / cornerSpan) * 8
@@ -455,11 +459,22 @@ extension BorderEffect {
         ctx.tangents.reserveCapacity(capacity)
 
         let heightF = sceneSize.height
+        // Main-trail-only "energy burst" flash. The ghost path (alpha != nil)
+        // already encodes its own colour + alpha via updateScaleGhosts, so we
+        // only modulate when this call is rendering the main trail.
+        let isMainTrail = (alpha == nil)
+        let flashIntensity: Float = {
+            guard isMainTrail, strokeIndex < strokeFlashIntensity.count else { return 0 }
+            return strokeFlashIntensity[strokeIndex]
+        }()
+        let flashWhiteMix = flashIntensity * flashWhiteMixAtPeak
+        let flashAlphaBoost = CGFloat(flashIntensity * flashAlphaBoostAtPeak)
+        let whiteV = SIMD4<Float>(1, 1, 1, 1)
 
         for stepIndex in 0...steps {
             let stepT  = CGFloat(stepIndex) / CGFloat(steps)
             let stepTF = Float(stepT)
-            let distAlong = stepT * CGFloat(bs.tailLength) * perimeterLength
+            let distAlong = stepT * effectiveTailLength * perimeterLength
             let rawDist = CGFloat(progress) * perimeterLength + (bs.clockwise ? distAlong : -distAlong)
             let wrapped = ((rawDist.truncatingRemainder(dividingBy: perimeterLength)) + perimeterLength)
                 .truncatingRemainder(dividingBy: perimeterLength)
@@ -472,10 +487,21 @@ extension BorderEffect {
             let baseW = (CGFloat(bs.baseWidth) + CGFloat(amplitude) * 3.0) * stepT
             // Fold y-flip into the append to avoid a separate map pass after the loop.
             ctx.centerPoints.append(CGPoint(x: point.x, y: heightF - point.y))
-            ctx.widths.append(baseW)
+            // stripScale also scales widths so the head fan grows in proportion
+            // with the body — otherwise a width×4 ghost ends up with a tiny
+            // head cap that breaks the "exact copy" feel.
+            ctx.widths.append(baseW * stripScale)
             ctx.stripWidths.append(baseW * 3.0 * stripScale)
-            ctx.colors.append(colorEndV + (colorStartV - colorEndV) * stepTF)
-            ctx.alphas.append(alpha != nil ? CGFloat(alpha ?? 0) : stepT)
+            let baseColor = colorEndV + (colorStartV - colorEndV) * stepTF
+            // Flash only mixes white into the main trail at the moment of a
+            // pulse; ghost paths keep the trail's gradient so they look like
+            // a faithful scaled copy of the body, not a separate halo.
+            ctx.colors.append(baseColor + (whiteV - baseColor) * flashWhiteMix)
+            // Main trail multiplies layer opacity through every vertex; ghost
+            // path passes an explicit alpha that already includes opacity
+            // (see updateScaleGhosts), so don't double-apply.
+            let baseAlpha = isMainTrail ? stepT * CGFloat(opacity) : CGFloat(alpha ?? 0)
+            ctx.alphas.append(min(1.0, baseAlpha + flashAlphaBoost))
             // Y-flip the tangent's y component to match centerPoints coordinate space.
             ctx.tangents.append(CGPoint(x: tangent.x, y: -tangent.y))
         }
@@ -577,30 +603,71 @@ extension BorderEffect {
         return EffectMesh(vertices: vertices)
     }
     
-    func buildGhostEffectMesh(
+    /// Ghost = filled silhouette of the trail body, independently scaled
+    /// along the path's width and length. `widthScale` controls how wide
+    /// the ghost is (normal direction); `lengthScale` controls how far
+    /// the ghost extends along the path (centred on the body's midpoint).
+    /// Splitting them lets the caller damp the "shoots-forward" feeling of
+    /// length while still letting width breathe outward.
+    func buildScaledGhostMesh(
         strokeIndex: Int,
-        progressOffset: Double,
         amplitude: Float,
-        scale: CGFloat,
+        widthScale: CGFloat,
+        lengthScale: CGFloat,
         alpha: Float
     ) -> EffectMesh {
-        let progress = (strokes[strokeIndex].progress + progressOffset)
-            .truncatingRemainder(dividingBy: 1.0)
-        var vertices = buildTrailVertices(
-            strokeIndex: strokeIndex,
-            progress: progress,
+        let bs = borderSettings
+        // Length axis: ghost path covers `lengthScale × tailLength` of the
+        // perimeter, centred on the body's midpoint (so it extends past both
+        // body endpoints by 0.5×(lengthScale-1)×tailLength).
+        let bodyTailLength = Double(bs.tailLength)
+        let ghostTailLength = bodyTailLength * Double(lengthScale)
+        let progressDelta = bodyTailLength * (1.0 - Double(lengthScale)) * 0.5
+        let bodyProgress = strokes[strokeIndex].progress
+        let ghostProgress = bodyProgress + (bs.clockwise ? progressDelta : -progressDelta)
+
+        // Width axis: stripScale=widthScale grows the ghost's width along
+        // each centreline sample's normal — same mechanism the body uses.
+        var ctx = prepareEffectMesh(
+            progress: ghostProgress,
             amplitude: amplitude,
-            stripScale: 1.0,
-            alpha: alpha
+            stripScale: widthScale,
+            strokeIndex: strokeIndex,
+            alpha: alpha,
+            tailLengthOverride: ghostTailLength
         )
-        
-        // Scale outward from the screen center, in-place to avoid a second array copy.
-        let screenCenter = SIMD2<Float>(Float(sceneSize.width / 2), Float(sceneSize.height / 2))
-        let scaleF = Float(scale)
-        for i in 0..<vertices.count {
-            vertices[i].position = screenCenter + (vertices[i].position - screenCenter) * scaleF
+        guard ctx.centerPoints.count >= 2 else {
+            return EffectMesh(vertices: [])
         }
 
+        // The body strip is geometrically baseW×3 wide but the trail shader
+        // fades the outer two-thirds to near-zero alpha — so the body's
+        // *visible* width is roughly baseW (= ctx.widths). Ghost uses uniform
+        // fill (no fade), so we must shrink its strip width to match the
+        // body's visible width; otherwise the ghost looks 3× fatter than the
+        // body even at scale=1.0.
+        for i in 0..<ctx.stripWidths.count {
+            ctx.stripWidths[i] = ctx.widths[i]
+        }
+
+        var vertices: [EffectVertex] = []
+        vertices.reserveCapacity(ctx.centerPoints.count * 2 + 40)
+        appendHeadFan(ctx: ctx, to: &vertices)
+        appendBodyStrip(ctx: ctx, to: &vertices)
+
+        // Re-tag fill vertices' edgeDist=2.0 — sentinel that border_fragment
+        // reads as "uniform fill mode" (no edge fade). Without this the
+        // body shader would render the ghost as a centreline-bright strip
+        // that fades to transparent at the silhouette edges.
+        for i in 0..<vertices.count {
+            let v = vertices[i]
+            vertices[i] = EffectVertex(
+                position: v.position,
+                color: v.color,
+                alpha: v.alpha,
+                edgeDist: 2.0
+            )
+        }
         return EffectMesh(vertices: vertices)
     }
 }

@@ -141,7 +141,16 @@ class BaseEffect: Effect {
                 guard let self else { return }
                 self.opacity = Float(self.layer.opacity)
                 self.isVisible = self.layer.isVisible
-                self.onLayerSettingsChanged()
+                // Subclass hook may mutate state (collections, caches) that the
+                // tick path reads every frame on renderQueue. Hop the hook
+                // onto renderQueue so we never mutate collections from main
+                // while tick is iterating them — e.g. BorderEffect's
+                // setupStrokes clearing `scaleGhosts` mid-iteration crashed
+                // the dedicated displayLink thread with an out-of-bounds read.
+                let queue = self.renderer?.renderQueue ?? .main
+                queue.async { [weak self] in
+                    self?.onLayerSettingsChanged()
+                }
             }
             .store(in: &cancellables)
     }
