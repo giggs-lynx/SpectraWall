@@ -60,15 +60,16 @@ class BorderEffect: BaseEffect {
     var scaleGhosts: [ScaleGhost] = []
 
     let echoThreshold: Float     = 0.08
-    // ghost decay speed comes from borderSettings.pulseDecay (lifetime ≈ 1/decay)
-    // Width/length deltas at pulseSize=1. Final peak scale at runtime =
-    //   1 + borderSettings.pulseSize × delta
-    // Width/length ratio (1.1 : 0.05 = 22:1) stays constant across pulseSize,
+    // Width/length deltas at ghostSize=1. Final peak scale at runtime:
+    //   widthScale  = 1 + borderSettings.ghostSize × echoWidthDelta
+    //   lengthScale = 1 + borderSettings.ghostSize × echoLengthDelta
+    // Width/length ratio (1.1 : 0.05 = 22:1) stays constant across ghostSize,
     // so the silhouette grows the same shape no matter how big the user
-    // slides Pulse Size.
-    let echoWidthDelta: CGFloat   = 1.1      // pulseSize=1 → width  × 2.1
-    let echoLengthDelta: CGFloat  = 0.05     // pulseSize=1 → length × 1.05
-    // ghost fill alpha at lifetime=0 comes from borderSettings.pulseOpacity
+    // slides Ghost Size.
+    let echoWidthDelta: CGFloat   = 1.1      // ghostSize=1 → width  × 2.1
+    let echoLengthDelta: CGFloat  = 0.05     // ghostSize=1 → length × 1.05
+    // ghost fill alpha at lifetime=0 comes from borderSettings.ghostOpacity
+    // ghost decay speed comes from borderSettings.ghostDecay (lifetime ≈ 1/decay)
     let echoAlphaCurve: CGFloat  = 2.5     // alpha decays as (1 - t^curve);
                                            // higher = stays visible longer
                                            // before snapping out at the end.
@@ -80,8 +81,9 @@ class BorderEffect: BaseEffect {
     // stroke's colour is lerped toward white and its alpha boosted.
     var strokeFlashIntensity: [Float] = []
     let flashHalfLife: TimeInterval = 0.12
-    let flashWhiteMixAtPeak: Float  = 0.7  // colour toward white
-    let flashAlphaBoostAtPeak: Float = 0.5 // alpha bump
+    // Mix-toward-white and alpha boost at flash peak come from
+    // borderSettings.pulseFlash; alpha boost is derived from the mix value so
+    // brightness and visibility move together.
 
     // MARK: - Segment cache
 
@@ -242,6 +244,9 @@ class BorderEffect: BaseEffect {
         if strokeIndex < strokeFlashIntensity.count {
             strokeFlashIntensity[strokeIndex] = 1.0
         }
+        // Ghost is optional; flash on the main trail above still fires either
+        // way.
+        guard borderSettings.ghostEnabled else { return }
         // One ghost per pulse — earlier versions spawned three echoes spaced
         // by `echoLayerDelay`, but with a 1-second ghost lifetime they never
         // overlapped visually and read as three isolated pulses instead of a
@@ -267,7 +272,7 @@ class BorderEffect: BaseEffect {
                 continue
             }
 
-            scaleGhosts[index].lifetime += dt * CGFloat(borderSettings.pulseDecay)
+            scaleGhosts[index].lifetime += dt * CGFloat(borderSettings.ghostDecay)
             let lifetime = scaleGhosts[index].lifetime
 
             if lifetime >= 1.0 {
@@ -278,11 +283,11 @@ class BorderEffect: BaseEffect {
             guard lifetime >= 0 else { continue }
 
             let easedT = 1.0 - pow(max(0, 1.0 - lifetime), 4)
-            let pulseSize = CGFloat(borderSettings.pulseSize)
-            let widthScale  = 1.0 + easedT * pulseSize * echoWidthDelta
-            let lengthScale = 1.0 + easedT * pulseSize * echoLengthDelta
-            let pulseOpacity = CGFloat(borderSettings.pulseOpacity)
-            let alpha  = Float(pulseOpacity * max(0, 1.0 - pow(lifetime, echoAlphaCurve))) * opacity
+            let ghostSize = CGFloat(borderSettings.ghostSize)
+            let widthScale  = 1.0 + easedT * ghostSize * echoWidthDelta
+            let lengthScale = 1.0 + easedT * ghostSize * echoLengthDelta
+            let ghostOpacity = CGFloat(borderSettings.ghostOpacity)
+            let alpha  = Float(ghostOpacity * max(0, 1.0 - pow(lifetime, echoAlphaCurve))) * opacity
 
             let ghost = scaleGhosts[index]
             let data = buildScaledGhostMesh(
@@ -409,6 +414,7 @@ extension BorderEffect {
         displayName: "Border",
         iconAssetName: "border",
         renderOrder: 0,
+        commonSettings: [.opacity, .channelMode],   // border path follows screen edge; position has no meaning
         makeDefaultSettings: { BorderSettings.defaults },
         settingsCodec: .make(BorderSettings.self),
         makeEffect: { size, layer, screen in

@@ -21,16 +21,21 @@ struct BorderSettings: EffectSettings, Equatable {
     var pulseAttack: Double
     var pulseRelease: Double
     var pulseThreshold: Double
-    /// Beat-spawned ghost intensity. 0 = no visible pulse (ghost = body),
-    /// 1 = default look, up to 2 = double effect. Drives both width and
-    /// length scale through fixed deltas; ratio between them stays constant.
-    var pulseSize: Double
-    /// Ghost fill alpha at spawn (lifetime=0). Fades to 0 over the ghost's
-    /// lifetime; this is the starting visibility.
-    var pulseOpacity: Double
-    /// How fast the ghost decays. Higher = faster fadeout / shorter lifetime.
-    /// Lifetime ≈ 1 / pulseDecay seconds.
-    var pulseDecay: Double
+    /// Flash brightness on the main trail at the moment a beat fires. 0 =
+    /// no flash; 1 = lerp the trail colour all the way to white at peak.
+    /// Alpha boost is derived from this so brightness/visibility move together.
+    var pulseFlash: Double
+    /// Whether a beat spawns a translucent ghost copy of the trail. Flash on
+    /// the main trail still fires regardless.
+    var ghostEnabled: Bool
+    /// Ghost overall intensity (drives both width and length scale through
+    /// fixed deltas; ratio stays constant). 0 = ghost = body; 1 = default;
+    /// up to 2 = double the effect.
+    var ghostSize: Double
+    /// Ghost fill alpha at spawn (lifetime=0); fades to 0 over its lifetime.
+    var ghostOpacity: Double
+    /// Ghost decay speed. Lifetime ≈ 1 / ghostDecay seconds.
+    var ghostDecay: Double
 
     static var defaults: BorderSettings {
         BorderSettings(
@@ -47,9 +52,11 @@ struct BorderSettings: EffectSettings, Equatable {
             pulseAttack: 0.85,
             pulseRelease: 0.1,
             pulseThreshold: 0.01,
-            pulseSize: 0.9,
-            pulseOpacity: 0.65,
-            pulseDecay: 4.0
+            pulseFlash: 0.7,
+            ghostEnabled: true,
+            ghostSize: 0.9,
+            ghostOpacity: 0.65,
+            ghostDecay: 4.0
         )
     }
 
@@ -59,13 +66,14 @@ struct BorderSettings: EffectSettings, Equatable {
 }
 
 extension BorderSettings {
-    // Custom Codable so older on-disk configs without `pulseSize` still
-    // decode — they fall back to 1.0 (the default look).
+    // Custom init so v0.0.5 configs (which predate all the pulseFlash/ghost*
+    // keys) still decode — those keys fall back to defaults. Encode is
+    // auto-synthesised because CodingKeys map 1:1 to properties.
     enum CodingKeys: String, CodingKey {
         case strokeCount, clockwise, speed, tailLength, baseWidth, cornerRadius
         case stroke1ColorStart, stroke1ColorEnd, stroke2ColorStart, stroke2ColorEnd
-        case pulseAttack, pulseRelease, pulseThreshold
-        case pulseSize, pulseOpacity, pulseDecay
+        case pulseAttack, pulseRelease, pulseThreshold, pulseFlash
+        case ghostEnabled, ghostSize, ghostOpacity, ghostDecay
     }
 
     init(from decoder: Decoder) throws {
@@ -84,9 +92,11 @@ extension BorderSettings {
             pulseAttack:       try c.decode(Double.self,    forKey: .pulseAttack),
             pulseRelease:      try c.decode(Double.self,    forKey: .pulseRelease),
             pulseThreshold:    try c.decode(Double.self,    forKey: .pulseThreshold),
-            pulseSize:         try c.decodeIfPresent(Double.self, forKey: .pulseSize)    ?? 0.9,
-            pulseOpacity:      try c.decodeIfPresent(Double.self, forKey: .pulseOpacity) ?? 0.65,
-            pulseDecay:        try c.decodeIfPresent(Double.self, forKey: .pulseDecay)   ?? 4.0
+            pulseFlash:        try c.decodeIfPresent(Double.self, forKey: .pulseFlash)   ?? 0.7,
+            ghostEnabled:      try c.decodeIfPresent(Bool.self,   forKey: .ghostEnabled) ?? true,
+            ghostSize:         try c.decodeIfPresent(Double.self, forKey: .ghostSize)    ?? 0.9,
+            ghostOpacity:      try c.decodeIfPresent(Double.self, forKey: .ghostOpacity) ?? 0.65,
+            ghostDecay:        try c.decodeIfPresent(Double.self, forKey: .ghostDecay)   ?? 4.0
         )
     }
 }

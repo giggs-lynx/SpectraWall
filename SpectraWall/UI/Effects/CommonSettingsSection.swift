@@ -10,30 +10,46 @@ import Combine
 
 struct CommonSettingsSection: View {
     @ObservedObject var layer: LayerSettings
-    
+
     @State private var channelMode: ChannelMode = .stereo
     @State private var opacity: Double = 1.0
     @State private var positionX: Double = 0.5
     @State private var positionY: Double = 0.0
 
+    /// Which sub-controls to expose, looked up from the effect's descriptor.
+    /// Defaults to `.all` if the effect type isn't registered yet (shouldn't
+    /// happen at runtime, but keeps SwiftUI previews happy).
+    private var visible: CommonSettings {
+        EffectRegistry.descriptor(for: layer.effectType)?.commonSettings ?? .all
+    }
+
     var body: some View {
         SectionHeader(title: "General")
-        
+
         VStack(spacing: 10) {
             // MARK: - Audio Configuration
-            Picker("Channel", selection: $channelMode) {
-                ForEach(ChannelMode.allCases, id: \.self) { mode in
-                    Text(mode.localized).tag(mode)
+            if visible.contains(.channelMode) {
+                Picker("Channel", selection: $channelMode) {
+                    ForEach(ChannelMode.allCases, id: \.self) { mode in
+                        Text(mode.localized).tag(mode)
+                    }
                 }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
 
-            Divider()
+            let hasTransform = visible.contains(.opacity) || visible.contains(.position)
+            if visible.contains(.channelMode), hasTransform {
+                Divider()
+            }
 
             // MARK: - Transform & Opacity
-            SettingsSlider(label: "Opacity", value: $opacity, range: 0.0...1.0, step: 0.05)
-            SettingsSlider(label: "Position X", value: $positionX, range: 0.0...1.0, step: 0.01)
-            SettingsSlider(label: "Position Y", value: $positionY, range: 0.0...1.0, step: 0.01)
+            if visible.contains(.opacity) {
+                SettingsSlider(label: "Opacity", value: $opacity, range: 0.0...1.0, step: 0.05)
+            }
+            if visible.contains(.position) {
+                SettingsSlider(label: "Position X", value: $positionX, range: 0.0...1.0, step: 0.01)
+                SettingsSlider(label: "Position Y", value: $positionY, range: 0.0...1.0, step: 0.01)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)

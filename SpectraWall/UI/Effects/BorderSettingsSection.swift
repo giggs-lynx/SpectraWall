@@ -36,12 +36,22 @@ struct BorderSettingsSection: View {
 
             Divider()
 
-            // MARK: - Audio Response
+            // MARK: - Audio Response & Trail Flash
             SettingsSlider(label: "Pulse Attack", value: $settings.pulseAttack, range: 0.05...1.0, step: 0.05)
             SettingsSlider(label: "Pulse Release", value: $settings.pulseRelease, range: 0.05...1.0, step: 0.05)
-            SettingsSlider(label: "Pulse Size", value: $settings.pulseSize, range: 0.0...2.0, step: 0.1)
-            SettingsSlider(label: "Pulse Opacity", value: $settings.pulseOpacity, range: 0.0...1.0, step: 0.05)
-            SettingsSlider(label: "Pulse Decay", value: $settings.pulseDecay, range: 0.5...10.0, step: 0.1)
+            SettingsSlider(label: "Pulse Flash", value: $settings.pulseFlash, range: 0.0...1.0, step: 0.05)
+
+            Divider()
+
+            // MARK: - Ghost
+            Toggle("Enable Ghost", isOn: $settings.ghostEnabled)
+                .toggleStyle(.switch)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if settings.ghostEnabled {
+                SettingsSlider(label: "Ghost Size", value: $settings.ghostSize, range: 0.0...2.0, step: 0.1)
+                SettingsSlider(label: "Ghost Opacity", value: $settings.ghostOpacity, range: 0.0...1.0, step: 0.05)
+                SettingsSlider(label: "Ghost Decay", value: $settings.ghostDecay, range: 0.5...10.0, step: 0.1)
+            }
 
             // MARK: - Appearance
             strokeColorSettings

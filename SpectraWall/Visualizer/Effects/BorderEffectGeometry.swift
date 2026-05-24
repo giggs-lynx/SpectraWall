@@ -467,8 +467,12 @@ extension BorderEffect {
             guard isMainTrail, strokeIndex < strokeFlashIntensity.count else { return 0 }
             return strokeFlashIntensity[strokeIndex]
         }()
-        let flashWhiteMix = flashIntensity * flashWhiteMixAtPeak
-        let flashAlphaBoost = CGFloat(flashIntensity * flashAlphaBoostAtPeak)
+        // pulseFlash controls peak mix-to-white at flashIntensity=1.
+        // Alpha boost is a fraction of the mix value so the two move together
+        // (mix 0.7 → α-boost 0.5; mix 1.0 → α-boost 0.71).
+        let pulseFlashPeak = Float(borderSettings.pulseFlash)
+        let flashWhiteMix = flashIntensity * pulseFlashPeak
+        let flashAlphaBoost = CGFloat(flashIntensity * pulseFlashPeak * (0.5 / 0.7))
         let whiteV = SIMD4<Float>(1, 1, 1, 1)
 
         for stepIndex in 0...steps {
