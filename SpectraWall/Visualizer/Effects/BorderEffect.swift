@@ -217,23 +217,26 @@ class BorderEffect: BaseEffect {
         let bs = borderSettings
         let sensitivity: Float = 1.1
 
-        if strokes.count == 1 {
-            let combined = (smoothedLeft + smoothedRight) / 2
-            let lastCombined = (lastAmplitudeLeft + lastAmplitudeRight) / 2
-            if combined > Float(bs.pulseThreshold) && combined > lastCombined * sensitivity {
-                spawnScalePulse(strokeIndex: 0, amplitude: combined)
-                lastEchoTime = now
-            }
-        } else {
-            if smoothedLeft > Float(bs.pulseThreshold) && smoothedLeft > lastAmplitudeLeft * sensitivity {
-                spawnScalePulse(strokeIndex: 0, amplitude: smoothedLeft)
-                lastEchoTime = now
-            }
-            if smoothedRight > Float(bs.pulseThreshold) && smoothedRight > lastAmplitudeRight * sensitivity {
-                spawnScalePulse(strokeIndex: 1, amplitude: smoothedRight)
-                lastEchoTime = now
-            }
+        // Detect a beat from the *combined* amplitude regardless of stroke
+        // count — both strokes belong to the same effect so they should pulse
+        // on the same beat. Per-channel detection (previous behaviour) made
+        // L/R cross threshold on different frames, so the two strokes pulsed
+        // visibly out of sync. Each stroke still spawns with its own channel's
+        // amplitude so left/right loudness still drives ghost intensity.
+        let combined = (smoothedLeft + smoothedRight) / 2
+        let lastCombined = (lastAmplitudeLeft + lastAmplitudeRight) / 2
+        guard combined > Float(bs.pulseThreshold),
+              combined > lastCombined * sensitivity else {
+            return
         }
+
+        if strokes.count == 1 {
+            spawnScalePulse(strokeIndex: 0, amplitude: combined)
+        } else {
+            spawnScalePulse(strokeIndex: 0, amplitude: smoothedLeft)
+            spawnScalePulse(strokeIndex: 1, amplitude: smoothedRight)
+        }
+        lastEchoTime = now
     }
 
     // MARK: - Spawn Scale Pulse
