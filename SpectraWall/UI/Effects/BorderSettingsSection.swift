@@ -29,19 +29,19 @@ struct BorderSettingsSection: View {
             }
 
             // MARK: - Geometric Settings
-            SettingsSlider(label: "Speed", value: $settings.speed, range: 0.05...0.5, step: 0.05)
-            SettingsSlider(label: "Tail Length", value: $settings.tailLength, range: 0.05...0.8, step: 0.05)
-            SettingsSlider(label: "Line Width", value: $settings.baseWidth, range: 1.0...20.0, step: 0.5)
+            SettingsSlider(label: "Speed", value: $settings.speed, range: 0.01...0.5, step: 0.01)
+            SettingsSlider(label: "Tail Length", value: $settings.tailLength, range: 0.05...1.0, step: 0.05)
+            SettingsSlider(label: "Line Width", value: $settings.baseWidth, range: 1.0...50.0, step: 0.5)
             SettingsSlider(label: "Corner Radius", value: $settings.cornerRadius, range: 0...100, step: 5)
-            
+
             Divider()
-            
+
             // MARK: - Audio Response
-            SettingsSlider(label: "Pulse Attack", value: $settings.pulseAttack, range: 0.3...1.0, step: 0.05)
-            SettingsSlider(label: "Pulse Release", value: $settings.pulseRelease, range: 0.05...0.5, step: 0.05)
+            SettingsSlider(label: "Pulse Attack", value: $settings.pulseAttack, range: 0.05...1.0, step: 0.05)
+            SettingsSlider(label: "Pulse Release", value: $settings.pulseRelease, range: 0.05...1.0, step: 0.05)
             SettingsSlider(label: "Pulse Size", value: $settings.pulseSize, range: 0.0...2.0, step: 0.1)
             SettingsSlider(label: "Pulse Opacity", value: $settings.pulseOpacity, range: 0.0...1.0, step: 0.05)
-            SettingsSlider(label: "Pulse Decay", value: $settings.pulseDecay, range: 0.5...5.0, step: 0.1)
+            SettingsSlider(label: "Pulse Decay", value: $settings.pulseDecay, range: 0.5...10.0, step: 0.1)
 
             // MARK: - Appearance
             strokeColorSettings
