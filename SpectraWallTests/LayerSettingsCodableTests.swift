@@ -51,6 +51,47 @@ final class LayerSettingsCodableTests: XCTestCase {
         XCTAssertEqual(decoded.effectType, .spectrum)
     }
 
+    /// Real scene JSON from a user-customised Orb layer (colours set via UI).
+    /// Reproduces a complaint that refactor head decodes as default colours
+    /// even though the JSON has the customised hex values.
+    func testRealOrbLayerJSONPreservesCustomColors() throws {
+        let json = """
+        {
+          "channelMode": "stereo",
+          "effectSettings": {
+            "attack": 0.95,
+            "baseRadius": 80,
+            "boost": 3,
+            "innerColorHigh": "#FFCC33FF",
+            "innerColorLow": "#59B0053C",
+            "outerColorHigh": "#FFCC33FF",
+            "outerColorLow": "#FFFF0000",
+            "outerOpacity": 0.15,
+            "outerRadiusMultiplier": 1.4,
+            "release": 0.4
+          },
+          "effectType": "Orb",
+          "isVisible": true,
+          "name": "Orb L",
+          "opacity": 1.0,
+          "positionX": 0.5,
+          "positionY": 0.5
+        }
+        """.data(using: .utf8)!
+
+        let layer = try JSONDecoder().decode(LayerSettings.self, from: json)
+        XCTAssertEqual(layer.effectType, .orb)
+        guard let orb = layer.effectSettings as? OrbSettings else {
+            XCTFail("effectSettings is \(type(of: layer.effectSettings)), expected OrbSettings")
+            return
+        }
+        // innerColorLow hex #59B0053C → AA=59 RR=B0 GG=05 BB=3C
+        XCTAssertEqual(orb.innerColorLow.red,   Double(0xB0) / 255, accuracy: 0.001,
+                       "innerColorLow.red lost on decode — got \(orb.innerColorLow.red)")
+        XCTAssertEqual(orb.innerColorLow.green, Double(0x05) / 255, accuracy: 0.001)
+        XCTAssertEqual(orb.innerColorLow.blue,  Double(0x3C) / 255, accuracy: 0.001)
+    }
+
     /// Default encoded JSON has no `id`. The decoder should mint a fresh one.
     func testDecoderMintsFreshIDForJSONWithoutIDField() throws {
         let layer = LayerSettings(effectType: .orb)
