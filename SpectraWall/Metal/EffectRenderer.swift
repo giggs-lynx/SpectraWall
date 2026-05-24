@@ -103,6 +103,12 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// CFRunLoopStop() is what lets the thread exit.
     private var displayLinkRunLoop: CFRunLoop?
 
+    /// Per-renderer perf meter. Always on; logs via AppLog.render at info
+    /// level which is zero-cost without a subscriber. See RenderMetrics.swift
+    /// for the rolling-window definition and the `log show` invocation that
+    /// surfaces the heartbeat line.
+    private let metrics: RenderMetrics
+
     private let commandQueue: MTLCommandQueue
 
     // MARK: - Unified pipeline + submission storage
@@ -143,6 +149,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         self.metalLayer    = metalLayer
         let displayID = screen?.displayID ?? 0
         self.displayID = displayID
+        self.metrics = RenderMetrics(displayID: displayID)
         self.renderQueue  = DispatchQueue(label: "spectrawall.renderer.\(displayID)",
                                           qos: .userInteractive)
         renderQueue.setSpecific(key: Self.renderQueueKey, value: 1)
@@ -324,6 +331,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// callback exit — so we hop to `renderQueue` synchronously and do the work there.
     @objc func metalDisplayLink(_ link: CAMetalDisplayLink,
                                 needsUpdate update: CAMetalDisplayLink.Update) {
+        metrics.recordCallback(at: CACurrentMediaTime())
         let drawable = update.drawable
         let presentTime = update.targetPresentationTimestamp
         renderQueue.sync {
@@ -338,7 +346,8 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// by the framework — no `nextDrawable()` acquire, no per-frame blocking wait —
     /// and `presentTime` is the predicted vsync at which to flip.
     func draw(drawable: CAMetalDrawable, presentTime: CFTimeInterval) {
-        let now = CACurrentMediaTime()
+        let frameStart = CACurrentMediaTime()
+        let now = frameStart
         // We're already on renderQueue (via the displayLink delegate's sync
         // hop) and every mutator now serializes through this same queue, so
         // direct access is safe — no lock or snapshot required. Tick clients
@@ -406,5 +415,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         // `present(_:atTime:)` with it is explicitly disallowed and throws.
         commandBuffer.present(drawable)
         commandBuffer.commit()
+
+        metrics.recordFrame(start: frameStart, end: CACurrentMediaTime())
     }
 }
