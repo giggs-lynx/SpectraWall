@@ -78,6 +78,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
     let metalDevice: MTLDevice
     let metalLayer: CAMetalLayer
+    let displayID: CGDirectDisplayID
     /// Serial queue this renderer's ticks + draw run on. Audio subscribers also
     /// receive on this queue so all effect state mutations are serialized here
     /// (no locks needed for per-effect state).
@@ -88,6 +89,17 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// blocked ≈ one vsync per frame waiting for a free drawable. Here the drawable
     /// is delivered to the delegate callback already acquired, eliminating that wait.
     private var displayLink: CAMetalDisplayLink?
+
+    /// Dedicated thread the displayLink runs its callbacks on. Each renderer owns
+    /// its own thread so dual-screen setups don't share a runloop — sharing
+    /// `.main` causes the two callbacks to starve each other when their refresh
+    /// rates are an integer ratio (60Hz × 2 = 120Hz ProMotion).
+    private var displayLinkThread: Thread?
+
+    /// CFRunLoop of `displayLinkThread`, stashed so `invalidate()` can stop it
+    /// from another thread. CFRunLoopRun() blocks indefinitely; the matching
+    /// CFRunLoopStop() is what lets the thread exit.
+    private var displayLinkRunLoop: CFRunLoop?
 
     private let commandQueue: MTLCommandQueue
 
@@ -128,6 +140,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         self.commandQueue  = queue
         self.metalLayer    = metalLayer
         let displayID = screen?.displayID ?? 0
+        self.displayID = displayID
         self.renderQueue  = DispatchQueue(label: "spectrawall.renderer.\(displayID)",
                                           qos: .userInteractive)
         renderQueue.setSpecific(key: Self.renderQueueKey, value: 1)
@@ -162,17 +175,41 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         )
 
         // CAMetalDisplayLink delivers callbacks on whichever runloop we add it to.
-        // Adding to the main runloop in .common mode means the delegate fires on
-        // main thread; we immediately hop to renderQueue (sync) so all effect-state
-        // access stays serialized with audio subscribers (which also receive on
-        // renderQueue). The sync call blocks main for the duration of one frame
-        // worth of encoding (typically < 1ms since drawable is provided, not
-        // acquired).
-        let link = CAMetalDisplayLink(metalLayer: metalLayer)
-        link.delegate = self
-        link.preferredFrameLatency = 2
-        link.add(to: .main, forMode: .common)
-        self.displayLink = link
+        // We start a dedicated thread per renderer and add the link to that
+        // thread's runloop so:
+        //   1. Dual-screen setups don't have both displayLinks contending for
+        //      the main runloop (which caused cb-gap-max ≈ 600ms on the 60Hz
+        //      screen in practice).
+        //   2. main thread is free to handle SwiftUI / AppKit / audio listener
+        //      callbacks without delaying vsync delivery.
+        // The callback still hops to renderQueue.sync to keep effect-state
+        // mutations serialized with audio subscribers.
+        startDisplayLinkOnDedicatedThread(for: metalLayer)
+    }
+
+    private func startDisplayLinkOnDedicatedThread(for metalLayer: CAMetalLayer) {
+        let threadName = "spectrawall.displaylink.\(displayID)"
+        let thread = Thread { [weak self] in
+            guard let self else { return }
+            self.displayLinkRunLoop = CFRunLoopGetCurrent()
+            let link = CAMetalDisplayLink(metalLayer: metalLayer)
+            link.delegate = self
+            link.preferredFrameLatency = 2
+            link.add(to: .current, forMode: .common)
+            self.displayLink = link
+            // Block this thread on its CFRunLoop indefinitely. The displayLink
+            // ticks the runloop on every vsync; teardown calls CFRunLoopStop
+            // (from invalidate(), on whichever queue) to unblock and let the
+            // thread exit. Don't replace this with `while !cancelled { RunLoop
+            // .run(mode:before:) }` — that idiom spins at 100% CPU when no
+            // input source has events queued, because run(mode:before:)
+            // returns immediately in that case.
+            CFRunLoopRun()
+        }
+        thread.qualityOfService = .userInteractive
+        thread.name = threadName
+        thread.start()
+        self.displayLinkThread = thread
     }
 
     private static func makePipeline(device: MTLDevice,
@@ -203,7 +240,24 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     func invalidate() {
         displayLink?.invalidate()
         displayLink = nil
+        // Unblock the dedicated thread's CFRunLoopRun() so the closure
+        // returns and the thread exits. Stop the runloop *before* dropping
+        // the reference; otherwise we lose the only handle on it.
+        if let runLoop = displayLinkRunLoop {
+            CFRunLoopStop(runLoop)
+        }
+        displayLinkRunLoop = nil
+        displayLinkThread = nil
         AppLog.render.info("EffectRenderer invalidated")
+    }
+
+    deinit {
+        // Safety net: AppDelegate's window teardown always calls invalidate()
+        // before releasing us, but if anything ever drops the last reference
+        // without that, make sure the dedicated thread doesn't zombie.
+        if displayLinkThread != nil {
+            invalidate()
+        }
     }
 
     // MARK: - Configuration
