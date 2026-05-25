@@ -8,6 +8,7 @@
 import AppKit
 import SwiftUI
 import simd
+import Combine
 
 class SpectrumEffect: BaseEffect {
 
@@ -20,11 +21,27 @@ class SpectrumEffect: BaseEffect {
     private var renderedHeight: [Float] = Array(repeating: 0, count: 96)
     private var lastTickTime:   TimeInterval = 0
 
+    // Animation style cached on renderQueue via Combine sink so onTick never
+    // touches AppSettings (an ObservableObject) from a background thread.
+    private var cachedMotionStyle: MotionStyle = .smooth
+
     private var spectrumSettings: SpectrumSettings {
         layer.effectSettings as? SpectrumSettings ?? .defaults
     }
 
     override class var effectTypeName: String { "Spectrum" }
+
+    // MARK: - Lifecycle
+
+    override init(size: CGSize, layer: LayerSettings, screen: NSScreen) {
+        super.init(size: size, layer: layer, screen: screen)
+        cachedMotionStyle = AppSettings.shared.motionStyle
+        let queue: DispatchQueue = renderer?.renderQueue ?? .main
+        AppSettings.shared.$motionStyle
+            .receive(on: queue)
+            .sink { [weak self] style in self?.cachedMotionStyle = style }
+            .store(in: &cancellables)
+    }
 
     // MARK: - BaseEffect hooks
 
@@ -38,7 +55,15 @@ class SpectrumEffect: BaseEffect {
         guard let renderer else { return }
 
         let dt = lastTickTime == 0 ? 0.016 : min(timestamp - lastTickTime, 0.1)
-        let lerpRate = Float(1.0 - exp(-dt / 0.05))
+        // Snappy = 50ms linear reach (matches the SpriteKit SKAction baseline).
+        // Smooth uses a longer 180ms exponential time constant so the tail
+        // is visibly distinct — matching the two modes at 50ms makes them
+        // look identical to the eye at 60Hz.
+        let lerpRate: Float
+        switch cachedMotionStyle {
+        case .snappy: lerpRate = Float(min(dt / 0.05, 1.0))
+        case .smooth: lerpRate = Float(1.0 - exp(-dt / 0.18))
+        }
         let powerCurve = Float(spectrumSettings.powerCurve)
         for i in 0..<binCount {
             let target = pow(smoothed[i], powerCurve)

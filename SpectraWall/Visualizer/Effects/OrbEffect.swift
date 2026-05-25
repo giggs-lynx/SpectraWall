@@ -8,6 +8,7 @@
 import AppKit
 import SwiftUI
 import simd
+import Combine
 
 class OrbEffect: BaseEffect {
 
@@ -26,6 +27,11 @@ class OrbEffect: BaseEffect {
     private var renderedOuterScale: Float = 0
     private var lastTickTime: TimeInterval = 0
 
+    // Animation style cached on renderQueue via Combine sink so onTick never
+    // touches AppSettings (an ObservableObject) from a background thread.
+    // Wired in init() right after super.init so `renderer` / renderQueue exist.
+    private var cachedMotionStyle: MotionStyle = .smooth
+
     private var orbSettings: OrbSettings {
         layer.effectSettings as? OrbSettings ?? .defaults
     }
@@ -33,6 +39,18 @@ class OrbEffect: BaseEffect {
     private let fanSegments = 32
 
     override class var effectTypeName: String { "Orb" }
+
+    // MARK: - Lifecycle
+
+    override init(size: CGSize, layer: LayerSettings, screen: NSScreen) {
+        super.init(size: size, layer: layer, screen: screen)
+        cachedMotionStyle = AppSettings.shared.motionStyle
+        let queue: DispatchQueue = renderer?.renderQueue ?? .main
+        AppSettings.shared.$motionStyle
+            .receive(on: queue)
+            .sink { [weak self] style in self?.cachedMotionStyle = style }
+            .store(in: &cancellables)
+    }
 
     // MARK: - BaseEffect hooks
 
@@ -49,8 +67,24 @@ class OrbEffect: BaseEffect {
         guard let renderer else { return }
 
         let dt = lastTickTime == 0 ? 0.016 : min(timestamp - lastTickTime, 0.1)
-        renderedInnerScale += (currentScale - renderedInnerScale) * Float(1.0 - exp(-dt / 0.05))
-        renderedOuterScale += (currentScale - renderedOuterScale) * Float(1.0 - exp(-dt / 0.08))
+        switch cachedMotionStyle {
+        case .snappy:
+            // Linear tween rate: rendered closes the remaining distance over
+            // a fixed duration, clamped so we never overshoot. Once the value
+            // reaches the target it stops moving — sharp, no tail.
+            let innerRate = Float(min(dt / 0.05, 1.0))
+            let outerRate = Float(min(dt / 0.08, 1.0))
+            renderedInnerScale += (currentScale - renderedInnerScale) * innerRate
+            renderedOuterScale += (currentScale - renderedOuterScale) * outerRate
+        case .smooth:
+            // Exponential approach with longer time constants than snappy's
+            // 50ms / 80ms so the tail is visibly distinct from the linear
+            // reach. With matching time constants the two modes look almost
+            // identical at 60Hz; bumping smooth to 180ms / 250ms makes the
+            // dampened "trailing" feel obvious.
+            renderedInnerScale += (currentScale - renderedInnerScale) * Float(1.0 - exp(-dt / 0.18))
+            renderedOuterScale += (currentScale - renderedOuterScale) * Float(1.0 - exp(-dt / 0.25))
+        }
         lastTickTime = timestamp
 
         renderer.submit(id: id, type: .orb, mesh: buildOrbData())
