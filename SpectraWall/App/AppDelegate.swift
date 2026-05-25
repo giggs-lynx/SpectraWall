@@ -216,6 +216,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self?.setupDesktopWindows()
         }
 
+        // Built-in display's CAMetalDisplayLink can stop delivering callbacks
+        // after sleep even when the layer/screen still look valid; rebuilding
+        // the renderer is the only reliable recovery. External displays
+        // usually recover on their own but get rebuilt here too for simplicity.
+        let ws = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didWakeNotification,
+                     NSWorkspace.screensDidWakeNotification] {
+            ws.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                self?.setupDesktopWindows()
+            }
+        }
+
         AppSettings.shared.$enabledDisplayIDs
             .dropFirst()
             .receive(on: DispatchQueue.main)
