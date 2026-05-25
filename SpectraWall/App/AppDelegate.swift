@@ -183,7 +183,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // draw loop runs on a private queue driven by CVDisplayLink (below)
         // instead of MTKView's internal main-thread display callback.
         let metalView = EffectsHostView(frame: NSRect(origin: .zero, size: size))
-        guard let renderer = EffectRenderer(metalLayer: metalView.metalLayer, screen: screen) else { return nil }
+        let sampleCount = AppSettings.shared.msaaEnabled ? 4 : 1
+        guard let renderer = EffectRenderer(metalLayer: metalView.metalLayer,
+                                            screen: screen,
+                                            sampleCount: sampleCount) else { return nil }
 
         EffectRendererRegistry.shared.register(renderer, for: screen)
 
@@ -229,6 +232,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         AppSettings.shared.$enabledDisplayIDs
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.setupDesktopWindows() }
+            .store(in: &cancellables)
+
+        // MSAA toggle. sampleCount is fixed at renderer init (pipelines compile
+        // against it), so flipping the setting requires tearing down and
+        // rebuilding every renderer.
+        AppSettings.shared.$msaaEnabled
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.setupDesktopWindows() }

@@ -79,6 +79,15 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     let metalDevice: MTLDevice
     let metalLayer: CAMetalLayer
     let displayID: CGDirectDisplayID
+    /// 1 = single-sample (no MSAA); 4 = 4× MSAA with offscreen multisample
+    /// target + resolve into the drawable. Fixed at init time — pipelines
+    /// are compiled against this count and can't be rebuilt without
+    /// reconstructing the renderer.
+    let sampleCount: Int
+    /// Offscreen multisample render target, only allocated when sampleCount > 1.
+    /// Lazily (re)created in `draw()` to match the current drawable size.
+    /// `.memoryless` on Apple Silicon keeps it in tile memory only (no DRAM).
+    private var msaaTexture: MTLTexture?
     /// Serial queue this renderer's ticks + draw run on. Audio subscribers also
     /// receive on this queue so all effect state mutations are serialized here
     /// (no locks needed for per-effect state).
@@ -136,7 +145,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
     // MARK: - Initialization
 
-    init?(metalLayer: CAMetalLayer, screen: NSScreen?) {
+    init?(metalLayer: CAMetalLayer, screen: NSScreen?, sampleCount: Int = 1) {
         guard
             let device = metalLayer.device ?? MTLCreateSystemDefaultDevice(),
             let queue  = device.makeCommandQueue()
@@ -145,6 +154,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         self.metalDevice   = device
         self.commandQueue  = queue
         self.metalLayer    = metalLayer
+        self.sampleCount   = sampleCount
         let displayID = screen?.displayID ?? 0
         self.displayID = displayID
         self.metrics = RenderMetrics(displayID: displayID)
@@ -166,7 +176,8 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         for (type, descriptor) in registry {
             guard let pipeline = Self.makePipeline(device: device,
                                                    library: library,
-                                                   spec: descriptor.pipelineSpec) else {
+                                                   spec: descriptor.pipelineSpec,
+                                                   sampleCount: sampleCount) else {
                 AppLog.render.error("Failed to compile pipeline for \(type.rawValue, privacy: .public)")
                 return nil
             }
@@ -221,7 +232,8 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
     private static func makePipeline(device: MTLDevice,
                                      library: MTLLibrary,
-                                     spec: PipelineSpec) -> MTLRenderPipelineState? {
+                                     spec: PipelineSpec,
+                                     sampleCount: Int) -> MTLRenderPipelineState? {
         guard
             let vf = library.makeFunction(name: spec.vertexFunctionName),
             let ff = library.makeFunction(name: spec.fragmentFunctionName)
@@ -229,11 +241,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         let desc = MTLRenderPipelineDescriptor()
         desc.vertexFunction    = vf
         desc.fragmentFunction  = ff
-        // MSAA disabled in this revision — CAMetalLayer's drawable texture is
-        // single-sample, so MSAA would require an offscreen multisample texture
-        // + resolve pass. Acceptable for now; effects use alpha-blended smoothstep
-        // edges so visual difference is small.
-        desc.rasterSampleCount = 1
+        desc.rasterSampleCount = sampleCount
         desc.colorAttachments[0].pixelFormat = .bgra8Unorm
         if let att = desc.colorAttachments[0] {
             spec.blendMode.apply(to: att)
@@ -361,10 +369,35 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
         let pass = MTLRenderPassDescriptor()
-        pass.colorAttachments[0].texture     = drawable.texture
-        pass.colorAttachments[0].loadAction  = .clear
-        pass.colorAttachments[0].storeAction = .store
-        pass.colorAttachments[0].clearColor  = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        if sampleCount > 1 {
+            // Ensure the offscreen multisample texture matches the current
+            // drawable size; window resize / display change can change it.
+            let w = drawable.texture.width
+            let h = drawable.texture.height
+            if msaaTexture?.width != w || msaaTexture?.height != h {
+                let texDesc = MTLTextureDescriptor.texture2DDescriptor(
+                    pixelFormat: .bgra8Unorm,
+                    width: w, height: h,
+                    mipmapped: false
+                )
+                texDesc.textureType = .type2DMultisample
+                texDesc.sampleCount = sampleCount
+                texDesc.usage = .renderTarget
+                // Tile-memory only on Apple Silicon — never touches DRAM, which
+                // matters because at 4× a retina-scale MS target can be 100s of MB.
+                texDesc.storageMode = metalDevice.hasUnifiedMemory ? .memoryless : .private
+                msaaTexture = metalDevice.makeTexture(descriptor: texDesc)
+            }
+            pass.colorAttachments[0].texture        = msaaTexture
+            pass.colorAttachments[0].resolveTexture = drawable.texture
+            pass.colorAttachments[0].loadAction     = .clear
+            pass.colorAttachments[0].storeAction    = .multisampleResolve
+        } else {
+            pass.colorAttachments[0].texture     = drawable.texture
+            pass.colorAttachments[0].loadAction  = .clear
+            pass.colorAttachments[0].storeAction = .store
+        }
+        pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
 
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else {
             commandBuffer.commit()

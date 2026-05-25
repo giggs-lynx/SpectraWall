@@ -78,6 +78,15 @@ struct GlobalSettingsView: View {
 
                 Divider()
 
+                SectionHeader(title: "Rendering")
+                VStack(spacing: 10) {
+                    Toggle("Anti-aliasing (MSAA 4×)", isOn: $appSettings.msaaEnabled)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+
+                Divider()
+
                 HStack {
                     Spacer()
                     Button("Reset to Defaults") {

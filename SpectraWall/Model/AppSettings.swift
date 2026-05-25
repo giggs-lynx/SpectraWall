@@ -47,6 +47,11 @@ class AppSettings: ObservableObject {
         didSet { writeConfig { $0.motionStyle = motionStyle } }
     }
 
+    /// 4× MSAA toggle. Renderers are rebuilt when this changes.
+    @Published var msaaEnabled: Bool {
+        didSet { writeConfig { $0.msaaEnabled = msaaEnabled } }
+    }
+
     private init() {
         let config = XDGStorage.shared.loadConfig() ?? AppConfig()
         let state = XDGStorage.shared.loadState() ?? AppState()
@@ -58,6 +63,7 @@ class AppSettings: ObservableObject {
             enabledDisplayIDs = [CGMainDisplayID()]
         }
         motionStyle = config.motionStyle
+        msaaEnabled = config.msaaEnabled
 
         // After all stored properties are initialized we can safely persist
         // any first-launch defaults.
