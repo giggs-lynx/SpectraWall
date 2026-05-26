@@ -213,22 +213,16 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     }
 
     private func startDisplayLinkOnDedicatedThread(for metalLayer: CAMetalLayer) {
+        let link = CAMetalDisplayLink(metalLayer: metalLayer)
+        link.delegate = self
+        link.preferredFrameLatency = 2
+        self.displayLink = link
+
         let threadName = "spectrawall.displaylink.\(displayID)"
         let thread = Thread { [weak self] in
             guard let self else { return }
             self.displayLinkRunLoop = CFRunLoopGetCurrent()
-            let link = CAMetalDisplayLink(metalLayer: metalLayer)
-            link.delegate = self
-            link.preferredFrameLatency = 2
             link.add(to: .current, forMode: .common)
-            self.displayLink = link
-            // Block this thread on its CFRunLoop indefinitely. The displayLink
-            // ticks the runloop on every vsync; teardown calls CFRunLoopStop
-            // (from invalidate(), on whichever queue) to unblock and let the
-            // thread exit. Don't replace this with `while !cancelled { RunLoop
-            // .run(mode:before:) }` — that idiom spins at 100% CPU when no
-            // input source has events queued, because run(mode:before:)
-            // returns immediately in that case.
             CFRunLoopRun()
         }
         thread.qualityOfService = .userInteractive

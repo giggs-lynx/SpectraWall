@@ -126,7 +126,7 @@ class EffectsCoordinator: NSObject {
     }
 
     private func updateEffectVisuals(for layer: LayerSettings) {
-        guard var effect = effects[layer.id] else { return }
+        guard let effect = effects[layer.id] else { return }
         effect.isVisible = layer.isVisible
         effect.opacity = Float(layer.opacity)
     }
