@@ -12,19 +12,20 @@ import simd
 // MARK: - BorderSegment
 
 extension BorderEffect {
-    /// One segment of the rounded-rectangle border path. Straight edges are `.line`;
-    /// rounded corners are `.bezier` (quintic — degree 5), which gives C2 continuity at
-    /// the line↔corner boundary (curvature = 0 at both endpoints) and eliminates the
-    /// visible "breakpoint" a thick stroke shows where a line meets a circular arc.
-    struct BorderSegment {
-        enum Kind {
-            case line(start: CGPoint, end: CGPoint)
-            /// `controls` is 6 control points P0…P5. `arcLUT` has 33 entries of cumulative
-            /// chord length sampled at uniform `t∈[0,1]`. `arcLUT.last == length`.
-            case bezier(controls: [CGPoint], arcLUT: [CGFloat])
-        }
+    struct BezierTableResult {
+        var lut: [CGFloat]
+        var length: CGFloat
+        var minRadius: CGFloat
+    }
 
-        var kind: Kind
+    enum BorderSegmentKind {
+        case line(start: CGPoint, end: CGPoint)
+        case bezier(controls: [CGPoint], arcLUT: [CGFloat])
+    }
+
+    struct BorderSegment {
+
+        var kind: BorderSegmentKind
         var length: CGFloat
         /// Smallest radius of curvature along the segment (= 1 / max |κ|). For lines this
         /// is `.infinity`; for the corner Bézier it's the tightest local radius (occurs
@@ -94,9 +95,7 @@ extension BorderEffect {
             return len > 0 ? CGPoint(x: pts[0].x / len, y: pts[0].y / len) : CGPoint(x: 1, y: 0)
         }
 
-        /// Build the 33-entry arc-length LUT for a quintic Bézier and return
-        /// (lut, totalLength, minRadius). Sampling at 32 segments gives ~0.05% length error.
-        static func buildBezierTables(_ controls: [CGPoint]) -> (lut: [CGFloat], length: CGFloat, minRadius: CGFloat) {
+        static func buildBezierTables(_ controls: [CGPoint]) -> BezierTableResult {
             let steps = 32
             var lut: [CGFloat] = []
             lut.reserveCapacity(steps + 1)
@@ -109,14 +108,16 @@ extension BorderEffect {
                 let p = evaluateQuintic(controls, t: t)
                 let dx = p.x - prevPoint.x
                 let dy = p.y - prevPoint.y
-                lut.append(lut.last! + sqrt(dx * dx + dy * dy))
+                let prevLen = lut[lut.count - 1]
+                lut.append(prevLen + sqrt(dx * dx + dy * dy))
                 prevPoint = p
 
                 let k = abs(curvature(controls, t: t))
                 if k > maxKappa { maxKappa = k }
             }
+            let totalLength = lut[lut.count - 1]
             let minRadius: CGFloat = maxKappa > 0 ? 1 / maxKappa : .infinity
-            return (lut, lut.last!, minRadius)
+            return BezierTableResult(lut: lut, length: totalLength, minRadius: minRadius)
         }
 
         /// Signed curvature κ(t) = (x'·y'' − y'·x'') / (x'² + y'²)^(3/2).
@@ -216,39 +217,31 @@ extension BorderEffect {
         // Each rounded corner is a quintic Bézier whose endpoints are tangent to the
         // adjoining straight edges AND have zero curvature there — eliminates the
         // line→arc C2 jump that shows up as a visible "kink" on thick strokes.
-        let tRight = CGPoint(x:  1, y:  0)
-        let tDown  = CGPoint(x:  0, y:  1)
-        let tLeft  = CGPoint(x: -1, y:  0)
-        let tUp    = CGPoint(x:  0, y: -1)
+        let tRight = CGPoint(x: 1, y: 0)
+        let tDown = CGPoint(x: 0, y: 1)
+        let tLeft = CGPoint(x: -1, y: 0)
+        let tUp = CGPoint(x: 0, y: -1)
 
         let segs: [BorderSegment] = [
-            // Top edge
-            makeLine(CGPoint(x: inset + r,         y: inset),
+            makeLine(CGPoint(x: inset + r, y: inset),
                      CGPoint(x: inset + width - r, y: inset)),
-            // Top-right corner
             makeBezierCorner(start: CGPoint(x: inset + width - r, y: inset),
-                             end:   CGPoint(x: inset + width,     y: inset + r),
+                             end: CGPoint(x: inset + width, y: inset + r),
                              t0: tRight, t1: tDown, r: r),
-            // Right edge
             makeLine(CGPoint(x: inset + width, y: inset + r),
                      CGPoint(x: inset + width, y: inset + height - r)),
-            // Bottom-right corner
-            makeBezierCorner(start: CGPoint(x: inset + width,     y: inset + height - r),
-                             end:   CGPoint(x: inset + width - r, y: inset + height),
+            makeBezierCorner(start: CGPoint(x: inset + width, y: inset + height - r),
+                             end: CGPoint(x: inset + width - r, y: inset + height),
                              t0: tDown, t1: tLeft, r: r),
-            // Bottom edge
             makeLine(CGPoint(x: inset + width - r, y: inset + height),
-                     CGPoint(x: inset + r,         y: inset + height)),
-            // Bottom-left corner
+                     CGPoint(x: inset + r, y: inset + height)),
             makeBezierCorner(start: CGPoint(x: inset + r, y: inset + height),
-                             end:   CGPoint(x: inset,     y: inset + height - r),
+                             end: CGPoint(x: inset, y: inset + height - r),
                              t0: tLeft, t1: tUp, r: r),
-            // Left edge
             makeLine(CGPoint(x: inset, y: inset + height - r),
                      CGPoint(x: inset, y: inset + r)),
-            // Top-left corner
-            makeBezierCorner(start: CGPoint(x: inset,     y: inset + r),
-                             end:   CGPoint(x: inset + r, y: inset),
+            makeBezierCorner(start: CGPoint(x: inset, y: inset + r),
+                             end: CGPoint(x: inset + r, y: inset),
                              t0: tUp, t1: tRight, r: r)
         ]
 
@@ -280,10 +273,10 @@ extension BorderEffect {
         let p4 = CGPoint(x: end.x   - a * t1.x, y: end.y   - a * t1.y)
         let p3 = CGPoint(x: p4.x    - b * t1.x, y: p4.y    - b * t1.y)
         let controls = [start, p1, p2, p3, p4, end]
-        let (lut, length, minRadius) = BorderSegment.buildBezierTables(controls)
-        return BorderSegment(kind: .bezier(controls: controls, arcLUT: lut),
-                             length: length,
-                             minRadius: minRadius)
+        let tables = BorderSegment.buildBezierTables(controls)
+        return BorderSegment(kind: .bezier(controls: controls, arcLUT: tables.lut),
+                             length: tables.length,
+                             minRadius: tables.minRadius)
     }
     
     func segmentAt(distance: CGFloat, segments: [BorderSegment]) -> (Int, CGFloat) {
@@ -367,311 +360,5 @@ extension BorderEffect {
         }
 
         return points
-    }
-}
-
-// MARK: - Trail Vertex Building
-
-extension BorderEffect {
-    
-    func buildStripFromCenterline(
-        points: [CGPoint],
-        width: CGFloat,
-        color: SIMD4<Float>,
-        alpha: Float
-    ) -> [EffectVertex] {
-        var vertices: [EffectVertex] = []
-        let half = width / 2
-        for index in 0..<points.count {
-            let point = points[index]
-            let normal: CGPoint
-            if index == 0 {
-                normal = perp(normalize(CGPoint(x: points[1].x - point.x, y: points[1].y - point.y)))
-            } else if index == points.count - 1 {
-                let prev = points[index - 1]
-                normal = perp(normalize(CGPoint(x: point.x - prev.x, y: point.y - prev.y)))
-            } else {
-                let prev = points[index - 1]
-                let next = points[index + 1]
-                normal = perp(normalize(CGPoint(x: next.x - prev.x, y: next.y - prev.y)))
-            }
-            vertices.append(EffectVertex(
-                position: SIMD2(Float(point.x + normal.x * half), Float(point.y + normal.y * half)),
-                color: color, alpha: alpha, edgeDist: -1.0
-            ))
-            vertices.append(EffectVertex(
-                position: SIMD2(Float(point.x - normal.x * half), Float(point.y - normal.y * half)),
-                color: color, alpha: alpha, edgeDist: 1.0
-            ))
-        }
-        return vertices
-    }
-    
-    private struct TrailContext {
-        var centerPoints: [CGPoint] = []
-        var widths: [CGFloat] = []
-        var stripWidths: [CGFloat] = []
-        var colors: [SIMD4<Float>] = []      // pre-converted; avoids per-step NSColor alloc
-        var alphas: [CGFloat] = []
-        var tangents: [CGPoint] = []         // unit forward tangent in ctx iteration order (y-flipped)
-    }
-
-    private func prepareEffectMesh(
-        progress: Double,
-        amplitude: Float,
-        stripScale: CGFloat,
-        strokeIndex: Int,
-        alpha: Float?,
-        tailLengthOverride: Double? = nil
-    ) -> TrailContext {
-        let bs = borderSettings
-        let segments = borderSegments()
-        let inset = max(CGFloat(bs.baseWidth) / 2, 0)
-        // Sample density still scales with the corner-curve length so corners get enough
-        // samples regardless of trail length. cornerRadius - inset is the Bézier corner's
-        // approximate span; use it as the density anchor (same role as the old arcLength).
-        let cornerSpan = max(CGFloat(bs.cornerRadius) - inset, 0)
-        // Ghost callers pass an overridden tailLength so the silhouette can grow
-        // longer along the path direction (true equiscale with the width).
-        let effectiveTailLength = CGFloat(tailLengthOverride ?? Double(bs.tailLength))
-        let trailLength = effectiveTailLength * perimeterLength
-        let steps: Int = {
-            guard cornerSpan > 0 else { return 120 }
-            let needed = Int(trailLength / cornerSpan) * 8
-            return max(120, min(needed, 1200))
-        }()
-        let capacity = steps + 1
-
-        // Convert palette colors once — reused for every step via SIMD lerp.
-        let startNS  = strokeIndex == 0 ? bs.stroke1ColorStart.nsColor : bs.stroke2ColorStart.nsColor
-        let endNS    = strokeIndex == 0 ? bs.stroke1ColorEnd.nsColor   : bs.stroke2ColorEnd.nsColor
-        let colorStartV = SIMD4<Float>(Float(startNS.redComponent), Float(startNS.greenComponent),
-                                       Float(startNS.blueComponent), 1.0)
-        let colorEndV   = SIMD4<Float>(Float(endNS.redComponent),   Float(endNS.greenComponent),
-                                       Float(endNS.blueComponent),   1.0)
-
-        var ctx = TrailContext()
-        ctx.centerPoints.reserveCapacity(capacity)
-        ctx.widths.reserveCapacity(capacity)
-        ctx.stripWidths.reserveCapacity(capacity)
-        ctx.colors.reserveCapacity(capacity)
-        ctx.alphas.reserveCapacity(capacity)
-        ctx.tangents.reserveCapacity(capacity)
-
-        let heightF = sceneSize.height
-        // Main-trail-only "energy burst" flash. The ghost path (alpha != nil)
-        // already encodes its own colour + alpha via updateScaleGhosts, so we
-        // only modulate when this call is rendering the main trail.
-        let isMainTrail = (alpha == nil)
-        let flashIntensity: Float = {
-            guard isMainTrail, strokeIndex < strokeFlashIntensity.count else { return 0 }
-            return strokeFlashIntensity[strokeIndex]
-        }()
-        // pulseFlash controls peak mix-to-white at flashIntensity=1.
-        // Alpha boost is a fraction of the mix value so the two move together
-        // (mix 0.7 → α-boost 0.5; mix 1.0 → α-boost 0.71).
-        let pulseFlashPeak = Float(borderSettings.pulseFlash)
-        let flashWhiteMix = flashIntensity * pulseFlashPeak
-        let flashAlphaBoost = CGFloat(flashIntensity * pulseFlashPeak * (0.5 / 0.7))
-        let whiteV = SIMD4<Float>(1, 1, 1, 1)
-
-        for stepIndex in 0...steps {
-            let stepT  = CGFloat(stepIndex) / CGFloat(steps)
-            let stepTF = Float(stepT)
-            let distAlong = stepT * effectiveTailLength * perimeterLength
-            let rawDist = CGFloat(progress) * perimeterLength + (bs.clockwise ? distAlong : -distAlong)
-            let wrapped = ((rawDist.truncatingRemainder(dividingBy: perimeterLength)) + perimeterLength)
-                .truncatingRemainder(dividingBy: perimeterLength)
-
-            let (segIdx, localDist) = segmentAt(distance: wrapped, segments: segments)
-            let seg = segments[segIdx]
-            let localT = seg.length > 0 ? min(localDist / seg.length, 1.0) : 0
-            let (point, tangent) = seg.sample(at: localT)
-
-            let baseW = (CGFloat(bs.baseWidth) + CGFloat(amplitude) * 3.0) * stepT
-            // Fold y-flip into the append to avoid a separate map pass after the loop.
-            ctx.centerPoints.append(CGPoint(x: point.x, y: heightF - point.y))
-            // stripScale also scales widths so the head fan grows in proportion
-            // with the body — otherwise a width×4 ghost ends up with a tiny
-            // head cap that breaks the "exact copy" feel.
-            ctx.widths.append(baseW * stripScale)
-            ctx.stripWidths.append(baseW * 3.0 * stripScale)
-            let baseColor = colorEndV + (colorStartV - colorEndV) * stepTF
-            // Flash only mixes white into the main trail at the moment of a
-            // pulse; ghost paths keep the trail's gradient so they look like
-            // a faithful scaled copy of the body, not a separate halo.
-            ctx.colors.append(baseColor + (whiteV - baseColor) * flashWhiteMix)
-            // Main trail multiplies layer opacity through every vertex; ghost
-            // path passes an explicit alpha that already includes opacity
-            // (see updateScaleGhosts), so don't double-apply.
-            let baseAlpha = isMainTrail ? stepT * CGFloat(opacity) : CGFloat(alpha ?? 0)
-            ctx.alphas.append(min(1.0, baseAlpha + flashAlphaBoost))
-            // Y-flip the tangent's y component to match centerPoints coordinate space.
-            ctx.tangents.append(CGPoint(x: tangent.x, y: -tangent.y))
-        }
-
-        ctx.centerPoints.reverse()
-        ctx.widths.reverse()
-        ctx.stripWidths.reverse()
-        ctx.colors.reverse()
-        ctx.alphas.reverse()
-        ctx.tangents.reverse()
-        // After the reverse, ctx[i+1] is "earlier on the path" than ctx[i]. We want
-        // tangents to point in the iteration order (toward ctx[i+1]), so negate.
-        for i in 0..<ctx.tangents.count {
-            ctx.tangents[i] = CGPoint(x: -ctx.tangents[i].x, y: -ctx.tangents[i].y)
-        }
-        return ctx
-    }
-
-    private func appendHeadFan(ctx: TrailContext, to vertices: inout [EffectVertex]) {
-        let hCenter = ctx.centerPoints[0]
-        let hDir = normalize(CGPoint(x: hCenter.x - ctx.centerPoints[1].x, y: hCenter.y - ctx.centerPoints[1].y))
-        let hNormal = perp(hDir)
-        let hRadius = ctx.widths[0] / 2
-        let hColor  = ctx.colors[0]
-        let hAlpha  = Float(ctx.alphas[0])
-        let fanSteps = 16
-        
-        for fanIndex in 0...fanSteps {
-            let angle = CGFloat(fanIndex) / CGFloat(fanSteps) * .pi
-            let ox = hNormal.x * cos(angle) * hRadius + hDir.x * sin(angle) * hRadius
-            let oy = hNormal.y * cos(angle) * hRadius + hDir.y * sin(angle) * hRadius
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x), Float(hCenter.y)),
-                                        color: hColor, alpha: hAlpha, edgeDist: 0.0))
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x + ox), Float(hCenter.y + oy)),
-                                        color: hColor, alpha: hAlpha, edgeDist: 1.0))
-        }
-        
-        if let lastFan = vertices.last {
-            let firstNormal = perp(normalize(CGPoint(x: ctx.centerPoints[1].x - hCenter.x,
-                                                     y: ctx.centerPoints[1].y - hCenter.y)))
-            let halfW = ctx.stripWidths[0] / 2
-            vertices.append(lastFan)
-            vertices.append(lastFan)
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x + firstNormal.x * halfW),
-                                                               Float(hCenter.y + firstNormal.y * halfW)),
-                                        color: hColor, alpha: hAlpha, edgeDist: -1.0))
-        }
-    }
-    
-    private func appendBodyStrip(ctx: TrailContext, to vertices: inout [EffectVertex]) {
-        let steps = ctx.centerPoints.count - 1
-        for i in 0...steps {
-            let point = ctx.centerPoints[i]
-            // Unified normal: perpendicular of the analytic tangent from seg.sample(at:).
-            // No line-vs-curve branch — straight edges and Bézier corners use the same code
-            // path, which is the whole point of moving to a single curve representation.
-            let normal = perp(ctx.tangents[i])
-            let halfW  = ctx.stripWidths[i] / 2
-            let innerHalfW = halfW
-
-            let color4 = ctx.colors[i]
-            let alpha  = Float(ctx.alphas[i])
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(point.x + normal.x * halfW),
-                                                               Float(point.y + normal.y * halfW)),
-                                        color: color4, alpha: alpha, edgeDist: -1.0))
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(point.x - normal.x * innerHalfW),
-                                                               Float(point.y - normal.y * innerHalfW)),
-                                        color: color4, alpha: alpha, edgeDist: 1.0))
-        }
-    }
-    
-    func buildTrailVertices(
-        strokeIndex: Int,
-        progress: Double,
-        amplitude: Float,
-        stripScale: CGFloat,
-        alpha: Float?
-    ) -> [EffectVertex] {
-        let ctx = prepareEffectMesh(progress: progress, amplitude: amplitude, stripScale: stripScale,
-                                   strokeIndex: strokeIndex, alpha: alpha)
-        var vertices: [EffectVertex] = []
-        vertices.reserveCapacity(ctx.centerPoints.count * 2 + 40)
-        appendHeadFan(ctx: ctx, to: &vertices)
-        appendBodyStrip(ctx: ctx, to: &vertices)
-        return vertices
-    }
-    
-    func buildEffectMesh(strokeIndex: Int) -> EffectMesh {
-        let amplitude: Float = strokes.count == 1
-        ? (smoothedLeft + smoothedRight) / 2
-        : (strokeIndex == 0 ? smoothedLeft : smoothedRight)
-        let vertices = buildTrailVertices(
-            strokeIndex: strokeIndex,
-            progress: strokes[strokeIndex].progress,
-            amplitude: amplitude,
-            stripScale: 1.0,
-            alpha: nil
-        )
-        return EffectMesh(vertices: vertices)
-    }
-    
-    /// Ghost = filled silhouette of the trail body, independently scaled
-    /// along the path's width and length. `widthScale` controls how wide
-    /// the ghost is (normal direction); `lengthScale` controls how far
-    /// the ghost extends along the path (centred on the body's midpoint).
-    /// Splitting them lets the caller damp the "shoots-forward" feeling of
-    /// length while still letting width breathe outward.
-    func buildScaledGhostMesh(
-        strokeIndex: Int,
-        amplitude: Float,
-        widthScale: CGFloat,
-        lengthScale: CGFloat,
-        alpha: Float
-    ) -> EffectMesh {
-        let bs = borderSettings
-        // Length axis: ghost path covers `lengthScale × tailLength` of the
-        // perimeter, centred on the body's midpoint (so it extends past both
-        // body endpoints by 0.5×(lengthScale-1)×tailLength).
-        let bodyTailLength = Double(bs.tailLength)
-        let ghostTailLength = bodyTailLength * Double(lengthScale)
-        let progressDelta = bodyTailLength * (1.0 - Double(lengthScale)) * 0.5
-        let bodyProgress = strokes[strokeIndex].progress
-        let ghostProgress = bodyProgress + (bs.clockwise ? progressDelta : -progressDelta)
-
-        // Width axis: stripScale=widthScale grows the ghost's width along
-        // each centreline sample's normal — same mechanism the body uses.
-        var ctx = prepareEffectMesh(
-            progress: ghostProgress,
-            amplitude: amplitude,
-            stripScale: widthScale,
-            strokeIndex: strokeIndex,
-            alpha: alpha,
-            tailLengthOverride: ghostTailLength
-        )
-        guard ctx.centerPoints.count >= 2 else {
-            return EffectMesh(vertices: [])
-        }
-
-        // The body strip is geometrically baseW×3 wide but the trail shader
-        // fades the outer two-thirds to near-zero alpha — so the body's
-        // *visible* width is roughly baseW (= ctx.widths). Ghost uses uniform
-        // fill (no fade), so we must shrink its strip width to match the
-        // body's visible width; otherwise the ghost looks 3× fatter than the
-        // body even at scale=1.0.
-        for i in 0..<ctx.stripWidths.count {
-            ctx.stripWidths[i] = ctx.widths[i]
-        }
-
-        var vertices: [EffectVertex] = []
-        vertices.reserveCapacity(ctx.centerPoints.count * 2 + 40)
-        appendHeadFan(ctx: ctx, to: &vertices)
-        appendBodyStrip(ctx: ctx, to: &vertices)
-
-        // Re-tag fill vertices' edgeDist=2.0 — sentinel that border_fragment
-        // reads as "uniform fill mode" (no edge fade). Without this the
-        // body shader would render the ghost as a centreline-bright strip
-        // that fades to transparent at the silhouette edges.
-        for i in 0..<vertices.count {
-            let v = vertices[i]
-            vertices[i] = EffectVertex(
-                position: v.position,
-                color: v.color,
-                alpha: v.alpha,
-                edgeDist: 2.0
-            )
-        }
-        return EffectMesh(vertices: vertices)
     }
 }

@@ -188,9 +188,10 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
             .sorted { $0.renderOrder < $1.renderOrder }
             .map(\.type)
 
-        AppLog.render.info(
-            "EffectRenderer initialized: displayID=\(displayID, privacy: .public) effects=\(self.drawOrder.count, privacy: .public)"
-        )
+        AppLog.render.info("""
+            Renderer init: display=\(displayID, privacy: .public) \
+            effects=\(self.drawOrder.count, privacy: .public)
+            """)
 
         // CAMetalDisplayLink delivers callbacks on whichever runloop we add it to.
         // We start a dedicated thread per renderer and add the link to that
@@ -354,12 +355,6 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     func draw(drawable: CAMetalDrawable, presentTime: CFTimeInterval) {
         let frameStart = CACurrentMediaTime()
         let now = frameStart
-        // We're already on renderQueue (via the displayLink delegate's sync
-        // hop) and every mutator now serializes through this same queue, so
-        // direct access is safe — no lock or snapshot required. Tick clients
-        // can mutate submissions reentrantly via their submit/remove calls;
-        // those run inline (same-queue fast path in onRenderQueue) so the
-        // mutations land in time for the draw loop below.
         let ticks = Array(frameClients.values)
         for tick in ticks { tick(now) }
         let sceneSizeSnap = screenSize
@@ -368,10 +363,30 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
+        let pass = makeRenderPassDescriptor(drawable: drawable)
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else {
+            commandBuffer.commit()
+            return
+        }
+
+        var sceneSizeForShader = sceneSizeSnap
+        encoder.setVertexBytes(&sceneSizeForShader, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
+
+        encodeSubmissions(submissionsSnap, pipelines: pipelinesSnap, encoder: encoder)
+
+        let activeIds = Set(submissionsSnap.keys)
+        buffers = buffers.filter { activeIds.contains($0.key) }
+
+        encoder.endEncoding()
+        commandBuffer.present(drawable)
+        commandBuffer.commit()
+
+        metrics.recordFrame(start: frameStart, end: CACurrentMediaTime())
+    }
+
+    private func makeRenderPassDescriptor(drawable: CAMetalDrawable) -> MTLRenderPassDescriptor {
         let pass = MTLRenderPassDescriptor()
         if sampleCount > 1 {
-            // Ensure the offscreen multisample texture matches the current
-            // drawable size; window resize / display change can change it.
             let w = drawable.texture.width
             let h = drawable.texture.height
             if msaaTexture?.width != w || msaaTexture?.height != h {
@@ -383,38 +398,34 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
                 texDesc.textureType = .type2DMultisample
                 texDesc.sampleCount = sampleCount
                 texDesc.usage = .renderTarget
-                // Tile-memory only on Apple Silicon — never touches DRAM, which
-                // matters because at 4× a retina-scale MS target can be 100s of MB.
                 texDesc.storageMode = metalDevice.hasUnifiedMemory ? .memoryless : .private
                 msaaTexture = metalDevice.makeTexture(descriptor: texDesc)
             }
-            pass.colorAttachments[0].texture        = msaaTexture
+            pass.colorAttachments[0].texture = msaaTexture
             pass.colorAttachments[0].resolveTexture = drawable.texture
-            pass.colorAttachments[0].loadAction     = .clear
-            pass.colorAttachments[0].storeAction    = .multisampleResolve
+            pass.colorAttachments[0].loadAction = .clear
+            pass.colorAttachments[0].storeAction = .multisampleResolve
         } else {
-            pass.colorAttachments[0].texture     = drawable.texture
-            pass.colorAttachments[0].loadAction  = .clear
+            pass.colorAttachments[0].texture = drawable.texture
+            pass.colorAttachments[0].loadAction = .clear
             pass.colorAttachments[0].storeAction = .store
         }
         pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        return pass
+    }
 
-        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else {
-            commandBuffer.commit()
-            return
-        }
-
-        var sceneSizeForShader = sceneSizeSnap
-        encoder.setVertexBytes(&sceneSizeForShader, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
-
-        // Group submissions by type so we set the pipeline once per group.
+    private func encodeSubmissions(
+        _ submissions: [ObjectIdentifier: (EffectType, EffectMesh)],
+        pipelines: [EffectType: MTLRenderPipelineState],
+        encoder: MTLRenderCommandEncoder
+    ) {
         var byType: [EffectType: [(ObjectIdentifier, EffectMesh)]] = [:]
-        for (id, payload) in submissionsSnap {
+        for (id, payload) in submissions {
             byType[payload.0, default: []].append((id, payload.1))
         }
 
         for type in drawOrder {
-            guard let pipeline = pipelinesSnap[type], let group = byType[type] else { continue }
+            guard let pipeline = pipelines[type], let group = byType[type] else { continue }
             encoder.setRenderPipelineState(pipeline)
             for (id, mesh) in group {
                 guard mesh.vertices.count >= 3 else { continue }
@@ -433,20 +444,10 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
                     buf = newBuf
                 }
                 encoder.setVertexBuffer(buf, offset: 0, index: 0)
-                encoder.drawPrimitives(type: mesh.primitiveType, vertexStart: 0, vertexCount: mesh.vertices.count)
+                encoder.drawPrimitives(type: mesh.primitiveType,
+                                       vertexStart: 0,
+                                       vertexCount: mesh.vertices.count)
             }
         }
-
-        // Prune buffers whose submissions have been removed since last frame.
-        let activeIds = Set(submissionsSnap.keys)
-        buffers = buffers.filter { activeIds.contains($0.key) }
-
-        encoder.endEncoding()
-        // CAMetalDisplayLink handles vsync timing internally; calling
-        // `present(_:atTime:)` with it is explicitly disallowed and throws.
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
-
-        metrics.recordFrame(start: frameStart, end: CACurrentMediaTime())
     }
 }

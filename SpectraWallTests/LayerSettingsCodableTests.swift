@@ -15,7 +15,7 @@ import XCTest
 
 final class LayerSettingsCodableTests: XCTestCase {
 
-    override class func setUp() {
+    override static func setUp() {
         super.setUp()
         EffectRegistry.bootstrap()
     }
@@ -35,7 +35,7 @@ final class LayerSettingsCodableTests: XCTestCase {
     /// Encoder no longer emits the `id` field, but pre-migration scene files
     /// have one. Decoder must preserve it onto the in-memory layer.
     func testDecoderPreservesLegacyIDField() throws {
-        let storedID = UUID(uuidString: "01234567-89AB-CDEF-0123-456789ABCDEF")!
+        let storedID = try XCTUnwrap(UUID(uuidString: "01234567-89AB-CDEF-0123-456789ABCDEF"))
         let layer = LayerSettings(effectType: .spectrum, name: "Legacy")
 
         let encoded = try JSONEncoder().encode(layer)
@@ -55,7 +55,7 @@ final class LayerSettingsCodableTests: XCTestCase {
     /// Reproduces a complaint that refactor head decodes as default colours
     /// even though the JSON has the customised hex values.
     func testRealOrbLayerJSONPreservesCustomColors() throws {
-        let json = """
+        let jsonString = """
         {
           "channelMode": "stereo",
           "effectSettings": {
@@ -77,7 +77,8 @@ final class LayerSettingsCodableTests: XCTestCase {
           "positionX": 0.5,
           "positionY": 0.5
         }
-        """.data(using: .utf8)!
+        """
+        let json = Data(jsonString.utf8)
 
         let layer = try JSONDecoder().decode(LayerSettings.self, from: json)
         XCTAssertEqual(layer.effectType, .orb)
@@ -86,10 +87,10 @@ final class LayerSettingsCodableTests: XCTestCase {
             return
         }
         // innerColorLow hex #59B0053C → AA=59 RR=B0 GG=05 BB=3C
-        XCTAssertEqual(orb.innerColorLow.red,   Double(0xB0) / 255, accuracy: 0.001,
+        XCTAssertEqual(orb.innerColorLow.red, Double(0xB0) / 255, accuracy: 0.001,
                        "innerColorLow.red lost on decode — got \(orb.innerColorLow.red)")
         XCTAssertEqual(orb.innerColorLow.green, Double(0x05) / 255, accuracy: 0.001)
-        XCTAssertEqual(orb.innerColorLow.blue,  Double(0x3C) / 255, accuracy: 0.001)
+        XCTAssertEqual(orb.innerColorLow.blue, Double(0x3C) / 255, accuracy: 0.001)
     }
 
     /// Default encoded JSON has no `id`. The decoder should mint a fresh one.

@@ -9,8 +9,8 @@ import SwiftUI
 
 struct SectionHeader: View {
     let title: LocalizedStringKey
-    var imageName: String? = nil
-    var systemImageName: String? = nil
+    var imageName: String?
+    var systemImageName: String?
     var imageIsTemplate: Bool = false
     var imageColor: Color = .secondary
 

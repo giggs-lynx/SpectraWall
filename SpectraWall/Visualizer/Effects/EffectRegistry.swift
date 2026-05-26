@@ -23,7 +23,7 @@
 import Foundation
 
 enum EffectRegistry {
-    static private(set) var all: [EffectType: EffectDescriptor] = [:]
+    private(set) static var all: [EffectType: EffectDescriptor] = [:]
 
     /// Lazily registered once on first access. Swift's static-let
     /// initialisation is dispatch_once-equivalent, so this is thread-safe

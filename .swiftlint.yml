@@ -1,6 +1,7 @@
 excluded:
   - SpectraWall.xcodeproj
   - .build
+  - build
   - Pods
   - Carthage
 
@@ -58,3 +59,19 @@ identifier_name:
     - j
     - to
     - in
+    - t
+    - r
+    - g
+    - b
+    - a
+    - h
+    - s
+    - p
+    - q
+    - f
+    - k
+    - v
+    - w
+    - c
+    - d
+    - m

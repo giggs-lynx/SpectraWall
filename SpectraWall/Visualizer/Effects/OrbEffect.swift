@@ -14,11 +14,11 @@ class OrbEffect: BaseEffect {
 
     // MARK: - Properties
 
-    private var smoothedLeft:  Float = 0
+    private var smoothedLeft: Float = 0
     private var smoothedRight: Float = 0
 
     // Derived from audio each callback; read in onTick (same renderQueue).
-    private var currentScale:      Float = 0
+    private var currentScale: Float = 0
     private var currentInnerColor: SIMD4<Float> = SIMD4(0.2, 0.4, 1.0, 1.0)
     private var currentOuterColor: SIMD4<Float> = SIMD4(0.2, 0.4, 1.0, 0.15)
 
@@ -142,38 +142,42 @@ class OrbEffect: BaseEffect {
         vertices.reserveCapacity(fanSegments * 3 * 2)
 
         // Outer glow first (drawn underneath inner orb); negative edgeDist = glow mode in shader
-        appendFan(to: &vertices, center: center, radius: outerR,
-                  color: currentOuterColor, alpha: opacity, outerEdgeDist: -1)
+        vertices.append(contentsOf: buildFan(center: center, radius: outerR,
+                                             color: currentOuterColor, alpha: opacity,
+                                             outerEdgeDist: -1))
 
         // Inner solid disk on top; positive edgeDist = solid-disk mode in shader
-        appendFan(to: &vertices, center: center, radius: innerR,
-                  color: currentInnerColor, alpha: opacity, outerEdgeDist: +1)
+        vertices.append(contentsOf: buildFan(center: center, radius: innerR,
+                                             color: currentInnerColor, alpha: opacity,
+                                             outerEdgeDist: +1))
 
         return EffectMesh(vertices: vertices, primitiveType: .triangle)
     }
 
-    private func appendFan(to vertices: inout [EffectVertex],
-                            center: SIMD2<Float>, radius: Float,
-                            color: SIMD4<Float>, alpha: Float,
-                            outerEdgeDist: Float) {
+    private func buildFan(center: SIMD2<Float>, radius: Float,
+                          color: SIMD4<Float>, alpha: Float,
+                          outerEdgeDist: Float) -> [EffectVertex] {
         let step = Float.pi * 2 / Float(fanSegments)
         let centerVert = EffectVertex(position: center, color: color, alpha: alpha, edgeDist: 0)
+        var result: [EffectVertex] = []
+        result.reserveCapacity(fanSegments * 3)
 
         for i in 0..<fanSegments {
             let a0 = step * Float(i)
             let a1 = step * Float(i + 1)
             let p0 = SIMD2<Float>(center.x + cos(a0) * radius, center.y + sin(a0) * radius)
             let p1 = SIMD2<Float>(center.x + cos(a1) * radius, center.y + sin(a1) * radius)
-            vertices.append(centerVert)
-            vertices.append(EffectVertex(position: p0, color: color, alpha: alpha, edgeDist: outerEdgeDist))
-            vertices.append(EffectVertex(position: p1, color: color, alpha: alpha, edgeDist: outerEdgeDist))
+            result.append(centerVert)
+            result.append(EffectVertex(position: p0, color: color, alpha: alpha, edgeDist: outerEdgeDist))
+            result.append(EffectVertex(position: p1, color: color, alpha: alpha, edgeDist: outerEdgeDist))
         }
+        return result
     }
 
     // MARK: - Color Helpers
 
     private func lerpColor(from lo: ColorData, to hi: ColorData,
-                            t: Float, alphaOverride: Float? = nil) -> SIMD4<Float> {
+                           t: Float, alphaOverride: Float? = nil) -> SIMD4<Float> {
         let r = Float(lo.red)   + (Float(hi.red)   - Float(lo.red))   * t
         let g = Float(lo.green) + (Float(hi.green)  - Float(lo.green)) * t
         let b = Float(lo.blue)  + (Float(hi.blue)   - Float(lo.blue))  * t

@@ -17,9 +17,9 @@ class SpectrumEffect: BaseEffect {
     private let binCount = 96
     private let barSpacing: CGFloat = 4
 
-    private var smoothed:       [Float] = Array(repeating: 0, count: 96)
+    private var smoothed: [Float] = Array(repeating: 0, count: 96)
     private var renderedHeight: [Float] = Array(repeating: 0, count: 96)
-    private var lastTickTime:   TimeInterval = 0
+    private var lastTickTime: TimeInterval = 0
 
     // Animation style cached on renderQueue via Combine sink so onTick never
     // touches AppSettings (an ObservableObject) from a background thread.
@@ -103,10 +103,10 @@ class SpectrumEffect: BaseEffect {
     // MARK: - Vertex Building
 
     private func buildVertices() -> [EffectVertex] {
-        let ss     = spectrumSettings
-        let curved = renderedHeight  // already power-curved in onTick
-        let gain   = CGFloat(ss.gain)
-        let half   = binCount / 2
+        let ss = spectrumSettings
+        let curved = renderedHeight
+        let gain = CGFloat(ss.gain)
+        let half = binCount / 2
 
         var vertices: [EffectVertex] = []
         vertices.reserveCapacity(binCount * 4 + (binCount - 1) * 3)
@@ -114,74 +114,64 @@ class SpectrumEffect: BaseEffect {
         switch ss.anchor {
         case .bottom, .top:
             let totalWidth = sceneSize.width * CGFloat(ss.width)
-            let barWidth   = max(1, (totalWidth - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
-            let leftEdgeX  = (sceneSize.width - totalWidth) * CGFloat(layer.positionX)
-            let baseY      = sceneSize.height * CGFloat(layer.positionY)
-            let maxH       = sceneSize.height * CGFloat(ss.maxHeight)
+            let barWidth = max(1, (totalWidth - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
+            let leftEdgeX = (sceneSize.width - totalWidth) * CGFloat(layer.positionX)
+            let baseY = sceneSize.height * CGFloat(layer.positionY)
+            let maxH = sceneSize.height * CGFloat(ss.maxHeight)
 
             for i in 0..<binCount {
-                let barH     = max(1, min(CGFloat(curved[i]) * maxH * gain, maxH))
-                let barLeft  = Float(leftEdgeX + CGFloat(i) * (barWidth + barSpacing))
+                let barH = max(1, min(CGFloat(curved[i]) * maxH * gain, maxH))
+                let barLeft = Float(leftEdgeX + CGFloat(i) * (barWidth + barSpacing))
                 let barRight = barLeft + Float(barWidth)
-                let isRight  = layer.channelMode == .stereo && i >= half
-                let color    = barColorSIMD(for: i, value: curved[i], isRight: isRight)
+                let isRight = layer.channelMode == .stereo && i >= half
+                let color = barColorSIMD(for: i, value: curved[i], isRight: isRight)
+                let (baseYF, tipYF): (Float, Float) =
+                    ss.anchor == .bottom ? (Float(baseY), Float(baseY + barH)) : (Float(baseY), Float(baseY - barH))
 
-                let (baseYF, tipYF): (Float, Float)
-                if ss.anchor == .bottom {
-                    baseYF = Float(baseY)
-                    tipYF  = Float(baseY + barH)
-                } else {
-                    baseYF = Float(baseY)
-                    tipYF  = Float(baseY - barH)
-                }
-
-                let v0 = EffectVertex(position: SIMD2(barLeft,  baseYF), color: color, alpha: opacity, edgeDist: -1)
-                let v1 = EffectVertex(position: SIMD2(barLeft,  tipYF),  color: color, alpha: opacity, edgeDist: +1)
+                let v0 = EffectVertex(position: SIMD2(barLeft, baseYF), color: color, alpha: opacity, edgeDist: -1)
+                let v1 = EffectVertex(position: SIMD2(barLeft, tipYF), color: color, alpha: opacity, edgeDist: +1)
                 let v2 = EffectVertex(position: SIMD2(barRight, baseYF), color: color, alpha: opacity, edgeDist: -1)
-                let v3 = EffectVertex(position: SIMD2(barRight, tipYF),  color: color, alpha: opacity, edgeDist: +1)
+                let v3 = EffectVertex(position: SIMD2(barRight, tipYF), color: color, alpha: opacity, edgeDist: +1)
                 appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
             }
 
         case .left, .right:
-            let totalHeight = sceneSize.height * CGFloat(ss.width)
-            let barHeight   = max(1, (totalHeight - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
-            let botEdgeY    = (sceneSize.height - totalHeight) * CGFloat(layer.positionY)
-            let baseX       = sceneSize.width * CGFloat(layer.positionX)
-            let maxW        = sceneSize.width * CGFloat(ss.maxHeight)
-
-            for i in 0..<binCount {
-                let barW    = max(1, min(CGFloat(curved[i]) * maxW * gain, maxW))
-                let barBot  = Float(botEdgeY + CGFloat(i) * (barHeight + barSpacing))
-                let barTop  = barBot + Float(barHeight)
-                let isRight = layer.channelMode == .stereo && i >= half
-                let color   = barColorSIMD(for: i, value: curved[i], isRight: isRight)
-
-                let (baseXF, tipXF): (Float, Float)
-                if ss.anchor == .left {
-                    baseXF = Float(baseX)
-                    tipXF  = Float(baseX + barW)
-                } else {
-                    baseXF = Float(baseX)
-                    tipXF  = Float(baseX - barW)
-                }
-
-                // For horizontal bars, strip order: (base,bot)→(tip,bot)→(base,top)→(tip,top)
-                let v0 = EffectVertex(position: SIMD2(baseXF, barBot), color: color, alpha: opacity, edgeDist: -1)
-                let v1 = EffectVertex(position: SIMD2(tipXF,  barBot), color: color, alpha: opacity, edgeDist: +1)
-                let v2 = EffectVertex(position: SIMD2(baseXF, barTop), color: color, alpha: opacity, edgeDist: -1)
-                let v3 = EffectVertex(position: SIMD2(tipXF,  barTop), color: color, alpha: opacity, edgeDist: +1)
-                appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
-            }
+            buildHorizontalBars(ss: ss, curved: curved, gain: gain, half: half, into: &vertices)
         }
 
         return vertices
     }
 
+    private func buildHorizontalBars(ss: SpectrumSettings, curved: [Float],
+                                     gain: CGFloat, half: Int,
+                                     into vertices: inout [EffectVertex]) {
+        let totalHeight = sceneSize.height * CGFloat(ss.width)
+        let barHeight = max(1, (totalHeight - barSpacing * CGFloat(binCount - 1)) / CGFloat(binCount))
+        let botEdgeY = (sceneSize.height - totalHeight) * CGFloat(layer.positionY)
+        let baseX = sceneSize.width * CGFloat(layer.positionX)
+        let maxW = sceneSize.width * CGFloat(ss.maxHeight)
+
+        for i in 0..<binCount {
+            let barW = max(1, min(CGFloat(curved[i]) * maxW * gain, maxW))
+            let barBot = Float(botEdgeY + CGFloat(i) * (barHeight + barSpacing))
+            let barTop = barBot + Float(barHeight)
+            let isRight = layer.channelMode == .stereo && i >= half
+            let color = barColorSIMD(for: i, value: curved[i], isRight: isRight)
+            let (baseXF, tipXF): (Float, Float) =
+                ss.anchor == .left ? (Float(baseX), Float(baseX + barW)) : (Float(baseX), Float(baseX - barW))
+
+            let v0 = EffectVertex(position: SIMD2(baseXF, barBot), color: color, alpha: opacity, edgeDist: -1)
+            let v1 = EffectVertex(position: SIMD2(tipXF, barBot), color: color, alpha: opacity, edgeDist: +1)
+            let v2 = EffectVertex(position: SIMD2(baseXF, barTop), color: color, alpha: opacity, edgeDist: -1)
+            let v3 = EffectVertex(position: SIMD2(tipXF, barTop), color: color, alpha: opacity, edgeDist: +1)
+            appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
+        }
+    }
+
     private func appendBar(to vertices: inout [EffectVertex],
                            v0: EffectVertex, v1: EffectVertex,
                            v2: EffectVertex, v3: EffectVertex) {
-        if !vertices.isEmpty {
-            let lastV = vertices.last!
+        if let lastV = vertices.last {
             vertices.append(lastV)
             vertices.append(lastV)
             vertices.append(v0)
@@ -201,11 +191,11 @@ class SpectrumEffect: BaseEffect {
         }
         switch cs.colorMode {
         case .rainbow:
-            let h = Float(0.6 - rainbowRatio(for: index) * 0.5)
-            return hsbToRGBA(h: h, s: 0.8, b: 1.0, a: 1.0)
+            let hue = Float(0.6 - rainbowRatio(for: index) * 0.5)
+            return hsbToRGBA(h: hue, s: 0.8, b: 1.0, a: 1.0)
         case .gradient:
-            let t  = Float(gradientRatio(for: index))
-            let lo = SIMD4<Float>(Float(cs.gradientColorLow.red),  Float(cs.gradientColorLow.green),
+            let t = Float(gradientRatio(for: index))
+            let lo = SIMD4<Float>(Float(cs.gradientColorLow.red), Float(cs.gradientColorLow.green),
                                   Float(cs.gradientColorLow.blue), Float(cs.gradientColorLow.alpha))
             let hi = SIMD4<Float>(Float(cs.gradientColorHigh.red), Float(cs.gradientColorHigh.green),
                                   Float(cs.gradientColorHigh.blue), Float(cs.gradientColorHigh.alpha))

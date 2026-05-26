@@ -31,7 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// NSPopover's `.transient` behavior doesn't fire reliably for an LSUIElement app
     /// whose other windows are at `desktopWindow` level — we drive it ourselves.
     private var popoverGlobalMonitor: Any?
-    private var popoverLocalMonitor:  Any?
+    private var popoverLocalMonitor: Any?
 
     // MARK: - Lifecycle
 
@@ -112,7 +112,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func removePopoverOutsideClickMonitors() {
         if let m = popoverGlobalMonitor { NSEvent.removeMonitor(m); popoverGlobalMonitor = nil }
-        if let m = popoverLocalMonitor  { NSEvent.removeMonitor(m); popoverLocalMonitor  = nil }
+        if let m = popoverLocalMonitor { NSEvent.removeMonitor(m); popoverLocalMonitor = nil }
     }
 
     // MARK: - NSPopoverDelegate
@@ -245,6 +245,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.setupDesktopWindows() }
             .store(in: &cancellables)
+
     }
 
 }

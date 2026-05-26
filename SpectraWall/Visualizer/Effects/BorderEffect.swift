@@ -352,17 +352,15 @@ class BorderEffect: BaseEffect {
             return
         }
 
-        let deltaTime     = currentTime - lastUpdateTime
-        lastUpdateTime    = currentTime
+        let deltaTime = currentTime - lastUpdateTime
+        lastUpdateTime = currentTime
 
-        // Decay per-stroke flash. exp(-dt / halfLife) approximates the
-        // commonly-expected "halves every halfLife" feel.
         let flashDecay = Float(exp(-deltaTime / flashHalfLife))
         for i in 0..<strokeFlashIntensity.count {
             strokeFlashIntensity[i] *= flashDecay
         }
 
-        let bs            = borderSettings
+        let bs = borderSettings
         let deltaProgress = bs.speed * deltaTime * (bs.clockwise ? 1 : -1)
 
         for strokeIndex in 0..<strokes.count {
@@ -374,38 +372,38 @@ class BorderEffect: BaseEffect {
 
         guard let renderer else { return }
 
+        let allVertices = assembleFrameVertices(deltaTime: deltaTime, fadeAlpha: fadeAlpha)
+        renderer.submit(id: id, type: .border, mesh: EffectMesh(vertices: allVertices))
+    }
+
+    private func assembleFrameVertices(deltaTime: TimeInterval, fadeAlpha: Float) -> [EffectVertex] {
         var allVertices: [EffectVertex] = []
         allVertices.reserveCapacity(300 * strokes.count + 300 * scaleGhosts.count)
 
         for strokeIndex in 0..<strokes.count {
             let data = buildEffectMesh(strokeIndex: strokeIndex)
-            if !allVertices.isEmpty,
-               let last = allVertices.last,
-               let first = data.vertices.first {
-                allVertices.append(last)
-                allVertices.append(last)
-                allVertices.append(first)
-            }
-            allVertices.append(contentsOf: data.vertices)
+            appendWithDegenerateJoin(&allVertices, new: data.vertices)
         }
 
         let ghostVerts = updateScaleGhosts(deltaTime: deltaTime)
-        if !ghostVerts.isEmpty {
-            if let last = allVertices.last, let first = ghostVerts.first {
-                allVertices.append(last)
-                allVertices.append(last)
-                allVertices.append(first)
-            }
-            allVertices.append(contentsOf: ghostVerts)
-        }
+        appendWithDegenerateJoin(&allVertices, new: ghostVerts)
 
         if fadeAlpha < 1.0 {
             for i in 0..<allVertices.count {
                 allVertices[i].alpha *= fadeAlpha
             }
         }
+        return allVertices
+    }
 
-        renderer.submit(id: id, type: .border, mesh: EffectMesh(vertices: allVertices))
+    private func appendWithDegenerateJoin(_ vertices: inout [EffectVertex], new: [EffectVertex]) {
+        guard !new.isEmpty else { return }
+        if let last = vertices.last, let first = new.first {
+            vertices.append(last)
+            vertices.append(last)
+            vertices.append(first)
+        }
+        vertices.append(contentsOf: new)
     }
 }
 
