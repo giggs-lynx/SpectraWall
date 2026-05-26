@@ -116,6 +116,12 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// surfaces the heartbeat line.
     private let metrics: RenderMetrics
 
+    /// Monotonic time of the most recent CAMetalDisplayLink callback. Written
+    /// on the dedicated displayLink thread; read by the render watchdog on main.
+    /// The benign unsynchronised Double read on 64-bit ARM is intentional —
+    /// a stale value just delays watchdog recovery by one tick (≤3 s).
+    nonisolated(unsafe) private(set) var lastCallbackTime: CFTimeInterval = 0
+
     private let commandQueue: MTLCommandQueue
 
     // MARK: - Unified pipeline + submission storage
@@ -338,7 +344,8 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// callback exit — so we hop to `renderQueue` synchronously and do the work there.
     @objc func metalDisplayLink(_ link: CAMetalDisplayLink,
                                 needsUpdate update: CAMetalDisplayLink.Update) {
-        metrics.recordCallback(at: CACurrentMediaTime())
+        lastCallbackTime = CACurrentMediaTime()
+        metrics.recordCallback(at: lastCallbackTime)
         let drawable = update.drawable
         let presentTime = update.targetPresentationTimestamp
         renderQueue.sync {

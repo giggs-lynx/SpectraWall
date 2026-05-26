@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Metal
+import OSLog
 import QuartzCore
 import Combine
 
@@ -27,6 +28,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var cancellables = Set<AnyCancellable>()
+    private var renderWatchdog: DispatchSourceTimer?
     /// Event monitors that auto-close the popover when the user clicks outside.
     /// NSPopover's `.transient` behavior doesn't fire reliably for an LSUIElement app
     /// whose other windows are at `desktopWindow` level — we drive it ourselves.
@@ -42,11 +44,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         setupMenuBar()
         AudioEngine.shared.start()
-        setupDesktopWindows()
+        setupDesktopWindows(reason: "appLaunch")
         startObservingScreenChanges()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        renderWatchdog?.cancel()
         AudioEngine.shared.stop()
         VisualizerSceneManager.shared.saveImmediately()
     }
@@ -128,7 +131,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return NSScreen.screens.filter { enabled.contains($0.displayID) }
     }
 
-    private func setupDesktopWindows() {
+    private func setupDesktopWindows(reason: String = "unknown") {
+        AppLog.render.info("setupDesktopWindows triggered by: \(reason, privacy: .public)")
         let oldSets = windowSets
         windowSets = []
 
@@ -216,7 +220,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.setupDesktopWindows()
+            self?.setupDesktopWindows(reason: "didChangeScreenParameters")
         }
 
         // Built-in display's CAMetalDisplayLink can stop delivering callbacks
@@ -226,15 +230,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let ws = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.didWakeNotification,
                      NSWorkspace.screensDidWakeNotification] {
-            ws.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                self?.setupDesktopWindows()
+            ws.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                self?.setupDesktopWindows(reason: note.name.rawValue)
             }
         }
 
         AppSettings.shared.$enabledDisplayIDs
             .dropFirst()
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.setupDesktopWindows() }
+            .sink { [weak self] _ in self?.setupDesktopWindows(reason: "enabledDisplayIDs") }
             .store(in: &cancellables)
 
         // MSAA toggle. sampleCount is fixed at renderer init (pipelines compile
@@ -243,9 +247,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         AppSettings.shared.$msaaEnabled
             .dropFirst()
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.setupDesktopWindows() }
+            .sink { [weak self] _ in self?.setupDesktopWindows(reason: "msaaToggle") }
             .store(in: &cancellables)
 
+        startRenderWatchdog()
+    }
+
+    // MARK: - Render Watchdog
+
+    private func startRenderWatchdog() {
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + 5, repeating: 3)
+        timer.setEventHandler { [weak self] in self?.checkRenderLoops() }
+        timer.resume()
+        renderWatchdog = timer
+    }
+
+    private func checkRenderLoops() {
+        let now = CACurrentMediaTime()
+        let stalled = windowSets.contains {
+            $0.renderer.lastCallbackTime > 0 && now - $0.renderer.lastCallbackTime > 3.0
+        }
+        if stalled {
+            AppLog.render.warning("Render watchdog: stalled display link — rebuilding renderers")
+            setupDesktopWindows(reason: "watchdog")
+        }
     }
 
 }
