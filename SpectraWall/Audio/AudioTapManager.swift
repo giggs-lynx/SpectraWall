@@ -18,6 +18,16 @@ class AudioTapManager {
 
     // MARK: - Public
 
+    // Without this, ARC releasing an AudioTapManager instance leaves its
+    // CATapDescription / aggregate device / IOProc alive in Core Audio.
+    // AudioEngine.setupTap reassigns `tapManager = tap` without calling stop
+    // on the previous instance, so every reassignment used to leak one tap.
+    // The leaked taps stay registered with TCC, which re-prompts the user
+    // on every wake — 5+ permission dialogs in a row was the visible symptom.
+    deinit {
+        stop()
+    }
+
     func start(app: AudioApp) {
         stop()
         setupTap(app: app)
