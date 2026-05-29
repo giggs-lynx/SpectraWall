@@ -87,6 +87,15 @@ struct GlobalSettingsView: View {
 
                 Divider()
 
+                SectionHeader(title: "Debug", systemImageName: "ladybug", imageColor: .orange)
+                VStack(spacing: 10) {
+                    Toggle("Debug Overlay (geometry skeleton)", isOn: $appSettings.debugEnabled)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+
+                Divider()
+
                 HStack {
                     Spacer()
                     Button("Reset to Defaults") {

@@ -25,6 +25,10 @@ struct AppConfig: Codable {
     /// 4× MSAA on the Metal render pass. Off keeps the single-sample fast
     /// path; on adds an offscreen multisample texture + resolve.
     var msaaEnabled: Bool = true
+    /// Global debug overlay master switch. When on, effects that implement
+    /// `drawDebug` paint their geometry skeleton on top via the renderer's
+    /// dedicated debug pipeline.
+    var debugOverlayEnabled: Bool = false
 
     /// Explicit memberwise init. Required because providing `init(from:)`
     /// below disables Swift's auto-synthesized memberwise init.
@@ -33,13 +37,15 @@ struct AppConfig: Codable {
          enabledDisplayIDs: [CGDirectDisplayID] = [],
          scenes: [UUID] = [],
          activeScene: UUID? = nil,
-         msaaEnabled: Bool = true) {
+         msaaEnabled: Bool = true,
+         debugOverlayEnabled: Bool = false) {
         self.version = version
         self.motionStyle = motionStyle
         self.enabledDisplayIDs = enabledDisplayIDs
         self.scenes = scenes
         self.activeScene = activeScene
         self.msaaEnabled = msaaEnabled
+        self.debugOverlayEnabled = debugOverlayEnabled
     }
 
     /// Decode with per-field fallback so older config.json files that
@@ -54,6 +60,7 @@ struct AppConfig: Codable {
         scenes = try c.decodeIfPresent([UUID].self, forKey: .scenes) ?? []
         activeScene = try c.decodeIfPresent(UUID.self, forKey: .activeScene)
         msaaEnabled = try c.decodeIfPresent(Bool.self, forKey: .msaaEnabled) ?? true
+        debugOverlayEnabled = try c.decodeIfPresent(Bool.self, forKey: .debugOverlayEnabled) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -64,9 +71,10 @@ struct AppConfig: Codable {
         try c.encode(scenes, forKey: .scenes)
         try c.encodeIfPresent(activeScene, forKey: .activeScene)
         try c.encode(msaaEnabled, forKey: .msaaEnabled)
+        try c.encode(debugOverlayEnabled, forKey: .debugOverlayEnabled)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, motionStyle, enabledDisplayIDs, scenes, activeScene, msaaEnabled
+        case version, motionStyle, enabledDisplayIDs, scenes, activeScene, msaaEnabled, debugOverlayEnabled
     }
 }

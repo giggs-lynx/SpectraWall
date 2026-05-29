@@ -55,6 +55,31 @@ fragment float4 border_fragment(VertexOut in [[stage_in]]) {
     return float4(in.color.rgb * brightness, finalAlpha);
 }
 
+// MARK: - Debug overlay
+
+// Flat-colour pass for the geometry debug overlay. Primitive-agnostic (the
+// renderer submits .triangle quads). No edge shaping — just the vertex colour
+// so skeleton lines read crisply on top of every effect.
+vertex VertexOut debug_vertex(
+    uint vid [[vertex_id]],
+    constant Vertex* vertices [[buffer(0)]],
+    constant float2& screenSize [[buffer(1)]]
+) {
+    Vertex in = vertices[vid];
+    VertexOut out;
+    out.position = float4((in.position.x / screenSize.x) * 2.0 - 1.0,
+                          (in.position.y / screenSize.y) * 2.0 - 1.0,
+                          0.0, 1.0);
+    out.color    = in.color;
+    out.alpha    = in.alpha;
+    out.edgeDist = in.edgeDist;
+    return out;
+}
+
+fragment float4 debug_fragment(VertexOut in [[stage_in]]) {
+    return float4(in.color.rgb, in.color.a * in.alpha);
+}
+
 // MARK: - Spectrum
 
 vertex VertexOut spectrum_vertex(

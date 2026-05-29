@@ -205,10 +205,17 @@ extension BorderEffect {
         return vertices
     }
 
+    /// Audio amplitude driving a given stroke's width. Single stroke uses the
+    /// combined L+R average; two strokes split L / R. Shared by the trail build
+    /// and the debug overlay so both sample the identical geometry.
+    func amplitude(forStroke strokeIndex: Int) -> Float {
+        strokes.count == 1
+            ? (smoothedLeft + smoothedRight) / 2
+            : (strokeIndex == 0 ? smoothedLeft : smoothedRight)
+    }
+
     func buildEffectMesh(strokeIndex: Int) -> EffectMesh {
-        let amplitude: Float = strokes.count == 1
-        ? (smoothedLeft + smoothedRight) / 2
-        : (strokeIndex == 0 ? smoothedLeft : smoothedRight)
+        let amplitude = amplitude(forStroke: strokeIndex)
         let vertices = buildTrailVertices(
             strokeIndex: strokeIndex,
             progress: strokes[strokeIndex].progress,

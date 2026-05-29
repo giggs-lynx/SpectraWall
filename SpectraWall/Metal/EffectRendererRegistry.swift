@@ -31,4 +31,12 @@ class EffectRendererRegistry {
     func rendererForMainScreen() -> EffectRenderer? {
         renderer(for: NSScreen.screens[0])
     }
+
+    /// Every currently-registered renderer (one per active screen). Used to
+    /// fan a global setting (e.g. the debug overlay toggle) out to all screens.
+    func allRenderers() -> [EffectRenderer] {
+        lock.lock()
+        defer { lock.unlock() }
+        return Array(renderers.values)
+    }
 }

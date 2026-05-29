@@ -47,6 +47,10 @@ class BorderEffect: BaseEffect {
 
     private var trailHidden = false
 
+    /// One-shot guard for the debug geometry numeric dump. Reset on any layer
+    /// settings change so adjusting baseWidth/cornerRadius re-dumps fresh numbers.
+    var debugDumped = false
+
     // MARK: - Scale Pulse Echo
 
     struct ScaleGhost {
@@ -120,6 +124,7 @@ class BorderEffect: BaseEffect {
     // MARK: - BaseEffect hooks
 
     override func onLayerSettingsChanged() {
+        debugDumped = false
         let bs = borderSettings
         if bs.strokeCount  != lastStrokeCount  ||
            bs.cornerRadius != lastCornerRadius ||
@@ -155,6 +160,12 @@ class BorderEffect: BaseEffect {
 
     override func onAudio(_ bins: StereoBins) {
         updateAmplitude(bins: bins)
+    }
+
+    // `override` must live in the class body (Swift forbids it in extensions);
+    // the geometry build lives in BorderEffectDebug.swift.
+    override func drawDebug(into canvas: inout DebugCanvas) {
+        buildBorderDebug(into: &canvas)
     }
 
     override func onReset() {

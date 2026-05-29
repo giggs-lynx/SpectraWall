@@ -60,6 +60,7 @@ class BaseEffect: Effect {
         isStopped = true
         renderer?.removeFrameClient(id: id)
         removeFromRenderer()
+        renderer?.removeDebug(id: id)
         AppLog.effect.info(
             "stop type=\(Self.effectTypeName, privacy: .public) layer=\(self.layer.id, privacy: .public)"
         )
@@ -91,6 +92,12 @@ class BaseEffect: Effect {
     /// strokeCount / cornerRadius / baseWidth changes) override this.
     func onLayerSettingsChanged() {}
 
+    /// Contribute geometry to the debug overlay. Called every frame after
+    /// `onTick` while the global debug master is on. Default draws nothing;
+    /// effects override to visualise their internal geometry. Must NOT mutate
+    /// effect state — it runs on renderQueue and is purely for inspection.
+    func drawDebug(into canvas: inout DebugCanvas) {}
+
     // MARK: - Frame entry
 
     /// Per-frame entry point from the renderer's tick client registry.
@@ -101,12 +108,28 @@ class BaseEffect: Effect {
         guard isVisible else {
             if wasVisible {
                 removeFromRenderer()
+                renderer?.removeDebug(id: id)
                 wasVisible = false
             }
             return
         }
         wasVisible = true
         onTick(timestamp)
+
+        // Debug overlay: contribute geometry on top while the master is on.
+        // Only register a submission when we actually drew something — an empty
+        // entry would make the renderer hide this effect's normal mesh (it
+        // treats "has debug geometry" as "render as wireframe") while drawing
+        // nothing, so effects that don't implement drawDebug would vanish.
+        if let renderer, renderer.isDebugEnabled {
+            var canvas = DebugCanvas()
+            drawDebug(into: &canvas)
+            if canvas.isEmpty {
+                renderer.removeDebug(id: id)
+            } else {
+                renderer.submitDebug(id: id, mesh: canvas.makeMesh())
+            }
+        }
     }
 
     // MARK: - Wiring

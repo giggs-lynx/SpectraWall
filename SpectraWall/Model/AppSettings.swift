@@ -52,6 +52,12 @@ class AppSettings: ObservableObject {
         didSet { writeConfig { $0.msaaEnabled = msaaEnabled } }
     }
 
+    /// Global debug overlay master switch. AppDelegate fans the value out to all
+    /// active renderers — no renderer rebuild needed (cheap, unlike MSAA).
+    @Published var debugEnabled: Bool {
+        didSet { writeConfig { $0.debugOverlayEnabled = debugEnabled } }
+    }
+
     private init() {
         let config = XDGStorage.shared.loadConfig() ?? AppConfig()
         let state = XDGStorage.shared.loadState() ?? AppState()
@@ -64,6 +70,7 @@ class AppSettings: ObservableObject {
         }
         motionStyle = config.motionStyle
         msaaEnabled = config.msaaEnabled
+        debugEnabled = config.debugOverlayEnabled
 
         // After all stored properties are initialized we can safely persist
         // any first-launch defaults.

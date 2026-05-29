@@ -132,6 +132,20 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// so no lock is required — `submit` / `remove` only mutate `submissions`.
     private var buffers: [ObjectIdentifier: MTLBuffer] = [:]
 
+    // MARK: - Debug overlay channel
+
+    /// Built-in flat-colour pipeline for the debug overlay, compiled once at init
+    /// independently of the effect registry (so it never appears in the effect
+    /// picker). Drawn on top of all effects via alpha blend.
+    private var debugPipeline: MTLRenderPipelineState?
+    /// Debug geometry submitted by effects via `submitDebug`. Drawn last each
+    /// frame when `isDebugEnabled`. Keyed by the contributing effect's id.
+    private var debugSubmissions: [ObjectIdentifier: EffectMesh] = [:]
+    private var debugBuffers: [ObjectIdentifier: MTLBuffer] = [:]
+    /// Global debug master, fanned in from AppSettings.debugEnabled. Read +
+    /// written only on `renderQueue`, so a plain Bool is race-free here.
+    private(set) var isDebugEnabled = false
+
     private var screenSize: SIMD2<Float> = .zero
 
     private var frameClients: [ObjectIdentifier: (TimeInterval) -> Void] = [:]
@@ -192,6 +206,17 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
             }
             pipelines[type] = pipeline
         }
+
+        // Built-in debug pipeline (not registry-driven). Flat colour, alpha
+        // blended, drawn on top. Missing shaders just disable the overlay.
+        debugPipeline = Self.makePipeline(
+            device: device,
+            library: library,
+            spec: PipelineSpec(vertexFunctionName: "debug_vertex",
+                               fragmentFunctionName: "debug_fragment",
+                               blendMode: .alphaBlend),
+            sampleCount: sampleCount
+        )
 
         drawOrder = registry.values
             .sorted { $0.renderOrder < $1.renderOrder }
@@ -303,6 +328,29 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         onRenderQueue(.async) { self.submissions.removeValue(forKey: id) }
     }
 
+    // MARK: - Debug overlay API
+
+    /// Flip the global debug master for this renderer. Turning it off clears
+    /// any pending debug geometry so effects don't have to manage the
+    /// transition — they simply stop submitting once `isDebugEnabled` is false.
+    func setDebugEnabled(_ enabled: Bool) {
+        onRenderQueue(.async) {
+            self.isDebugEnabled = enabled
+            if !enabled { self.debugSubmissions.removeAll() }
+        }
+    }
+
+    /// Submit (or replace) an effect's debug geometry for the next frame. Drawn
+    /// on top of everything via the debug pipeline when `isDebugEnabled`.
+    func submitDebug(id: ObjectIdentifier, mesh: EffectMesh) {
+        onRenderQueue(.async) { self.debugSubmissions[id] = mesh }
+    }
+
+    /// Drop an effect's debug geometry.
+    func removeDebug(id: ObjectIdentifier) {
+        onRenderQueue(.async) { self.debugSubmissions.removeValue(forKey: id) }
+    }
+
     /// Set the back-to-front paint order as effect ids (last = on top).
     func setDrawOrder(_ ids: [ObjectIdentifier]) {
         onRenderQueue(.async) { self.orderedIDs = ids }
@@ -370,6 +418,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         let submissionsSnap = submissions
         let orderSnap = orderedIDs
         let pipelinesSnap = pipelines
+        let debugSnap = isDebugEnabled ? debugSubmissions : [:]
 
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
@@ -382,10 +431,23 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         var sceneSizeForShader = sceneSizeSnap
         encoder.setVertexBytes(&sceneSizeForShader, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
 
-        encodeSubmissions(submissionsSnap, order: orderSnap, pipelines: pipelinesSnap, encoder: encoder)
+        // While debugging, an effect that contributes debug geometry is replaced
+        // by its skeleton (pure wireframe) — hide its normal mesh. Effects with
+        // no debug geometry keep rendering normally.
+        let normalSubmissions = debugSnap.isEmpty
+            ? submissionsSnap
+            : submissionsSnap.filter { debugSnap[$0.key] == nil }
+        encodeSubmissions(normalSubmissions, order: orderSnap, pipelines: pipelinesSnap, encoder: encoder)
 
         let activeIds = Set(submissionsSnap.keys)
         buffers = buffers.filter { activeIds.contains($0.key) }
+
+        // Debug overlay on top of all effects.
+        if !debugSnap.isEmpty, let debugPipeline {
+            encodeDebug(debugSnap, pipeline: debugPipeline, encoder: encoder)
+        }
+        let activeDebugIds = Set(debugSnap.keys)
+        debugBuffers = debugBuffers.filter { activeDebugIds.contains($0.key) }
 
         encoder.endEncoding()
         commandBuffer.present(drawable)
@@ -475,5 +537,37 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     private func typeRank(_ type: EffectType?) -> Int {
         guard let type, let idx = drawOrder.firstIndex(of: type) else { return .max }
         return idx
+    }
+
+    /// Encode every debug submission with the single flat-colour debug pipeline.
+    /// Mirrors `encodeSubmissions`' buffer cache, but one pipeline and no order
+    /// (debug geometry is additive-free flat fill, draw order is irrelevant).
+    private func encodeDebug(
+        _ submissions: [ObjectIdentifier: EffectMesh],
+        pipeline: MTLRenderPipelineState,
+        encoder: MTLRenderCommandEncoder
+    ) {
+        encoder.setRenderPipelineState(pipeline)
+        for (id, mesh) in submissions {
+            guard mesh.vertices.count >= 3 else { continue }
+            let byteCount = mesh.vertices.count * MemoryLayout<EffectVertex>.stride
+            let buf: MTLBuffer
+            if let existing = debugBuffers[id], existing.length >= byteCount {
+                existing.contents().copyMemory(from: mesh.vertices, byteCount: byteCount)
+                buf = existing
+            } else {
+                guard let newBuf = metalDevice.makeBuffer(
+                    bytes: mesh.vertices,
+                    length: byteCount,
+                    options: .storageModeShared
+                ) else { continue }
+                debugBuffers[id] = newBuf
+                buf = newBuf
+            }
+            encoder.setVertexBuffer(buf, offset: 0, index: 0)
+            encoder.drawPrimitives(type: mesh.primitiveType,
+                                   vertexStart: 0,
+                                   vertexCount: mesh.vertices.count)
+        }
     }
 }

@@ -193,6 +193,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                                             sampleCount: sampleCount) else { return nil }
 
         EffectRendererRegistry.shared.register(renderer, for: screen)
+        renderer.setDebugEnabled(AppSettings.shared.debugEnabled)
 
         let scale = screen.backingScaleFactor
         renderer.setSceneSize(size)
@@ -248,6 +249,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.setupDesktopWindows(reason: "msaaToggle") }
+            .store(in: &cancellables)
+
+        // Debug overlay master. Cheap fan-out to every active renderer — no
+        // rebuild needed (unlike MSAA), the flag just gates the debug pass.
+        AppSettings.shared.$debugEnabled
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { enabled in
+                for renderer in EffectRendererRegistry.shared.allRenderers() {
+                    renderer.setDebugEnabled(enabled)
+                }
+            }
             .store(in: &cancellables)
 
         startRenderWatchdog()
