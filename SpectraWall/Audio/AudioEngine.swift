@@ -6,6 +6,7 @@
 //
 
 import Combine
+import OSLog
 import QuartzCore
 
 class AudioEngine {
@@ -16,6 +17,16 @@ class AudioEngine {
     private var analyzer: AudioAnalyzer?
     private var settingsCancellable: AnyCancellable?
 
+    // Watchdog: IOProc can stall silently (sleep/wake, audio routing change, TCC
+    // revoke) while AudioTapManager still holds live Core Audio objects. Without
+    // observation we keep rendering the last bins forever. Poll lastSourceEmitTime
+    // and force a switchSource rebuild if it goes stale.
+    private var watchdogTimer: Timer?
+    private var lastWatchdogRebuild: TimeInterval = 0
+    private let watchdogInterval: TimeInterval = 1.0
+    private let stallThreshold: TimeInterval = 2.0
+    private let minRebuildInterval: TimeInterval = 5.0
+
     private init() {}
 
     // MARK: - Lifecycle
@@ -24,9 +35,11 @@ class AudioEngine {
         analyzer = AudioAnalyzer(fftSize: 4096, binCount: 96)
         observeAudioSource()
         startMonitor()
+        startWatchdog()
     }
 
     func stop() {
+        stopWatchdog()
         tapManager?.stop()
         tapManager = nil
         monitor?.stop()
@@ -107,5 +120,50 @@ class AudioEngine {
         }
         activation(tap)
         tapManager = tap
+    }
+
+    // MARK: - Watchdog
+
+    private func startWatchdog() {
+        stopWatchdog()
+        let timer = Timer(timeInterval: watchdogInterval, repeats: true) { [weak self] _ in
+            self?.checkAudioStall()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        watchdogTimer = timer
+    }
+
+    private func stopWatchdog() {
+        watchdogTimer?.invalidate()
+        watchdogTimer = nil
+    }
+
+    private func checkAudioStall() {
+        guard tapManager != nil else { return }
+        let last = AudioDataBus.shared.lastSourceEmitTime
+        guard last > 0 else { return }
+
+        let now = CACurrentMediaTime()
+        let elapsed = now - last
+        guard elapsed > stallThreshold else { return }
+
+        // Throttle so a permanently-broken tap doesn't rebuild every tick
+        guard now - lastWatchdogRebuild > minRebuildInterval else { return }
+        lastWatchdogRebuild = now
+
+        let elapsedStr = String(format: "%.1f", elapsed)
+        AppLog.audio.error("Audio tap stalled (\(elapsedStr)s without IOProc callback), rebuilding")
+        rebuildCurrentTap()
+    }
+
+    private func rebuildCurrentTap() {
+        switch AppSettings.shared.audioSource {
+        case .global:
+            switchSource(to: .global)
+        case .app(let selectedApp):
+            // Refresh AudioApp to pick up current objectIDs (PID may have changed)
+            let refreshed = AppSettings.shared.activeApps.first { $0.bundleID == selectedApp.bundleID } ?? selectedApp
+            switchSource(to: .app(refreshed))
+        }
     }
 }
