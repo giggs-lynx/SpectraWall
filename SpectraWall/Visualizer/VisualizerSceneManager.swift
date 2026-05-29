@@ -91,17 +91,19 @@ class VisualizerSceneManager: ObservableObject {
     @discardableResult
     func addLayer(to scene: SceneSettings, effectType: EffectType) -> LayerSettings {
         let layer = LayerSettings(effectType: effectType)
-        scene.layers.append(layer)
+        // Front-most is row 0, so a new layer goes on top of existing ones.
+        scene.layers.insert(layer, at: 0)
         persistImmediately()
         return layer
     }
 
     func duplicateLayer(_ layer: LayerSettings, in scene: SceneSettings) -> LayerSettings {
         let copy = LayerSettings(copying: layer)
+        // Place the copy just in front of (one row above) the original.
         if let index = scene.layers.firstIndex(where: { $0 === layer }) {
-            scene.layers.insert(copy, at: index + 1)
+            scene.layers.insert(copy, at: index)
         } else {
-            scene.layers.append(copy)
+            scene.layers.insert(copy, at: 0)
         }
         persistImmediately()
         return copy

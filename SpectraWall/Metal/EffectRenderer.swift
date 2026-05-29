@@ -144,10 +144,13 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// the queue itself rather than a lock.
     private static let renderQueueKey = DispatchSpecificKey<UInt8>()
 
-    /// Order pipelines are drawn in each frame, derived from the registry's
-    /// renderOrder values. Fixed at init time so the draw loop doesn't have
-    /// to consult the registry every frame.
+    /// Per-type fallback order from the registry's renderOrder. Only used for
+    /// submissions not covered by `orderedIDs`.
     private var drawOrder: [EffectType] = []
+
+    /// Back-to-front paint order (effect ids) pushed by EffectsCoordinator,
+    /// mirroring the user's effect-row order. Source of truth for stacking.
+    private var orderedIDs: [ObjectIdentifier] = []
 
     // MARK: - Initialization
 
@@ -300,6 +303,11 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         onRenderQueue(.async) { self.submissions.removeValue(forKey: id) }
     }
 
+    /// Set the back-to-front paint order as effect ids (last = on top).
+    func setDrawOrder(_ ids: [ObjectIdentifier]) {
+        onRenderQueue(.async) { self.orderedIDs = ids }
+    }
+
     // MARK: - Frame tick registry
 
     func addFrameClient(id: ObjectIdentifier, tick: @escaping (TimeInterval) -> Void) {
@@ -360,6 +368,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         for tick in ticks { tick(now) }
         let sceneSizeSnap = screenSize
         let submissionsSnap = submissions
+        let orderSnap = orderedIDs
         let pipelinesSnap = pipelines
 
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
@@ -373,7 +382,7 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
         var sceneSizeForShader = sceneSizeSnap
         encoder.setVertexBytes(&sceneSizeForShader, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
 
-        encodeSubmissions(submissionsSnap, pipelines: pipelinesSnap, encoder: encoder)
+        encodeSubmissions(submissionsSnap, order: orderSnap, pipelines: pipelinesSnap, encoder: encoder)
 
         let activeIds = Set(submissionsSnap.keys)
         buffers = buffers.filter { activeIds.contains($0.key) }
@@ -417,38 +426,54 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
 
     private func encodeSubmissions(
         _ submissions: [ObjectIdentifier: (EffectType, EffectMesh)],
+        order: [ObjectIdentifier],
         pipelines: [EffectType: MTLRenderPipelineState],
         encoder: MTLRenderCommandEncoder
     ) {
-        var byType: [EffectType: [(ObjectIdentifier, EffectMesh)]] = [:]
-        for (id, payload) in submissions {
-            byType[payload.0, default: []].append((id, payload.1))
+        // Paint in the layer order the coordinator pushed. Submissions not yet
+        // in `order` (an effect that submitted before the coordinator pushed a
+        // refreshed order) are appended via the per-type fallback so they're
+        // never dropped.
+        var painted = Set<ObjectIdentifier>()
+        var sequence = order.filter { submissions[$0] != nil }
+        painted.formUnion(sequence)
+        if painted.count < submissions.count {
+            sequence += submissions.keys
+                .filter { !painted.contains($0) }
+                .sorted { typeRank(submissions[$0]?.0) < typeRank(submissions[$1]?.0) }
         }
 
-        for type in drawOrder {
-            guard let pipeline = pipelines[type], let group = byType[type] else { continue }
-            encoder.setRenderPipelineState(pipeline)
-            for (id, mesh) in group {
-                guard mesh.vertices.count >= 3 else { continue }
-                let byteCount = mesh.vertices.count * MemoryLayout<EffectVertex>.stride
-                let buf: MTLBuffer
-                if let existing = buffers[id], existing.length >= byteCount {
-                    existing.contents().copyMemory(from: mesh.vertices, byteCount: byteCount)
-                    buf = existing
-                } else {
-                    guard let newBuf = metalDevice.makeBuffer(
-                        bytes: mesh.vertices,
-                        length: byteCount,
-                        options: .storageModeShared
-                    ) else { continue }
-                    buffers[id] = newBuf
-                    buf = newBuf
-                }
-                encoder.setVertexBuffer(buf, offset: 0, index: 0)
-                encoder.drawPrimitives(type: mesh.primitiveType,
-                                       vertexStart: 0,
-                                       vertexCount: mesh.vertices.count)
+        var boundType: EffectType?
+        for id in sequence {
+            guard let (type, mesh) = submissions[id], mesh.vertices.count >= 3,
+                  let pipeline = pipelines[type] else { continue }
+            if boundType != type {
+                encoder.setRenderPipelineState(pipeline)
+                boundType = type
             }
+            let byteCount = mesh.vertices.count * MemoryLayout<EffectVertex>.stride
+            let buf: MTLBuffer
+            if let existing = buffers[id], existing.length >= byteCount {
+                existing.contents().copyMemory(from: mesh.vertices, byteCount: byteCount)
+                buf = existing
+            } else {
+                guard let newBuf = metalDevice.makeBuffer(
+                    bytes: mesh.vertices,
+                    length: byteCount,
+                    options: .storageModeShared
+                ) else { continue }
+                buffers[id] = newBuf
+                buf = newBuf
+            }
+            encoder.setVertexBuffer(buf, offset: 0, index: 0)
+            encoder.drawPrimitives(type: mesh.primitiveType,
+                                   vertexStart: 0,
+                                   vertexCount: mesh.vertices.count)
         }
+    }
+
+    private func typeRank(_ type: EffectType?) -> Int {
+        guard let type, let idx = drawOrder.firstIndex(of: type) else { return .max }
+        return idx
     }
 }

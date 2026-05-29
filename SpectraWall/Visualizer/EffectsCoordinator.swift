@@ -123,6 +123,11 @@ class EffectsCoordinator: NSObject {
         for layer in newLayers {
             updateEffectVisuals(for: layer)
         }
+
+        // Row 0 is front-most (painted last), so reverse rows → back-to-front
+        // paint order for the renderer.
+        let paintOrder = newLayers.reversed().compactMap { effects[$0.id]?.id }
+        EffectRendererRegistry.shared.renderer(for: screen)?.setDrawOrder(paintOrder)
     }
 
     private func updateEffectVisuals(for layer: LayerSettings) {
