@@ -70,9 +70,14 @@ extension BorderEffect {
                 let p = ctx.centerPoints[i]
                 let normal = perp(ctx.tangents[i])
                 let halfW = ctx.stripWidths[i] / 2
+                // Reconstruct the SAME clamped rails appendBodyStrip now emits,
+                // so the fold/overshoot detector verifies the fix (not stale
+                // unclamped geometry).
+                let (radius, innerIsPlusN) = localCurvature(ctx.centerPoints, at: i)
+                let off = clampedRailOffsets(halfW: halfW, radius: radius, innerIsPlusN: innerIsPlusN)
                 center.append(p)
-                railA.append(CGPoint(x: p.x + normal.x * halfW, y: p.y + normal.y * halfW))
-                railB.append(CGPoint(x: p.x - normal.x * halfW, y: p.y - normal.y * halfW))
+                railA.append(CGPoint(x: p.x + normal.x * off.hA, y: p.y + normal.y * off.hA))
+                railB.append(CGPoint(x: p.x - normal.x * off.hB, y: p.y - normal.y * off.hB))
                 halfWidths.append(halfW)
             }
 
