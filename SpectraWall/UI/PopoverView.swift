@@ -27,6 +27,15 @@ struct PopoverView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            .background(footerHovered == "about" ? Color.primary.opacity(0.06) : Color.clear)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                NotificationCenter.default.post(name: .showAboutWindow, object: nil)
+            }
+            .onHover { hovering in
+                footerHovered = hovering ? "about" : nil
+            }
+            .help("About SpectraWall")
 
             Divider()
 

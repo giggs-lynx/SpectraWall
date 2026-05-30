@@ -11,6 +11,10 @@ import OSLog
 import QuartzCore
 import Combine
 
+extension Notification.Name {
+    static let showAboutWindow = Notification.Name("com.spectrawall.showAboutWindow")
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: - Types
@@ -27,6 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var windowSets: [DesktopWindowSet] = []
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
+    private var aboutWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
     private var renderWatchdog: DispatchSourceTimer?
     /// Event monitors that auto-close the popover when the user clicks outside.
@@ -72,6 +77,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
         self.popover = popover
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(showAboutWindow),
+            name: .showAboutWindow,
+            object: nil
+        )
+    }
+
+    @objc private func showAboutWindow() {
+        popover?.performClose(nil)
+
+        if let win = aboutWindow {
+            win.center()
+            win.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let hosting = NSHostingController(rootView: AboutView())
+        let win = NSWindow(contentViewController: hosting)
+        win.styleMask = [.titled, .closable]
+        win.title = String(localized: "About SpectraWall")
+        win.isReleasedWhenClosed = false
+        win.collectionBehavior.insert([.moveToActiveSpace, .fullScreenAuxiliary])
+        win.center()
+        win.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        aboutWindow = win
     }
 
     @objc private func togglePopover() {
