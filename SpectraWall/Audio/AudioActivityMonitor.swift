@@ -45,11 +45,16 @@ final class AudioActivityMonitor: ObservableObject {
     private let silenceExit: Float = 0.01
     private let staleTimeout: TimeInterval = 0.3
 
-    // Written on the audio/render queue (sink), read on main (tick). Plain scalars/
-    // small arrays — a torn read just yields a slightly stale meter frame.
+    // Written on `sinkQueue` (sink), read on main (tick). Plain scalars/small
+    // arrays — a torn read just yields a slightly stale meter frame.
     private var rawBands: [Float]
     private var rawPeak: Float = 0
     private var lastEmit: TimeInterval = 0
+
+    // The spectrum feed is published on the Core Audio real-time thread; effects
+    // hop off it via renderQueue before doing any work. Mirror that here so the
+    // band reduction never runs inline on the RT thread.
+    private let sinkQueue = DispatchQueue(label: "com.spectrawall.audioActivityMonitor", qos: .utility)
 
     // Main-thread smoothing state.
     private var smoothed: [Double]
@@ -71,6 +76,7 @@ final class AudioActivityMonitor: ObservableObject {
         rawBands = Array(repeating: 0, count: n)
 
         cancellable = AudioDataBus.shared.spectrumPublisher
+            .receive(on: sinkQueue)
             .sink { [weak self] bins in
                 guard let self, self.started else { return }
                 for (i, range) in self.bandRanges.enumerated() {
