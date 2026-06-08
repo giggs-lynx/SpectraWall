@@ -270,6 +270,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             }
         }
 
+        // Pure-logging anchors for sleep/wake boundaries, on the Audio category
+        // so they interleave with tap create/destroy on one log timeline. No
+        // rebuild side effects — diagnosis only.
+        for name in [NSWorkspace.willSleepNotification,
+                     NSWorkspace.didWakeNotification,
+                     NSWorkspace.screensDidSleepNotification,
+                     NSWorkspace.screensDidWakeNotification] {
+            ws.addObserver(forName: name, object: nil, queue: .main) { note in
+                AppLog.audio.info("event=system.\(note.name.rawValue, privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
+            }
+        }
+
         AppSettings.shared.$enabledDisplayIDs
             .dropFirst()
             .receive(on: DispatchQueue.main)

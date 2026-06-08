@@ -6,6 +6,7 @@
 //
 
 import Combine
+import CoreGraphics
 import OSLog
 import QuartzCore
 
@@ -56,7 +57,8 @@ class AudioEngine {
             }
     }
 
-    private func switchSource(to source: AudioSource) {
+    private func switchSource(to source: AudioSource, reason: String = "settingsChange") {
+        AppLog.audio.info("event=switchSource reason=\(reason, privacy: .public) tapMgr=\(self.tapManager == nil ? "nil" : "set", privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
         tapManager?.stop()
         tapManager = nil
 
@@ -80,18 +82,26 @@ class AudioEngine {
     }
 
     private func handleAutoSwitch(apps: [AudioApp]) {
+        AppLog.audio.info("event=handleAutoSwitch tapMgr=\(self.tapManager == nil ? "nil" : "set", privacy: .public) appsCount=\(apps.count, privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
         switch AppSettings.shared.audioSource {
         case .global:
-            if tapManager == nil { startGlobalTap() }
+            if tapManager == nil {
+                AppLog.audio.info("event=autoSwitch.global.build t=\(CACurrentMediaTime(), privacy: .public)")
+                startGlobalTap()
+            } else {
+                AppLog.audio.info("event=autoSwitch.global.skip t=\(CACurrentMediaTime(), privacy: .public)")
+            }
         case .app(let selectedApp):
             let isActive = apps.contains { $0.bundleID == selectedApp.bundleID }
 
             if !isActive {
+                AppLog.audio.info("event=autoSwitch.app.stop t=\(CACurrentMediaTime(), privacy: .public)")
                 tapManager?.stop()
                 tapManager = nil
                 AudioDataBus.shared.resetPublisher.send()
             } else if tapManager == nil {
                 if let match = apps.first(where: { $0.bundleID == selectedApp.bundleID }) {
+                    AppLog.audio.info("event=autoSwitch.app.build app=\(match.bundleID ?? "nil", privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
                     AppSettings.shared.audioSource = .app(match)
                     startTap(for: match)
                 }
@@ -102,10 +112,12 @@ class AudioEngine {
     // MARK: - Tap Management
 
     private func startGlobalTap() {
+        AppLog.audio.info("event=startGlobalTap t=\(CACurrentMediaTime(), privacy: .public)")
         setupTap { $0.startGlobal() }
     }
 
     private func startTap(for app: AudioApp) {
+        AppLog.audio.info("event=startAppTap app=\(app.bundleID ?? "nil", privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
         setupTap { $0.start(app: app) }
     }
 
@@ -120,6 +132,7 @@ class AudioEngine {
         }
         activation(tap)
         tapManager = tap
+        AppLog.audio.info("event=setupTap.assigned t=\(CACurrentMediaTime(), privacy: .public)")
     }
 
     // MARK: - Watchdog
@@ -141,29 +154,47 @@ class AudioEngine {
     private func checkAudioStall() {
         guard tapManager != nil else { return }
         let last = AudioDataBus.shared.lastSourceEmitTime
-        guard last > 0 else { return }
+        guard last > 0 else {
+            AppLog.audio.debug("event=stallCheck.skip reason=noEmit t=\(CACurrentMediaTime(), privacy: .public)")
+            return
+        }
 
         let now = CACurrentMediaTime()
         let elapsed = now - last
         guard elapsed > stallThreshold else { return }
+        let elapsedStr = String(format: "%.1f", elapsed)
+
+        // Don't rebuild during dark wake (display asleep): no one is there to
+        // approve the TCC prompt, so the rebuilt tap never delivers and we'd
+        // re-prompt every tick forever. CGMainDisplayID covers clamshell +
+        // external display (main = the lit external screen -> rebuild allowed).
+        // Gate before the throttle so a dark-wake skip doesn't burn the window
+        // -> first tick after real wake can rebuild immediately.
+        guard CGDisplayIsAsleep(CGMainDisplayID()) == 0 else {
+            AppLog.audio.debug("event=stallRebuild.skip reason=displayAsleep elapsed=\(elapsedStr, privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
+            return
+        }
 
         // Throttle so a permanently-broken tap doesn't rebuild every tick
         guard now - lastWatchdogRebuild > minRebuildInterval else { return }
         lastWatchdogRebuild = now
 
-        let elapsedStr = String(format: "%.1f", elapsed)
-        AppLog.audio.error("Audio tap stalled (\(elapsedStr)s without IOProc callback), rebuilding")
+        AppLog.audio.error("event=stallRebuild elapsed=\(elapsedStr, privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
         rebuildCurrentTap()
     }
 
     private func rebuildCurrentTap() {
+        AppLog.audio.info("event=watchdogRebuild t=\(CACurrentMediaTime(), privacy: .public)")
         switch AppSettings.shared.audioSource {
         case .global:
-            switchSource(to: .global)
+            switchSource(to: .global, reason: "watchdogRebuild")
         case .app(let selectedApp):
             // Refresh AudioApp to pick up current objectIDs (PID may have changed)
             let refreshed = AppSettings.shared.activeApps.first { $0.bundleID == selectedApp.bundleID } ?? selectedApp
-            switchSource(to: .app(refreshed))
+            switchSource(to: .app(refreshed), reason: "watchdogRebuild")
         }
+        // Reset baseline: the frozen pre-sleep value is 700s+ stale; without
+        // this the next tick re-triggers before the new tap can deliver.
+        AudioDataBus.shared.lastSourceEmitTime = CACurrentMediaTime()
     }
 }

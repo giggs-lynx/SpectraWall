@@ -8,6 +8,7 @@
 import AppKit
 import AudioToolbox
 import OSLog
+import QuartzCore
 
 struct AudioApp {
     let pid: pid_t
@@ -24,6 +25,7 @@ class AudioProcessMonitor {
     private var processListenerBlocks: [AudioObjectID: AudioObjectPropertyListenerBlock] = [:]
     private var monitoredProcesses: Set<AudioObjectID> = []
     private var periodicRefreshTask: Task<Void, Never>?
+    private var refreshCount = 0
     
     private var processListAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwarePropertyProcessObjectList,
@@ -35,8 +37,10 @@ class AudioProcessMonitor {
     
     func start() {
         guard processListListenerBlock == nil else { return }
-        
+        AppLog.audio.info("event=monitor.start t=\(CACurrentMediaTime(), privacy: .public)")
+
         let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            AppLog.audio.info("event=processListChanged t=\(CACurrentMediaTime(), privacy: .public)")
             DispatchQueue.main.async { self?.refresh() }
         }
         
@@ -82,6 +86,8 @@ class AudioProcessMonitor {
     // MARK: - Refresh
     
     private func refresh() {
+        refreshCount += 1
+        AppLog.audio.info("event=refresh.enter n=\(self.refreshCount, privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
         guard let processIDs = try? AudioObjectID.readProcessList() else { return }
         
         let runningApps = NSWorkspace.shared.runningApplications
@@ -129,6 +135,7 @@ class AudioProcessMonitor {
         
         activeApps = sorted
         if oldIDs != newIDs {
+            AppLog.audio.info("event=refresh.appsChanged old=\(oldIDs.count, privacy: .public) new=\(newIDs.count, privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
             onAppsChanged?(sorted)
         }
     }
@@ -155,9 +162,10 @@ class AudioProcessMonitor {
         )
         
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            AppLog.audio.info("event=processIsRunningChanged objID=\(objectID, privacy: .public) t=\(CACurrentMediaTime(), privacy: .public)")
             DispatchQueue.main.async { self?.refresh() }
         }
-        
+
         let status = AudioObjectAddPropertyListenerBlock(objectID, &address, .main, block)
         if status == noErr {
             processListenerBlocks[objectID] = block
