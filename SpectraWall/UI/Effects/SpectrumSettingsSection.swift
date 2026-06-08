@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Combine
 
 struct SpectrumSettingsSection: View {
     @ObservedObject var layer: LayerSettings
@@ -49,34 +48,7 @@ struct SpectrumSettingsSection: View {
             // MARK: - Appearance & Color
             colorSettingsSection
         }
-        .onAppear {
-            if let spectrumSettings = layer.effectSettings as? SpectrumSettings {
-                settings = spectrumSettings
-            }
-        }
-        .onChange(of: layer.id) { _, _ in
-            // Re-sync when this section is reused for a different layer
-            // (we removed `.id(layer.id)` to avoid expensive ColorPicker rebuilds).
-            preRandomizeSnapshot = nil
-            if let spectrumSettings = layer.effectSettings as? SpectrumSettings {
-                settings = spectrumSettings
-            }
-        }
-        .onChange(of: settings) { _, newValue in
-            // Skip write-back when value already matches (avoids onAppear → onChange
-            // feedback loop firing layer.objectWillChange on every layer switch).
-            if let current = layer.effectSettings as? SpectrumSettings, current == newValue {
-                return
-            }
-            layer.effectSettings = newValue
-            VisualizerSceneManager.shared.save()
-        }
-        .onReceive(layer.objectWillChange) { _ in
-            if let spectrumSettings = layer.effectSettings as? SpectrumSettings,
-               spectrumSettings != settings {
-                settings = spectrumSettings
-            }
-        }
+        .syncEffectSettings($settings, layer: layer) { preRandomizeSnapshot = nil }
     }
 
     // MARK: - Subviews

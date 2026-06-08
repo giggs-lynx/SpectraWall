@@ -36,6 +36,22 @@ struct StereoBins {
             return rightAmplitude(binRange: binRange)
         }
     }
+
+    /// Peak across the full spectrum (both channels). Silence detection uses peak
+    /// rather than a band average so vocal/hi-hat passages with no bass content
+    /// don't read as silent; combined L/R so both channels gate together.
+    var peak: Float {
+        max(left.max() ?? 0, right.max() ?? 0)
+    }
+}
+
+/// Full-spectrum peak thresholds for silence detection, shared by OrbEffect's
+/// silence gate and AudioActivityMonitor's hysteresis so they never drift apart.
+enum SilenceThreshold {
+    /// Peak below this reads as silent.
+    static let enter: Float = 0.001
+    /// Peak above this reads as active. The gap is the hysteresis band.
+    static let exit: Float = 0.01
 }
 
 class AudioDataBus {

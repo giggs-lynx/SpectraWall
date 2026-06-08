@@ -40,9 +40,7 @@ final class AudioActivityMonitor: ObservableObject {
     // Frequency bands over the 96 chromatic bins (low → high), one per icon bar.
     private let bandRanges: [Range<Int>] = [0..<5, 5..<13, 13..<28, 28..<52, 52..<96]
 
-    // Silence thresholds on full-spectrum peak — mirrors OrbEffect's silence gate.
-    private let silenceEnter: Float = 0.001
-    private let silenceExit: Float = 0.01
+    // Silence thresholds (full-spectrum peak) shared with OrbEffect via SilenceThreshold.
     private let staleTimeout: TimeInterval = 0.3
 
     // Written on `sinkQueue` (sink), read on main (tick). Plain scalars/small
@@ -66,6 +64,9 @@ final class AudioActivityMonitor: ObservableObject {
     private var started = false
     private var cancellable: AnyCancellable?
     private var timer: Timer?
+    // Tick loop parks itself once a silent source has fully settled, and the sink
+    // wakes it when audio returns — saves 30 wakeups/s while quiet. Mutated on main.
+    private var isParked = false
 
     private init() {
         let n = bandRanges.count
@@ -84,8 +85,15 @@ final class AudioActivityMonitor: ObservableObject {
                     let r = bins.rightAmplitude(binRange: range)
                     self.rawBands[i] = max(l, r)
                 }
-                self.rawPeak = max(bins.left.max() ?? 0, bins.right.max() ?? 0)
+                self.rawPeak = bins.peak
                 self.lastEmit = CACurrentMediaTime()
+
+                // Wake the parked tick loop the moment audio returns. `isParked` is a
+                // hint written on main; a stale read just delays the resume by one
+                // buffer (~12ms), and resumeTimer() is idempotent.
+                if self.isParked && self.rawPeak > SilenceThreshold.exit {
+                    DispatchQueue.main.async { self.resumeTimer() }
+                }
             }
     }
 
@@ -93,6 +101,10 @@ final class AudioActivityMonitor: ObservableObject {
     func start() {
         guard !started else { return }
         started = true
+        startTimerLoop()
+    }
+
+    private func startTimerLoop() {
         let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -100,14 +112,28 @@ final class AudioActivityMonitor: ObservableObject {
         timer = t
     }
 
+    /// Stop ticking once silent and settled; the sink restarts us on next audio.
+    private func parkTimer() {
+        timer?.invalidate()
+        timer = nil
+        isParked = true
+    }
+
+    /// Resume from a parked state (idempotent — safe to call from a stale hint).
+    private func resumeTimer() {
+        guard isParked else { return }
+        isParked = false
+        startTimerLoop()
+    }
+
     private func tick() {
         let stale = CACurrentMediaTime() - lastEmit > staleTimeout
 
         // Silence hysteresis on the full-spectrum peak.
         let nowSilent: Bool
-        if stale || rawPeak < silenceEnter {
+        if stale || rawPeak < SilenceThreshold.enter {
             nowSilent = true
-        } else if rawPeak > silenceExit {
+        } else if rawPeak > SilenceThreshold.exit {
             nowSilent = false
         } else {
             nowSilent = isSilent
@@ -137,6 +163,14 @@ final class AudioActivityMonitor: ObservableObject {
         // observer churn and icon redraws.
         if !nearlyEqual(newBands, bands) { bands = newBands }
         if !nearlyEqual(newIcon, iconBars) { iconBars = newIcon }
+
+        // Fully at rest (silent, meter at zero, icon eased back to its logo shape):
+        // park the timer so we stop waking 30×/s. The sink resumes us on next audio.
+        if nowSilent,
+           newBands.allSatisfy({ $0 <= publishEpsilon }),
+           nearlyEqual(newIcon, restingHeights) {
+            parkTimer()
+        }
     }
 
     private func nearlyEqual(_ a: [Double], _ b: [Double]) -> Bool {

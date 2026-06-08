@@ -46,7 +46,7 @@ struct SettingsCard<Content: View, Accessory: View>: View {
             .padding(Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .fill(Color(nsColor: .controlBackgroundColor))
             )
         }

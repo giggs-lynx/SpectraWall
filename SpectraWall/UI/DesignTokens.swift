@@ -20,6 +20,8 @@ enum Spacing {
 enum Radius {
     /// Hover/selection highlight behind list rows.
     static let row: CGFloat = 6
+    /// Grouped settings card background.
+    static let card: CGFloat = 10
 }
 
 enum Hover {

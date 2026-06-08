@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Combine
 
 struct OrbSettingsSection: View {
     @ObservedObject var layer: LayerSettings
@@ -51,30 +50,7 @@ struct OrbSettingsSection: View {
                 SettingsSlider(label: "Outer Opacity", value: $settings.outerOpacity, spec: OrbSpec.outerOpacity)
             }
         }
-        .onAppear {
-            if let orbSettings = layer.effectSettings as? OrbSettings {
-                settings = orbSettings
-            }
-        }
-        .onChange(of: layer.id) { _, _ in
-            preRandomizeSnapshot = nil
-            if let orbSettings = layer.effectSettings as? OrbSettings {
-                settings = orbSettings
-            }
-        }
-        .onChange(of: settings) { _, newValue in
-            if let current = layer.effectSettings as? OrbSettings, current == newValue {
-                return
-            }
-            layer.effectSettings = newValue
-            VisualizerSceneManager.shared.save()
-        }
-        .onReceive(layer.objectWillChange) { _ in
-            if let orbSettings = layer.effectSettings as? OrbSettings,
-               orbSettings != settings {
-                settings = orbSettings
-            }
-        }
+        .syncEffectSettings($settings, layer: layer) { preRandomizeSnapshot = nil }
     }
 
     // MARK: - Randomize

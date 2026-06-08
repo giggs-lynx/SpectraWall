@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Combine
 
 struct BorderSettingsSection: View {
     @ObservedObject var layer: LayerSettings
@@ -63,30 +62,7 @@ struct BorderSettingsSection: View {
             // MARK: - Appearance
             strokeColorSettings
         }
-        .onAppear {
-            if let borderSettings = layer.effectSettings as? BorderSettings {
-                settings = borderSettings
-            }
-        }
-        .onChange(of: layer.id) { _, _ in
-            preRandomizeSnapshot = nil
-            if let borderSettings = layer.effectSettings as? BorderSettings {
-                settings = borderSettings
-            }
-        }
-        .onChange(of: settings) { _, newValue in
-            if let current = layer.effectSettings as? BorderSettings, current == newValue {
-                return
-            }
-            layer.effectSettings = newValue
-            VisualizerSceneManager.shared.save()
-        }
-        .onReceive(layer.objectWillChange) { _ in
-            if let borderSettings = layer.effectSettings as? BorderSettings,
-               borderSettings != settings {
-                settings = borderSettings
-            }
-        }
+        .syncEffectSettings($settings, layer: layer) { preRandomizeSnapshot = nil }
     }
 
     // MARK: - Randomize

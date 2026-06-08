@@ -113,9 +113,9 @@ class OrbEffect: BaseEffect {
         // orb disappears mid-song. Also peak-based + combined L/R so both orbs go
         // silent together instead of one diverging when smoothing fluctuates near
         // the threshold.
-        let peakAmp = max(bins.left.max() ?? 0, bins.right.max() ?? 0)
-        let silenceLo: Float = 0.001
-        let silenceHi: Float = 0.01
+        let peakAmp = bins.peak
+        let silenceLo = SilenceThreshold.enter
+        let silenceHi = SilenceThreshold.exit
         let t = (peakAmp - silenceLo) / (silenceHi - silenceLo)
         let clampedT = max(0, min(1, t))
         let silenceGate = clampedT * clampedT * (3 - 2 * clampedT)
