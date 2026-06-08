@@ -11,10 +11,17 @@ import Combine
 struct BorderSettingsSection: View {
     @ObservedObject var layer: LayerSettings
     @State private var settings: BorderSettings = .defaults
+    @State private var preRandomizeSnapshot: BorderSettings?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCard(title: "Border") {
+            SettingsCard(title: "Border", accessory: {
+                RandomizeControls(
+                    canUndo: preRandomizeSnapshot != nil,
+                    onRandomize: randomize,
+                    onUndo: restore
+                )
+            }) {
                 // MARK: - Animation Control
                 HStack {
                     Picker("Stroke Count", selection: $settings.strokeCount) {
@@ -28,17 +35,17 @@ struct BorderSettingsSection: View {
                 }
 
                 // MARK: - Geometric Settings
-                SettingsSlider(label: "Speed", value: $settings.speed, range: 0.01...0.5, step: 0.01)
-                SettingsSlider(label: "Tail Length", value: $settings.tailLength, range: 0.05...1.0, step: 0.05)
-                SettingsSlider(label: "Line Width", value: $settings.baseWidth, range: 1.0...50.0, step: 0.5)
-                SettingsSlider(label: "Corner Radius", value: $settings.cornerRadius, range: 0...100, step: 5)
+                SettingsSlider(label: "Speed", value: $settings.speed, spec: BorderSpec.speed)
+                SettingsSlider(label: "Tail Length", value: $settings.tailLength, spec: BorderSpec.tailLength)
+                SettingsSlider(label: "Line Width", value: $settings.baseWidth, spec: BorderSpec.baseWidth)
+                SettingsSlider(label: "Corner Radius", value: $settings.cornerRadius, spec: BorderSpec.cornerRadius)
 
                 Divider()
 
                 // MARK: - Audio Response & Trail Flash
-                SettingsSlider(label: "Pulse Attack", value: $settings.pulseAttack, range: 0.05...1.0, step: 0.05)
-                SettingsSlider(label: "Pulse Release", value: $settings.pulseRelease, range: 0.05...1.0, step: 0.05)
-                SettingsSlider(label: "Pulse Flash", value: $settings.pulseFlash, range: 0.0...1.0, step: 0.05)
+                SettingsSlider(label: "Pulse Attack", value: $settings.pulseAttack, spec: BorderSpec.pulseAttack)
+                SettingsSlider(label: "Pulse Release", value: $settings.pulseRelease, spec: BorderSpec.pulseRelease)
+                SettingsSlider(label: "Pulse Flash", value: $settings.pulseFlash, spec: BorderSpec.pulseFlash)
 
                 Divider()
 
@@ -47,9 +54,9 @@ struct BorderSettingsSection: View {
                     .toggleStyle(.switch)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if settings.ghostEnabled {
-                    SettingsSlider(label: "Ghost Size", value: $settings.ghostSize, range: 0.0...2.0, step: 0.1)
-                    SettingsSlider(label: "Ghost Opacity", value: $settings.ghostOpacity, range: 0.0...1.0, step: 0.05)
-                    SettingsSlider(label: "Ghost Decay", value: $settings.ghostDecay, range: 0.5...10.0, step: 0.1)
+                    SettingsSlider(label: "Ghost Size", value: $settings.ghostSize, spec: BorderSpec.ghostSize)
+                    SettingsSlider(label: "Ghost Opacity", value: $settings.ghostOpacity, spec: BorderSpec.ghostOpacity)
+                    SettingsSlider(label: "Ghost Decay", value: $settings.ghostDecay, spec: BorderSpec.ghostDecay)
                 }
             }
 
@@ -62,6 +69,7 @@ struct BorderSettingsSection: View {
             }
         }
         .onChange(of: layer.id) { _, _ in
+            preRandomizeSnapshot = nil
             if let borderSettings = layer.effectSettings as? BorderSettings {
                 settings = borderSettings
             }
@@ -79,6 +87,19 @@ struct BorderSettingsSection: View {
                 settings = borderSettings
             }
         }
+    }
+
+    // MARK: - Randomize
+
+    private func randomize() {
+        preRandomizeSnapshot = settings
+        settings = settings.randomized()
+    }
+
+    private func restore() {
+        guard let snapshot = preRandomizeSnapshot else { return }
+        settings = snapshot
+        preRandomizeSnapshot = nil
     }
 
     @ViewBuilder

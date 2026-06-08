@@ -62,3 +62,38 @@ struct SpectrumSettings: EffectSettings, Equatable {
         self = Self.defaults
     }
 }
+
+extension SpectrumSettings {
+    /// Randomize numeric params within their spec ranges. Colours follow each
+    /// channel's existing colorMode (rainbow → none, gradient → pair, solid →
+    /// single). Topology/enums (anchor, colorSync) stay put so the result is
+    /// always usable.
+    func randomized() -> SpectrumSettings {
+        var s = self
+        s.gain = SpectrumSpec.gain.random()
+        s.powerCurve = SpectrumSpec.powerCurve.random()
+        s.attack = SpectrumSpec.attack.random()
+        s.release = SpectrumSpec.release.random()
+        s.width = SpectrumSpec.width.random()
+        s.maxHeight = SpectrumSpec.maxHeight.random()
+        s.colorSettings = Self.randomizedColors(s.colorSettings)
+        s.leftColorSettings = Self.randomizedColors(s.leftColorSettings)
+        s.rightColorSettings = Self.randomizedColors(s.rightColorSettings)
+        return s
+    }
+
+    private static func randomizedColors(_ c: ChannelColorSettings) -> ChannelColorSettings {
+        var out = c
+        switch c.colorMode {
+        case .rainbow:
+            break
+        case .gradient:
+            let pair = RandomColor.relatedPair()
+            out.gradientColorLow = pair.0
+            out.gradientColorHigh = pair.1
+        case .solid:
+            out.solidColor = RandomColor.pleasant()
+        }
+        return out
+    }
+}

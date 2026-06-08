@@ -11,10 +11,17 @@ import Combine
 struct SpectrumSettingsSection: View {
     @ObservedObject var layer: LayerSettings
     @State private var settings: SpectrumSettings = .defaults
+    @State private var preRandomizeSnapshot: SpectrumSettings?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCard(title: "Spectrum") {
+            SettingsCard(title: "Spectrum", accessory: {
+                RandomizeControls(
+                    canUndo: preRandomizeSnapshot != nil,
+                    onRandomize: randomize,
+                    onUndo: restore
+                )
+            }) {
                 // MARK: - Layout & Anchor
                 Picker("Anchor", selection: $settings.anchor) {
                     ForEach(SpectrumAnchor.allCases, id: \.self) { anchor in
@@ -27,16 +34,16 @@ struct SpectrumSettingsSection: View {
                 }
 
                 // MARK: - Dimension Settings
-                SettingsSlider(label: "Height", value: $settings.gain, range: 0.5...3.0, step: 0.1)
-                SettingsSlider(label: "Max Height", value: $settings.maxHeight, range: 0.1...1.0, step: 0.05)
-                SettingsSlider(label: "Width", value: $settings.width, range: 0.1...1.0, step: 0.05)
+                SettingsSlider(label: "Height", value: $settings.gain, spec: SpectrumSpec.gain)
+                SettingsSlider(label: "Max Height", value: $settings.maxHeight, spec: SpectrumSpec.maxHeight)
+                SettingsSlider(label: "Width", value: $settings.width, spec: SpectrumSpec.width)
 
                 Divider()
 
                 // MARK: - Audio Dynamics
-                SettingsSlider(label: "Dynamics", value: $settings.powerCurve, range: 1.0...3.0, step: 0.1)
-                SettingsSlider(label: "Attack", value: $settings.attack, range: 0.5...1.0, step: 0.05)
-                SettingsSlider(label: "Release", value: $settings.release, range: 0.1...0.5, step: 0.05)
+                SettingsSlider(label: "Dynamics", value: $settings.powerCurve, spec: SpectrumSpec.powerCurve)
+                SettingsSlider(label: "Attack", value: $settings.attack, spec: SpectrumSpec.attack)
+                SettingsSlider(label: "Release", value: $settings.release, spec: SpectrumSpec.release)
             }
 
             // MARK: - Appearance & Color
@@ -50,6 +57,7 @@ struct SpectrumSettingsSection: View {
         .onChange(of: layer.id) { _, _ in
             // Re-sync when this section is reused for a different layer
             // (we removed `.id(layer.id)` to avoid expensive ColorPicker rebuilds).
+            preRandomizeSnapshot = nil
             if let spectrumSettings = layer.effectSettings as? SpectrumSettings {
                 settings = spectrumSettings
             }
@@ -96,6 +104,19 @@ struct SpectrumSettingsSection: View {
                 ChannelColorSettingsView(colorSettings: $settings.colorSettings)
             }
         }
+    }
+
+    // MARK: - Randomize
+
+    private func randomize() {
+        preRandomizeSnapshot = settings
+        settings = settings.randomized()
+    }
+
+    private func restore() {
+        guard let snapshot = preRandomizeSnapshot else { return }
+        settings = snapshot
+        preRandomizeSnapshot = nil
     }
 
     // MARK: - Helper Functions

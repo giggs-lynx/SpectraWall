@@ -11,24 +11,30 @@ import Combine
 struct OrbSettingsSection: View {
     @ObservedObject var layer: LayerSettings
     @State private var settings: OrbSettings = .defaults
+    @State private var preRandomizeSnapshot: OrbSettings?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCard(title: "Orb") {
+            SettingsCard(title: "Orb", accessory: {
+                RandomizeControls(
+                    canUndo: preRandomizeSnapshot != nil,
+                    onRandomize: randomize,
+                    onUndo: restore
+                )
+            }) {
                 // MARK: - Audio Dynamics
-                SettingsSlider(label: "Sensitivity", value: $settings.boost, range: 1.0...6.0, step: 0.1)
-                SettingsSlider(label: "Attack", value: $settings.attack, range: 0.3...1.0, step: 0.05)
-                SettingsSlider(label: "Release", value: $settings.release, range: 0.1...0.5, step: 0.05)
+                SettingsSlider(label: "Sensitivity", value: $settings.boost, spec: OrbSpec.boost)
+                SettingsSlider(label: "Attack", value: $settings.attack, spec: OrbSpec.attack)
+                SettingsSlider(label: "Release", value: $settings.release, spec: OrbSpec.release)
 
                 Divider()
 
                 // MARK: - Geometric Settings
-                SettingsSlider(label: "Base Radius", value: $settings.baseRadius, range: 40...300, step: 5)
+                SettingsSlider(label: "Base Radius", value: $settings.baseRadius, spec: OrbSpec.baseRadius)
                 SettingsSlider(
                     label: "Outer Radius Multiplier",
                     value: $settings.outerRadiusMultiplier,
-                    range: 1.0...3.0,
-                    step: 0.1
+                    spec: OrbSpec.outerRadiusMultiplier
                 )
             }
 
@@ -42,7 +48,7 @@ struct OrbSettingsSection: View {
             SettingsCard(title: "Outer Color") {
                 ColorPickerRow(label: "Low Frequency", colorData: $settings.outerColorLow)
                 ColorPickerRow(label: "High Frequency", colorData: $settings.outerColorHigh)
-                SettingsSlider(label: "Outer Opacity", value: $settings.outerOpacity, range: 0.0...1.0, step: 0.05)
+                SettingsSlider(label: "Outer Opacity", value: $settings.outerOpacity, spec: OrbSpec.outerOpacity)
             }
         }
         .onAppear {
@@ -51,6 +57,7 @@ struct OrbSettingsSection: View {
             }
         }
         .onChange(of: layer.id) { _, _ in
+            preRandomizeSnapshot = nil
             if let orbSettings = layer.effectSettings as? OrbSettings {
                 settings = orbSettings
             }
@@ -68,5 +75,18 @@ struct OrbSettingsSection: View {
                 settings = orbSettings
             }
         }
+    }
+
+    // MARK: - Randomize
+
+    private func randomize() {
+        preRandomizeSnapshot = settings
+        settings = settings.randomized()
+    }
+
+    private func restore() {
+        guard let snapshot = preRandomizeSnapshot else { return }
+        settings = snapshot
+        preRandomizeSnapshot = nil
     }
 }

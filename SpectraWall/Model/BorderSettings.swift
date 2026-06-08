@@ -66,6 +66,32 @@ struct BorderSettings: EffectSettings, Equatable {
 }
 
 extension BorderSettings {
+    /// Randomize numeric params within their spec ranges; each stroke gets a
+    /// related head/tail colour pair. Topology (strokeCount, clockwise,
+    /// ghostEnabled, pulseThreshold) stays put so the result is always usable.
+    func randomized() -> BorderSettings {
+        var s = self
+        s.speed = BorderSpec.speed.random()
+        s.tailLength = BorderSpec.tailLength.random()
+        s.baseWidth = BorderSpec.baseWidth.random()
+        s.cornerRadius = BorderSpec.cornerRadius.random()
+        s.pulseAttack = BorderSpec.pulseAttack.random()
+        s.pulseRelease = BorderSpec.pulseRelease.random()
+        s.pulseFlash = BorderSpec.pulseFlash.random()
+        s.ghostSize = BorderSpec.ghostSize.random()
+        s.ghostOpacity = BorderSpec.ghostOpacity.random()
+        s.ghostDecay = BorderSpec.ghostDecay.random()
+        let s1 = RandomColor.relatedPair()
+        s.stroke1ColorStart = s1.0
+        s.stroke1ColorEnd = s1.1
+        let s2 = RandomColor.relatedPair()
+        s.stroke2ColorStart = s2.0
+        s.stroke2ColorEnd = s2.1
+        return s
+    }
+}
+
+extension BorderSettings {
     // Custom init so v0.0.5 configs (which predate all the pulseFlash/ghost*
     // keys) still decode — those keys fall back to defaults. Encode is
     // auto-synthesised because CodingKeys map 1:1 to properties.

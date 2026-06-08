@@ -38,3 +38,24 @@ struct OrbSettings: EffectSettings, Equatable {
         self = Self.defaults
     }
 }
+
+extension OrbSettings {
+    /// Randomize numeric params within their spec ranges; inner/outer colours
+    /// each get a related low/high pair.
+    func randomized() -> OrbSettings {
+        var s = self
+        s.boost = OrbSpec.boost.random()
+        s.attack = OrbSpec.attack.random()
+        s.release = OrbSpec.release.random()
+        s.baseRadius = OrbSpec.baseRadius.random()
+        s.outerRadiusMultiplier = OrbSpec.outerRadiusMultiplier.random()
+        s.outerOpacity = OrbSpec.outerOpacity.random()
+        let inner = RandomColor.relatedPair()
+        s.innerColorLow = inner.0
+        s.innerColorHigh = inner.1
+        let outer = RandomColor.relatedPair()
+        s.outerColorLow = outer.0
+        s.outerColorHigh = outer.1
+        return s
+    }
+}

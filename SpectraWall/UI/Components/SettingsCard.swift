@@ -11,17 +11,34 @@
 
 import SwiftUI
 
-struct SettingsCard<Content: View>: View {
+struct SettingsCard<Content: View, Accessory: View>: View {
     var title: LocalizedStringKey? = nil
-    @ViewBuilder let content: () -> Content
+    @ViewBuilder var accessory: () -> Accessory
+    @ViewBuilder var content: () -> Content
+
+    // Default accessory closure lets the compiler infer Accessory = EmptyView at
+    // call sites that don't pass one, so existing cards stay source-compatible.
+    init(
+        title: LocalizedStringKey? = nil,
+        @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() },
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.title = title
+        self.accessory = accessory
+        self.content = content
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             if let title {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, Spacing.xs)
+                HStack {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, Spacing.xs)
+                    Spacer()
+                    accessory()
+                }
             }
             VStack(alignment: .leading, spacing: Spacing.md) {
                 content()
