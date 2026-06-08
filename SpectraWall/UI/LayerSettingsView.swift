@@ -17,21 +17,18 @@ struct LayerSettingsView: View {
 
     var body: some View {
         ScrollView {
+            // Spacing 0: each SettingsCard carries its own bottom margin, so the
+            // height-0 collapse of inactive effect sections leaves no phantom gap.
             VStack(alignment: .leading, spacing: 0) {
-                SectionHeader(title: "Name")
-                TextField("Layer Name", text: $layer.name)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
-                    .onChange(of: layer.name) {
-                        VisualizerSceneManager.shared.save()
-                    }
-
-                Divider()
+                SettingsCard(title: "Name") {
+                    TextField("Layer Name", text: $layer.name)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: layer.name) {
+                            VisualizerSceneManager.shared.save()
+                        }
+                }
 
                 CommonSettingsSection(layer: layer)
-
-                Divider()
 
                 // Build sections lazily but never remove them: the first time
                 // the user picks a layer of a given effect type, that section
@@ -48,24 +45,21 @@ struct LayerSettingsView: View {
                     }
                 }
 
-                Divider()
-
                 HStack {
                     Button("Delete Layer") {
                         showDeleteConfirm = true
                     }
                     .foregroundColor(.red)
-                    .padding(.leading, 20)
                     Spacer()
                     Button("Reset to Defaults") {
                         layer.resetToDefaults()
                         VisualizerSceneManager.shared.save()
                     }
                     .foregroundColor(.secondary)
-                    .padding(.trailing, 20)
                 }
-                .padding(.vertical, 16)
+                .padding(.top, Spacing.sm)
             }
+            .padding(Spacing.xl)
         }
         .onAppear { instantiatedTypes.insert(layer.effectType) }
         .onChange(of: layer.effectType) { _, newType in

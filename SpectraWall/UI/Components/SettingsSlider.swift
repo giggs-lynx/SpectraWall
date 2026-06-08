@@ -13,6 +13,16 @@ struct SettingsSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double
+    var unit: String? = nil
+
+    /// Show as many decimals as the step implies: integer steps read as
+    /// whole numbers (no more "12.00" for a step-1 slider), 0.1 → one place,
+    /// finer → two.
+    private var decimals: Int {
+        if step >= 1 { return 0 }
+        if step >= 0.1 { return 1 }
+        return 2
+    }
 
     // MARK: - Body
     var body: some View {
@@ -38,7 +48,8 @@ struct SettingsSlider: View {
     }
 
     private var valueLabel: some View {
-        Text(String(format: "%.2f", value))
+        let formatted = String(format: "%.\(decimals)f", value)
+        return Text(unit.map { "\(formatted) \($0)" } ?? formatted)
             .font(.caption)
             .foregroundColor(.secondary)
             .monospacedDigit()

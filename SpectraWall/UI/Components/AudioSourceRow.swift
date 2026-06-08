@@ -66,7 +66,7 @@ struct AudioSourceRow: View {
     }
 
     private var backgroundView: some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(isHovered ? Color.primary.opacity(0.08) : Color.clear)
+        RoundedRectangle(cornerRadius: Radius.row)
+            .fill(isHovered ? Hover.fill : Color.clear)
     }
 }

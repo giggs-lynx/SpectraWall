@@ -13,51 +13,49 @@ struct BorderSettingsSection: View {
     @State private var settings: BorderSettings = .defaults
 
     var body: some View {
-        SectionHeader(title: "Border")
-        
-        VStack(spacing: 10) {
-            // MARK: - Animation Control
-            HStack {
-                Picker("Stroke Count", selection: $settings.strokeCount) {
-                    Text("1").tag(1)
-                    Text("2").tag(2)
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCard(title: "Border") {
+                // MARK: - Animation Control
+                HStack {
+                    Picker("Stroke Count", selection: $settings.strokeCount) {
+                        Text("1").tag(1)
+                        Text("2").tag(2)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Toggle("Clockwise", isOn: $settings.clockwise)
+                        .toggleStyle(.button)
                 }
-                .pickerStyle(.segmented)
-                
-                Toggle("Clockwise", isOn: $settings.clockwise)
-                    .toggleStyle(.button)
-            }
 
-            // MARK: - Geometric Settings
-            SettingsSlider(label: "Speed", value: $settings.speed, range: 0.01...0.5, step: 0.01)
-            SettingsSlider(label: "Tail Length", value: $settings.tailLength, range: 0.05...1.0, step: 0.05)
-            SettingsSlider(label: "Line Width", value: $settings.baseWidth, range: 1.0...50.0, step: 0.5)
-            SettingsSlider(label: "Corner Radius", value: $settings.cornerRadius, range: 0...100, step: 5)
+                // MARK: - Geometric Settings
+                SettingsSlider(label: "Speed", value: $settings.speed, range: 0.01...0.5, step: 0.01)
+                SettingsSlider(label: "Tail Length", value: $settings.tailLength, range: 0.05...1.0, step: 0.05)
+                SettingsSlider(label: "Line Width", value: $settings.baseWidth, range: 1.0...50.0, step: 0.5)
+                SettingsSlider(label: "Corner Radius", value: $settings.cornerRadius, range: 0...100, step: 5)
 
-            Divider()
+                Divider()
 
-            // MARK: - Audio Response & Trail Flash
-            SettingsSlider(label: "Pulse Attack", value: $settings.pulseAttack, range: 0.05...1.0, step: 0.05)
-            SettingsSlider(label: "Pulse Release", value: $settings.pulseRelease, range: 0.05...1.0, step: 0.05)
-            SettingsSlider(label: "Pulse Flash", value: $settings.pulseFlash, range: 0.0...1.0, step: 0.05)
+                // MARK: - Audio Response & Trail Flash
+                SettingsSlider(label: "Pulse Attack", value: $settings.pulseAttack, range: 0.05...1.0, step: 0.05)
+                SettingsSlider(label: "Pulse Release", value: $settings.pulseRelease, range: 0.05...1.0, step: 0.05)
+                SettingsSlider(label: "Pulse Flash", value: $settings.pulseFlash, range: 0.0...1.0, step: 0.05)
 
-            Divider()
+                Divider()
 
-            // MARK: - Ghost
-            Toggle("Enable Ghost", isOn: $settings.ghostEnabled)
-                .toggleStyle(.switch)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if settings.ghostEnabled {
-                SettingsSlider(label: "Ghost Size", value: $settings.ghostSize, range: 0.0...2.0, step: 0.1)
-                SettingsSlider(label: "Ghost Opacity", value: $settings.ghostOpacity, range: 0.0...1.0, step: 0.05)
-                SettingsSlider(label: "Ghost Decay", value: $settings.ghostDecay, range: 0.5...10.0, step: 0.1)
+                // MARK: - Ghost
+                Toggle("Enable Ghost", isOn: $settings.ghostEnabled)
+                    .toggleStyle(.switch)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if settings.ghostEnabled {
+                    SettingsSlider(label: "Ghost Size", value: $settings.ghostSize, range: 0.0...2.0, step: 0.1)
+                    SettingsSlider(label: "Ghost Opacity", value: $settings.ghostOpacity, range: 0.0...1.0, step: 0.05)
+                    SettingsSlider(label: "Ghost Decay", value: $settings.ghostDecay, range: 0.5...10.0, step: 0.1)
+                }
             }
 
             // MARK: - Appearance
             strokeColorSettings
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
         .onAppear {
             if let borderSettings = layer.effectSettings as? BorderSettings {
                 settings = borderSettings
@@ -81,22 +79,20 @@ struct BorderSettingsSection: View {
                 settings = borderSettings
             }
         }
-
-        Divider()
     }
 
     @ViewBuilder
     private var strokeColorSettings: some View {
-        Divider()
-        SectionHeader(title: "First Stroke")
-        ColorPickerRow(label: "Head", colorData: $settings.stroke1ColorStart)
-        ColorPickerRow(label: "Tail", colorData: $settings.stroke1ColorEnd)
+        SettingsCard(title: "First Stroke") {
+            ColorPickerRow(label: "Head", colorData: $settings.stroke1ColorStart)
+            ColorPickerRow(label: "Tail", colorData: $settings.stroke1ColorEnd)
+        }
 
         if settings.strokeCount == 2 {
-            Divider()
-            SectionHeader(title: "Second Stroke")
-            ColorPickerRow(label: "Head", colorData: $settings.stroke2ColorStart)
-            ColorPickerRow(label: "Tail", colorData: $settings.stroke2ColorEnd)
+            SettingsCard(title: "Second Stroke") {
+                ColorPickerRow(label: "Head", colorData: $settings.stroke2ColorStart)
+                ColorPickerRow(label: "Tail", colorData: $settings.stroke2ColorEnd)
+            }
         }
     }
 }

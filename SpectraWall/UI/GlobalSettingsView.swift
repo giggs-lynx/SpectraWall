@@ -16,97 +16,64 @@ struct GlobalSettingsView: View {
     @State private var screens: [NSScreen] = NSScreen.screens
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                SectionHeader(title: "System")
-                VStack(spacing: 10) {
-                    Toggle("Launch at Login", isOn: $launchAtLogin)
-                        .onChange(of: launchAtLogin) {
-                            do {
-                                if launchAtLogin {
-                                    try SMAppService.mainApp.register()
-                                } else {
-                                    try SMAppService.mainApp.unregister()
-                                }
-                            } catch {
-                                AppLog.lifecycle.error("LaunchAtLogin error: \(error)")
-                                launchAtLogin = SMAppService.mainApp.status == .enabled
+        Form {
+            Section("System") {
+                Toggle("Launch at Login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) {
+                        do {
+                            if launchAtLogin {
+                                try SMAppService.mainApp.register()
+                            } else {
+                                try SMAppService.mainApp.unregister()
                             }
-                        }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-
-                Divider()
-
-                SectionHeader(title: "Displays", systemImageName: "display", imageColor: .blue)
-                VStack(spacing: 10) {
-                    ForEach(screens, id: \.displayID) { screen in
-                        Toggle(screen.localizedName, isOn: screenToggleBinding(for: screen))
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-
-                Divider()
-
-                SectionHeader(title: "Audio")
-                VStack(spacing: 10) {
-                    SettingsSlider(
-                        label: "Bass Suppression",
-                        value: $visualizerSettings.bassAttenuation,
-                        range: 0...40,
-                        step: 1
-                    )
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-
-                Divider()
-
-                SectionHeader(title: "Motion")
-                VStack(spacing: 10) {
-                    Picker("Animation Style", selection: $appSettings.motionStyle) {
-                        ForEach(MotionStyle.allCases, id: \.self) { style in
-                            Text(style.localized).tag(style)
+                        } catch {
+                            AppLog.lifecycle.error("LaunchAtLogin error: \(error)")
+                            launchAtLogin = SMAppService.mainApp.status == .enabled
                         }
                     }
-                    .pickerStyle(.segmented)
+            }
+
+            Section("Displays") {
+                ForEach(screens, id: \.displayID) { screen in
+                    Toggle(screen.localizedName, isOn: screenToggleBinding(for: screen))
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
+            }
 
-                Divider()
+            Section("Audio") {
+                SettingsSlider(
+                    label: "Bass Suppression",
+                    value: $visualizerSettings.bassAttenuation,
+                    range: 0...40,
+                    step: 1,
+                    unit: "dB"
+                )
+            }
 
-                SectionHeader(title: "Rendering")
-                VStack(spacing: 10) {
-                    Toggle("Anti-aliasing (MSAA 4×)", isOn: $appSettings.msaaEnabled)
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-
-                Divider()
-
-                SectionHeader(title: "Debug", systemImageName: "ladybug", imageColor: .orange)
-                VStack(spacing: 10) {
-                    Toggle("Debug Overlay (geometry skeleton)", isOn: $appSettings.debugEnabled)
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-
-                Divider()
-
-                HStack {
-                    Spacer()
-                    Button("Reset to Defaults") {
-                        visualizerSettings.resetToDefaults()
+            Section("Motion") {
+                Picker("Animation Style", selection: $appSettings.motionStyle) {
+                    ForEach(MotionStyle.allCases, id: \.self) { style in
+                        Text(style.localized).tag(style)
                     }
-                    .foregroundColor(.secondary)
-                    Spacer()
                 }
-                .padding(.vertical, 16)
+                .pickerStyle(.segmented)
+            }
+
+            Section("Rendering") {
+                Toggle("Anti-aliasing (MSAA 4×)", isOn: $appSettings.msaaEnabled)
+            }
+
+            Section("Debug") {
+                Toggle("Debug Overlay (geometry skeleton)", isOn: $appSettings.debugEnabled)
+            }
+
+            Section {
+                Button("Reset to Defaults") {
+                    visualizerSettings.resetToDefaults()
+                }
+                .foregroundColor(.secondary)
             }
         }
+        .formStyle(.grouped)
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
             screens = NSScreen.screens

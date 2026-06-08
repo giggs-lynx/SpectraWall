@@ -24,9 +24,7 @@ struct CommonSettingsSection: View {
     }
 
     var body: some View {
-        SectionHeader(title: "General")
-
-        VStack(spacing: 10) {
+        SettingsCard(title: "General") {
             // MARK: - Audio Configuration
             if visible.contains(.channelMode) {
                 Picker("Channel", selection: $channelMode) {
@@ -51,8 +49,6 @@ struct CommonSettingsSection: View {
                 SettingsSlider(label: "Position Y", value: $positionY, range: 0.0...1.0, step: 0.01)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
         .onAppear {
             channelMode = layer.channelMode
             opacity = layer.opacity

@@ -10,8 +10,7 @@ import SwiftUI
 struct PopoverView: View {
     @ObservedObject var settings = AppSettings.shared
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
-    @State private var sceneHoveredID: UUID?
-    @State private var footerHovered: String?
+    @State private var aboutHovered = false
     
     @Environment(\.openSettings) private var openSettings
 
@@ -25,16 +24,14 @@ struct PopoverView: View {
                     .font(.headline)
                 Spacer()
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Spacing.lg)
             .padding(.vertical, 12)
-            .background(footerHovered == "about" ? Color.primary.opacity(0.06) : Color.clear)
+            .background(aboutHovered ? Hover.fill : Color.clear)
             .contentShape(Rectangle())
             .onTapGesture {
                 NotificationCenter.default.post(name: .showAboutWindow, object: nil)
             }
-            .onHover { hovering in
-                footerHovered = hovering ? "about" : nil
-            }
+            .onHover { aboutHovered = $0 }
             .help("About SpectraWall")
 
             Divider()
@@ -76,55 +73,31 @@ struct PopoverView: View {
 
             SectionHeader(title: "Scenes", systemImageName: "square.stack", imageColor: .purple)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
                 ForEach(sceneManager.scenes) { scene in
                     let isActive = sceneManager.activeScene === scene
-                    HStack(spacing: 8) {
-                        Image(systemName: isActive ? "circle.fill" : "circle")
-                            .foregroundColor(isActive ? .accentColor : .secondary)
-                            .frame(width: 16)
-
-                        Text(scene.name)
-                            .foregroundColor(.primary)
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(sceneHoveredID == scene.id ? Color.primary.opacity(0.08) : Color.clear)
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
+                    HoverableRow {
                         sceneManager.setActiveScene(scene)
-                    }
-                    .onHover { hovering in
-                        sceneHoveredID = hovering ? scene.id : nil
+                    } content: {
+                        HStack(spacing: 8) {
+                            Image(systemName: isActive ? "circle.fill" : "circle")
+                                .foregroundColor(isActive ? .accentColor : .secondary)
+                                .frame(width: 16)
+
+                            Text(scene.name)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
                     }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Spacing.lg)
             .padding(.bottom, 12)
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Image(systemName: "gearshape")
-                        .foregroundColor(.orange)
-                        .frame(width: 16)
-                    Text("Settings")
-                        .foregroundColor(.primary)
-                    Spacer()
-                }
-                .padding(.vertical, 4)
-                .padding(.horizontal, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(footerHovered == "settings" ? Color.primary.opacity(0.08) : Color.clear)
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HoverableRow {
                     openSettings()
                     DispatchQueue.main.async {
                         if let win = NSApp.windows.first(where: {
@@ -135,34 +108,31 @@ struct PopoverView: View {
                         }
                         NSApp.activate(ignoringOtherApps: true)
                     }
-                }
-                .onHover { hovering in
-                    footerHovered = hovering ? "settings" : nil
+                } content: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "gearshape")
+                            .foregroundColor(.orange)
+                            .frame(width: 16)
+                        Text("Settings")
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
                 }
 
-                HStack(spacing: 8) {
-                    Image(systemName: "power")
-                        .foregroundColor(.red)
-                        .frame(width: 16)
-                    Text("Quit SpectraWall")
-                        .foregroundColor(.primary)
-                    Spacer()
-                }
-                .padding(.vertical, 4)
-                .padding(.horizontal, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(footerHovered == "quit" ? Color.primary.opacity(0.08) : Color.clear)
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
+                HoverableRow {
                     NSApplication.shared.terminate(nil)
-                }
-                .onHover { hovering in
-                    footerHovered = hovering ? "quit" : nil
+                } content: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "power")
+                            .foregroundColor(.red)
+                            .frame(width: 16)
+                        Text("Quit SpectraWall")
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Spacing.lg)
             .padding(.vertical, 8)
         }
         .frame(width: 240)

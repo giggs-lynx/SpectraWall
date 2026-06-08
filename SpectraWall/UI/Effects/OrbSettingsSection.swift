@@ -13,42 +13,38 @@ struct OrbSettingsSection: View {
     @State private var settings: OrbSettings = .defaults
 
     var body: some View {
-        SectionHeader(title: "Orb")
-        
-        VStack(spacing: 10) {
-            // MARK: - Audio Dynamics
-            SettingsSlider(label: "Sensitivity", value: $settings.boost, range: 1.0...6.0, step: 0.1)
-            SettingsSlider(label: "Attack", value: $settings.attack, range: 0.3...1.0, step: 0.05)
-            SettingsSlider(label: "Release", value: $settings.release, range: 0.1...0.5, step: 0.05)
-            
-            Divider()
-            
-            // MARK: - Geometric Settings
-            SettingsSlider(label: "Base Radius", value: $settings.baseRadius, range: 40...300, step: 5)
-            SettingsSlider(
-                label: "Outer Radius Multiplier",
-                value: $settings.outerRadiusMultiplier,
-                range: 1.0...3.0,
-                step: 0.1
-            )
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCard(title: "Orb") {
+                // MARK: - Audio Dynamics
+                SettingsSlider(label: "Sensitivity", value: $settings.boost, range: 1.0...6.0, step: 0.1)
+                SettingsSlider(label: "Attack", value: $settings.attack, range: 0.3...1.0, step: 0.05)
+                SettingsSlider(label: "Release", value: $settings.release, range: 0.1...0.5, step: 0.05)
 
-            Divider()
+                Divider()
+
+                // MARK: - Geometric Settings
+                SettingsSlider(label: "Base Radius", value: $settings.baseRadius, range: 40...300, step: 5)
+                SettingsSlider(
+                    label: "Outer Radius Multiplier",
+                    value: $settings.outerRadiusMultiplier,
+                    range: 1.0...3.0,
+                    step: 0.1
+                )
+            }
 
             // MARK: - Appearance: Inner
-            SectionHeader(title: "Inner Color")
-            ColorPickerRow(label: "Low Frequency", colorData: $settings.innerColorLow)
-            ColorPickerRow(label: "High Frequency", colorData: $settings.innerColorHigh)
-
-            Divider()
+            SettingsCard(title: "Inner Color") {
+                ColorPickerRow(label: "Low Frequency", colorData: $settings.innerColorLow)
+                ColorPickerRow(label: "High Frequency", colorData: $settings.innerColorHigh)
+            }
 
             // MARK: - Appearance: Outer
-            SectionHeader(title: "Outer Color")
-            ColorPickerRow(label: "Low Frequency", colorData: $settings.outerColorLow)
-            ColorPickerRow(label: "High Frequency", colorData: $settings.outerColorHigh)
-            SettingsSlider(label: "Outer Opacity", value: $settings.outerOpacity, range: 0.0...1.0, step: 0.05)
+            SettingsCard(title: "Outer Color") {
+                ColorPickerRow(label: "Low Frequency", colorData: $settings.outerColorLow)
+                ColorPickerRow(label: "High Frequency", colorData: $settings.outerColorHigh)
+                SettingsSlider(label: "Outer Opacity", value: $settings.outerOpacity, range: 0.0...1.0, step: 0.05)
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
         .onAppear {
             if let orbSettings = layer.effectSettings as? OrbSettings {
                 settings = orbSettings
@@ -72,7 +68,5 @@ struct OrbSettingsSection: View {
                 settings = orbSettings
             }
         }
-
-        Divider()
     }
 }
