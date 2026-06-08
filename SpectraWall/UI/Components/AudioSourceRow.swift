@@ -50,11 +50,13 @@ struct AudioSourceRow: View {
             
             Text(title)
                 .foregroundColor(textColor)
-            
+
             Spacer()
-            
+
             if isDisabled {
                 inactiveLabel
+            } else if isSelected {
+                AudioActivityBars()
             }
         }
     }

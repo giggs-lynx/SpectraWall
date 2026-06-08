@@ -39,6 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// whose other windows are at `desktopWindow` level — we drive it ourselves.
     private var popoverGlobalMonitor: Any?
     private var popoverLocalMonitor: Any?
+    private var iconCancellable: AnyCancellable?
 
     // MARK: - Lifecycle
 
@@ -65,12 +66,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem?.button {
-            let icon = NSImage(named: "AppIcon")
-            icon?.size = NSSize(width: 18, height: 18)
-            button.image = icon
+            button.image = drawMenuBarIcon(AudioActivityMonitor.shared.restingHeights)
             button.action = #selector(togglePopover)
             button.target = self
         }
+
+        // Drive the menu-bar icon's bars from live audio. Monitor runs for the
+        // app's lifetime; it stops emitting once a quiet source settles, so this
+        // only redraws while sound is actually playing.
+        AudioActivityMonitor.shared.start()
+        iconCancellable = AudioActivityMonitor.shared.$iconBars
+            .sink { [weak self] heights in
+                self?.statusItem?.button?.image = self?.drawMenuBarIcon(heights)
+            }
 
         let popover = NSPopover()
         popover.contentViewController = NSHostingController(rootView: PopoverView())
@@ -156,6 +164,45 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func popoverWillClose(_ notification: Notification) {
         removePopoverOutsideClickMonitors()
+    }
+
+    // MARK: - Menu-Bar Icon Rendering
+
+    /// Draw the icon's five spectrum bars (no background) at the given normalized
+    /// heights, with the icon's pink→rose vertical gradient. Bars are bottom-aligned
+    /// and capsule-capped, matching the app icon's glyph.
+    private func drawMenuBarIcon(_ heights: [Double]) -> NSImage {
+        let size = NSSize(width: 18, height: 18)
+        let barW: CGFloat = 2
+        let gap: CGFloat = 1.5
+        let bottom: CGFloat = 1
+        let maxH: CGFloat = 16
+
+        let image = NSImage(size: size)
+        image.lockFocus()
+        defer { image.unlockFocus() }
+
+        let count = max(heights.count, 1)
+        let totalW = CGFloat(count) * barW + CGFloat(count - 1) * gap
+        let startX = (size.width - totalW) / 2
+
+        let bars = NSBezierPath()
+        for (i, h) in heights.enumerated() {
+            let frac = CGFloat(max(0, min(1, h)))
+            let barH = max(barW, frac * maxH)
+            let x = startX + CGFloat(i) * (barW + gap)
+            let rect = NSRect(x: x, y: bottom, width: barW, height: barH)
+            bars.append(NSBezierPath(roundedRect: rect, xRadius: barW / 2, yRadius: barW / 2))
+        }
+        bars.addClip()
+
+        let top = NSColor(srgbRed: 1.0, green: 0.64, blue: 0.71, alpha: 1)
+        let rose = NSColor(srgbRed: 0.93, green: 0.30, blue: 0.40, alpha: 1)
+        NSGradient(starting: rose, ending: top)?
+            .draw(in: NSRect(x: 0, y: bottom, width: size.width, height: maxH), angle: 90)
+
+        image.isTemplate = false
+        return image
     }
 
     // MARK: - Desktop Windows
