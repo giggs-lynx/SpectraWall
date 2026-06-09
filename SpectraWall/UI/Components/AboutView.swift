@@ -19,6 +19,9 @@ struct AboutView: View {
                 Text("Version \(AppConstants.shortVersion) (\(AppConstants.buildNumber))")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                Text(AppConstants.gitCommit)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.secondary)
             }
 
             Divider()

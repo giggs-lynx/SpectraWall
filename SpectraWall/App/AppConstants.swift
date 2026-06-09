@@ -15,4 +15,7 @@ enum AppConstants {
     static var buildNumber: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
     }
+    static var gitCommit: String {
+        Bundle.main.infoDictionary?["GitCommit"] as? String ?? "—"
+    }
 }

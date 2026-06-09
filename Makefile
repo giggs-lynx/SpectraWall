@@ -1,5 +1,6 @@
 SCHEME  = SpectraWall
 VERSION = 0.0.1
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 BUILD_DIR   = ./build
 RELEASE_DIR = $(BUILD_DIR)/Build/Products/Release
 DIST_DIR    = ./dist
@@ -21,6 +22,8 @@ release:
 		-scheme $(SCHEME) \
 		-configuration Release \
 		-derivedDataPath $(BUILD_DIR) \
+		MARKETING_VERSION=$(VERSION) \
+		GIT_COMMIT=$(GIT_COMMIT) \
 		CODE_SIGN_IDENTITY="" \
 		CODE_SIGNING_REQUIRED=NO \
 		CODE_SIGNING_ALLOWED=NO
