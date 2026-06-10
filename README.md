@@ -139,12 +139,11 @@ Each renderer emits a heartbeat every ~2s:
 ## Releasing
 
 ```bash
-git tag -s v0.0.x -m "v0.0.x"
-git push origin v0.0.x
+make release 0.0.x
 ```
 
-GitHub Actions:
-1. `make release VERSION=0.0.x` — Release build, zip, sha256
+Verifies the working tree is clean and HEAD matches the pushed `origin/main`, then signs and pushes the `v0.0.x` tag. GitHub Actions takes it from there:
+1. `make dist VERSION=0.0.x` — Release build, zip, sha256
 2. Creates a GitHub Release with the zip attached
 3. Updates `giggs-lynx/homebrew-tap`'s `Casks/spectrawall.rb` so `brew upgrade --cask spectrawall` picks it up
 
