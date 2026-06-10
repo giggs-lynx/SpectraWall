@@ -31,6 +31,10 @@ extension SpectrumEffect {
                         color: DebugColor.baseline, into: &canvas)
         drawAmpAxisLine(at: layout.base + layout.tipSign * layout.maxExtent, layout: layout,
                         color: DebugColor.ceiling, into: &canvas)
+        if layout.mirror {
+            drawAmpAxisLine(at: layout.base - layout.tipSign * layout.maxExtent, layout: layout,
+                            color: DebugColor.ceiling, into: &canvas)
+        }
     }
 
     private func drawBarRect(_ f: BarFrame, vertical: Bool, into canvas: inout DebugCanvas) {

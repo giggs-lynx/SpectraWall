@@ -117,6 +117,7 @@ class SpectrumEffect: BaseEffect {
         let vertical: Bool
         let base: CGFloat
         let tipSign: CGFloat
+        let mirror: Bool
         let maxExtent: CGFloat
         let stripLo: CGFloat
         let stripHi: CGFloat
@@ -126,7 +127,9 @@ class SpectrumEffect: BaseEffect {
     }
 
     /// One bar: cross-axis edges `lo`/`hi`, amplitude-axis `base`/`tip`
-    /// (`tip` is below `base` for .top / .right anchors).
+    /// (`tip` is below `base` for .top / .right anchors). When mirrored the
+    /// bar spans both sides of the base line, so `base` sits at the opposite
+    /// tip rather than on the line itself.
     struct BarFrame {
         let lo: Float
         let hi: Float
@@ -150,6 +153,7 @@ class SpectrumEffect: BaseEffect {
             vertical: vertical,
             base: ampSpan * ampPos,
             tipSign: (ss.anchor == .bottom || ss.anchor == .left) ? 1 : -1,
+            mirror: ss.mirror,
             maxExtent: ampSpan * CGFloat(ss.maxHeight),
             stripLo: stripLo,
             stripHi: stripLo + stride * CGFloat(binCount - 1) + barSize,
@@ -163,7 +167,7 @@ class SpectrumEffect: BaseEffect {
         let lo = layout.stripLo + CGFloat(i) * layout.stride
         return BarFrame(lo: Float(lo),
                         hi: Float(lo + layout.barSize),
-                        base: Float(layout.base),
+                        base: Float(layout.mirror ? layout.base - layout.tipSign * len : layout.base),
                         tip: Float(layout.base + layout.tipSign * len))
     }
 

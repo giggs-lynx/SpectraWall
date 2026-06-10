@@ -36,7 +36,10 @@ struct SpectrumSettings: EffectSettings, Equatable {
     var width: Double
     var maxHeight: Double
     var anchor: SpectrumAnchor
-    
+    /// Bars grow symmetrically to both sides of the base line (each side up
+    /// to maxHeight, so total span is 2× the single-sided extent).
+    var mirror: Bool
+
     var colorSync: Bool
     var colorSettings: ChannelColorSettings
     var leftColorSettings: ChannelColorSettings
@@ -51,6 +54,7 @@ struct SpectrumSettings: EffectSettings, Equatable {
             width: 1.0,
             maxHeight: 0.35,
             anchor: .bottom,
+            mirror: false,
             colorSync: true,
             colorSettings: .init(),
             leftColorSettings: .init(),
@@ -66,8 +70,8 @@ struct SpectrumSettings: EffectSettings, Equatable {
 extension SpectrumSettings {
     /// Randomize numeric params within their spec ranges. Colours follow each
     /// channel's existing colorMode (rainbow → none, gradient → pair, solid →
-    /// single). Topology/enums (anchor, colorSync) stay put so the result is
-    /// always usable.
+    /// single). Topology/enums (anchor, mirror, colorSync) stay put so the
+    /// result is always usable.
     func randomized() -> SpectrumSettings {
         var s = self
         s.gain = SpectrumSpec.gain.random()
@@ -95,5 +99,34 @@ extension SpectrumSettings {
             out.solidColor = RandomColor.pleasant()
         }
         return out
+    }
+}
+
+extension SpectrumSettings {
+    // Custom init so configs/presets that predate `mirror` still decode —
+    // the missing key falls back to its default. Encode is auto-synthesised
+    // because CodingKeys map 1:1 to properties.
+    enum CodingKeys: String, CodingKey {
+        case gain, powerCurve, attack, release
+        case width, maxHeight, anchor, mirror
+        case colorSync, colorSettings, leftColorSettings, rightColorSettings
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            gain: try c.decode(Double.self, forKey: .gain),
+            powerCurve: try c.decode(Double.self, forKey: .powerCurve),
+            attack: try c.decode(Double.self, forKey: .attack),
+            release: try c.decode(Double.self, forKey: .release),
+            width: try c.decode(Double.self, forKey: .width),
+            maxHeight: try c.decode(Double.self, forKey: .maxHeight),
+            anchor: try c.decode(SpectrumAnchor.self, forKey: .anchor),
+            mirror: try c.decodeIfPresent(Bool.self, forKey: .mirror) ?? false,
+            colorSync: try c.decode(Bool.self, forKey: .colorSync),
+            colorSettings: try c.decode(ChannelColorSettings.self, forKey: .colorSettings),
+            leftColorSettings: try c.decode(ChannelColorSettings.self, forKey: .leftColorSettings),
+            rightColorSettings: try c.decode(ChannelColorSettings.self, forKey: .rightColorSettings)
+        )
     }
 }

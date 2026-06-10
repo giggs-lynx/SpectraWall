@@ -32,6 +32,11 @@ struct SpectrumSettingsSection: View {
                     applyAnchorPosition(newAnchor)
                 }
 
+                Toggle("Mirror", isOn: $settings.mirror)
+                    .onChange(of: settings.mirror) { _, mirrored in
+                        applyMirrorPosition(mirrored)
+                    }
+
                 // MARK: - Dimension Settings
                 SettingsSlider(label: "Height", value: $settings.gain, spec: SpectrumSpec.gain)
                 SettingsSlider(label: "Max Height", value: $settings.maxHeight, spec: SpectrumSpec.maxHeight)
@@ -109,6 +114,28 @@ struct SpectrumSettingsSection: View {
             layer.positionX = 1.0
             layer.positionY = 0.5
         }
+        if settings.mirror {
+            centerAmpAxis(for: anchor)
+        }
         VisualizerSceneManager.shared.save()
+    }
+
+    // Mirrored bars grow both ways from the base line; an edge-snapped base
+    // would clip one half off-screen, so snap the amplitude axis to center.
+    // Turning mirror off snaps back to the anchor's edge position.
+    private func applyMirrorPosition(_ mirrored: Bool) {
+        if mirrored {
+            centerAmpAxis(for: settings.anchor)
+            VisualizerSceneManager.shared.save()
+        } else {
+            applyAnchorPosition(settings.anchor)
+        }
+    }
+
+    private func centerAmpAxis(for anchor: SpectrumAnchor) {
+        switch anchor {
+        case .bottom, .top: layer.positionY = 0.5
+        case .left, .right: layer.positionX = 0.5
+        }
     }
 }
