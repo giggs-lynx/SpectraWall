@@ -9,48 +9,7 @@ import simd
 
 // MARK: - Trail Vertex Building
 
-/// Per-sample rail offsets + their edgeDist, after corner clamping.
-struct RailOffsets {
-    var hA: CGFloat
-    var hB: CGFloat
-    var edgeA: Float
-    var edgeB: Float
-}
-
 extension BorderEffect {
-
-    func buildStripFromCenterline(
-        points: [CGPoint],
-        width: CGFloat,
-        color: SIMD4<Float>,
-        alpha: Float
-    ) -> [EffectVertex] {
-        var vertices: [EffectVertex] = []
-        let half = width / 2
-        for index in 0..<points.count {
-            let point = points[index]
-            let normal: CGPoint
-            if index == 0 {
-                normal = perp(normalize(CGPoint(x: points[1].x - point.x, y: points[1].y - point.y)))
-            } else if index == points.count - 1 {
-                let prev = points[index - 1]
-                normal = perp(normalize(CGPoint(x: point.x - prev.x, y: point.y - prev.y)))
-            } else {
-                let prev = points[index - 1]
-                let next = points[index + 1]
-                normal = perp(normalize(CGPoint(x: next.x - prev.x, y: next.y - prev.y)))
-            }
-            vertices.append(EffectVertex(
-                position: SIMD2(Float(point.x + normal.x * half), Float(point.y + normal.y * half)),
-                color: color, alpha: alpha, edgeDist: -1.0
-            ))
-            vertices.append(EffectVertex(
-                position: SIMD2(Float(point.x - normal.x * half), Float(point.y - normal.y * half)),
-                color: color, alpha: alpha, edgeDist: 1.0
-            ))
-        }
-        return vertices
-    }
 
     struct TrailContext {
         var centerPoints: [CGPoint] = []
@@ -152,127 +111,50 @@ extension BorderEffect {
         return ctx
     }
 
-    func appendHeadFan(ctx: TrailContext, to vertices: inout [EffectVertex]) {
-        let hCenter = ctx.centerPoints[0]
-        let hDir = normalize(CGPoint(x: hCenter.x - ctx.centerPoints[1].x, y: hCenter.y - ctx.centerPoints[1].y))
-        let hNormal = perp(hDir)
-        let hRadius = ctx.widths[0] / 2
-        let hColor = ctx.colors[0]
-        let hAlpha = Float(ctx.alphas[0])
-        let fanSteps = 16
-
-        for fanIndex in 0...fanSteps {
-            let angle = CGFloat(fanIndex) / CGFloat(fanSteps) * .pi
-            let ox = hNormal.x * cos(angle) * hRadius + hDir.x * sin(angle) * hRadius
-            let oy = hNormal.y * cos(angle) * hRadius + hDir.y * sin(angle) * hRadius
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x), Float(hCenter.y)),
-                                        color: hColor, alpha: hAlpha, edgeDist: 0.0))
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x + ox), Float(hCenter.y + oy)),
-                                        color: hColor, alpha: hAlpha, edgeDist: 1.0))
-        }
-
-        if let lastFan = vertices.last {
-            let firstNormal = perp(normalize(CGPoint(x: ctx.centerPoints[1].x - hCenter.x,
-                                                     y: ctx.centerPoints[1].y - hCenter.y)))
-            let halfW = ctx.stripWidths[0] / 2
-            // Match the body's clamped railA (+N) endpoint so a head sitting on a
-            // corner doesn't reintroduce a fold at the fan→body seam.
-            let (radius0, innerIsPlusN0) = localCurvature(ctx.centerPoints, at: 0)
-            let off0 = clampedRailOffsets(halfW: halfW, radius: radius0, innerIsPlusN: innerIsPlusN0)
-            vertices.append(lastFan)
-            vertices.append(lastFan)
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(hCenter.x + firstNormal.x * off0.hA),
-                                                               Float(hCenter.y + firstNormal.y * off0.hA)),
-                                        color: hColor, alpha: hAlpha, edgeDist: off0.edgeA))
-        }
-    }
-
-    /// Local centerline radius magnitude + which rail side (+N) is concave,
-    /// from three consecutive centerline points. Computed in render space
-    /// (after the mirror + tangent-flip), so no sign bookkeeping is needed —
-    /// the geometry already reflects every transform. Straight → .infinity.
-    func localCurvature(_ points: [CGPoint], at i: Int) -> (radius: CGFloat, innerIsPlusN: Bool) {
-        let n = points.count
-        guard n >= 3 else { return (.infinity, true) }
-        // Walk out to neighbours at least `minSpan` px away on each side. With
-        // dense sampling (corner densification → up to 1200 samples) adjacent
-        // points are sub-pixel apart; a circumradius from near-coincident points
-        // is numerically garbage. A fixed-distance span keeps the triangle
-        // well-conditioned at any sample density.
-        let minSpan: CGFloat = 4
-        func dist(_ p: CGPoint, _ q: CGPoint) -> CGFloat {
-            let dx = p.x - q.x, dy = p.y - q.y
-            return (dx * dx + dy * dy).squareRoot()
-        }
-        func walkOut(from start: Int, step: Int) -> Int {
-            var j = start
-            while j + step >= 0 && j + step <= n - 1 && dist(points[j + step], points[start]) < minSpan {
-                j += step
-            }
-            let next = j + step
-            return (next >= 0 && next <= n - 1) ? next : j
-        }
-        // Three well-spaced, distinct points bracketing i. At the head/tail
-        // boundary (i==0 or n-1) the window can't straddle i, so shift it inward
-        // (i, i+k, i+2k) — otherwise i=0 degenerates to radius=∞ and the
-        // full-width head never clamps when it sits on a corner.
-        let back = walkOut(from: i, step: -1)
-        let fwd = walkOut(from: i, step: +1)
-        let a: CGPoint, b: CGPoint, c: CGPoint
-        if back == i {                       // near start: window forward of i
-            let fwd2 = walkOut(from: fwd, step: +1)
-            a = points[i]; b = points[fwd]; c = points[fwd2]
-        } else if fwd == i {                 // near end: window behind i
-            let back2 = walkOut(from: back, step: -1)
-            a = points[back2]; b = points[back]; c = points[i]
-        } else {
-            a = points[back]; b = points[i]; c = points[fwd]
-        }
-        let abx = b.x - a.x, aby = b.y - a.y
-        let acx = c.x - a.x, acy = c.y - a.y
-        let cross = abx * acy - aby * acx          // signed 2×area; >0 = left turn
-        let area2 = abs(cross)
-        guard area2 > 1e-3 else { return (.infinity, cross > 0) }
-        let bcx = c.x - b.x, bcy = c.y - b.y
-        let ab = (abx * abx + aby * aby).squareRoot()
-        let bc = (bcx * bcx + bcy * bcy).squareRoot()
-        let ca = (acx * acx + acy * acy).squareRoot()
-        let radius = (ab * bc * ca) / (2 * area2)  // circumradius = abc / (4·area)
-        // Left turn → centre of curvature is left of travel = +N (perp) side,
-        // so the +N rail is the concave/inner one that would fold.
-        return (radius, cross > 0)
-    }
-
-    /// Clamp the inner (concave) rail's offset so it can't cross the centerline
-    /// when halfW exceeds the local radius, and re-derive each rail's edgeDist
-    /// from its true signed distance (normalised by the unclamped halfW). This
-    /// keeps the edgeDist=0 bright core on the real centerline and leaves
-    /// straight sections (radius .infinity ⇒ no clamp) byte-for-byte unchanged.
-    func clampedRailOffsets(halfW: CGFloat, radius: CGFloat, innerIsPlusN: Bool) -> RailOffsets {
-        guard halfW > 0 else { return RailOffsets(hA: 0, hB: 0, edgeA: -1, edgeB: 1) }
-        let safe = min(halfW, 0.85 * radius)       // radius .infinity ⇒ halfW
-        let hA = innerIsPlusN ? safe : halfW       // railA = +N side
-        let hB = innerIsPlusN ? halfW : safe       // railB = −N side
-        return RailOffsets(hA: hA, hB: hB, edgeA: Float(-hA / halfW), edgeB: Float(hB / halfW))
-    }
-
-    func appendBodyStrip(ctx: TrailContext, to vertices: inout [EffectVertex]) {
-        let steps = ctx.centerPoints.count - 1
-        for i in 0...steps {
-            let point = ctx.centerPoints[i]
-            let normal = perp(ctx.tangents[i])
-            let halfW = ctx.stripWidths[i] / 2
-            let (radius, innerIsPlusN) = localCurvature(ctx.centerPoints, at: i)
-            let off = clampedRailOffsets(halfW: halfW, radius: radius, innerIsPlusN: innerIsPlusN)
-
-            let color4 = ctx.colors[i]
+    /// Emit one quad per centerline segment, each carrying its endpoints + the
+    /// capsule radius so `border_fragment` can shade by true distance to the
+    /// segment. Replaces the old offset-rail strip whose inner rail folded at
+    /// tight corners (the spike). Round head/tail caps fall out of the capsule
+    /// SDF for free — no separate head fan. Output is a plain triangle list.
+    func appendCapsuleStrip(ctx: TrailContext, to vertices: inout [EffectVertex]) {
+        let n = ctx.centerPoints.count
+        guard n >= 2 else { return }
+        for i in 0..<(n - 1) {
+            let a = ctx.centerPoints[i]
+            let b = ctx.centerPoints[i + 1]
+            // One radius per segment, taking the wider of the two endpoints so a
+            // tapering trail never gaps between capsules; the max blend resolves
+            // the resulting overlap into one continuous glow.
+            let halfW = max(ctx.stripWidths[i], ctx.stripWidths[i + 1]) / 2
+            guard halfW > 0 else { continue }
+            let segA = SIMD2<Float>(Float(a.x), Float(a.y))
+            let segB = SIMD2<Float>(Float(b.x), Float(b.y))
+            let radius = Float(halfW)
+            let color = ctx.colors[i]
             let alpha = Float(ctx.alphas[i])
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(point.x + normal.x * off.hA),
-                                                               Float(point.y + normal.y * off.hA)),
-                                        color: color4, alpha: alpha, edgeDist: off.edgeA))
-            vertices.append(EffectVertex(position: SIMD2<Float>(Float(point.x - normal.x * off.hB),
-                                                               Float(point.y - normal.y * off.hB)),
-                                        color: color4, alpha: alpha, edgeDist: off.edgeB))
+
+            // Quad = the capsule's oriented bounding box, padded 1.15× to keep
+            // the exp() glow tail that extends just past the nominal radius.
+            let pad = halfW * 1.15
+            let dx = b.x - a.x, dy = b.y - a.y
+            let len = (dx * dx + dy * dy).squareRoot()
+            let axis = len > 1e-6 ? CGPoint(x: dx / len, y: dy / len) : CGPoint(x: 1, y: 0)
+            let nrm = perp(axis)
+            let ax = CGPoint(x: axis.x * pad, y: axis.y * pad)
+            let nx = CGPoint(x: nrm.x * pad, y: nrm.y * pad)
+
+            func vert(_ p: CGPoint) -> EffectVertex {
+                EffectVertex(position: SIMD2<Float>(Float(p.x), Float(p.y)),
+                             color: color, alpha: alpha, edgeDist: 0,
+                             segA: segA, segB: segB, radius: radius)
+            }
+            let c0 = CGPoint(x: a.x - ax.x + nx.x, y: a.y - ax.y + nx.y)
+            let c1 = CGPoint(x: a.x - ax.x - nx.x, y: a.y - ax.y - nx.y)
+            let c2 = CGPoint(x: b.x + ax.x + nx.x, y: b.y + ax.y + nx.y)
+            let c3 = CGPoint(x: b.x + ax.x - nx.x, y: b.y + ax.y - nx.y)
+            // Two triangles; winding is irrelevant (no back-face culling).
+            vertices.append(vert(c0)); vertices.append(vert(c1)); vertices.append(vert(c2))
+            vertices.append(vert(c2)); vertices.append(vert(c1)); vertices.append(vert(c3))
         }
     }
 
@@ -286,9 +168,8 @@ extension BorderEffect {
         let ctx = prepareEffectMesh(progress: progress, amplitude: amplitude, stripScale: stripScale,
                                    strokeIndex: strokeIndex, alpha: alpha)
         var vertices: [EffectVertex] = []
-        vertices.reserveCapacity(ctx.centerPoints.count * 2 + 40)
-        appendHeadFan(ctx: ctx, to: &vertices)
-        appendBodyStrip(ctx: ctx, to: &vertices)
+        vertices.reserveCapacity(ctx.centerPoints.count * 6)
+        appendCapsuleStrip(ctx: ctx, to: &vertices)
         return vertices
     }
 
@@ -310,7 +191,7 @@ extension BorderEffect {
             stripScale: 1.0,
             alpha: nil
         )
-        return EffectMesh(vertices: vertices)
+        return EffectMesh(vertices: vertices, primitiveType: .triangle)
     }
 
     func buildScaledGhostMesh(
@@ -344,19 +225,14 @@ extension BorderEffect {
         }
 
         var vertices: [EffectVertex] = []
-        vertices.reserveCapacity(ctx.centerPoints.count * 2 + 40)
-        appendHeadFan(ctx: ctx, to: &vertices)
-        appendBodyStrip(ctx: ctx, to: &vertices)
+        vertices.reserveCapacity(ctx.centerPoints.count * 6)
+        appendCapsuleStrip(ctx: ctx, to: &vertices)
 
+        // Flag every vertex as uniform-fill (solid silhouette, no glow falloff).
+        // Mutate in place so the capsule's segA/segB/radius survive.
         for i in 0..<vertices.count {
-            let v = vertices[i]
-            vertices[i] = EffectVertex(
-                position: v.position,
-                color: v.color,
-                alpha: v.alpha,
-                edgeDist: 2.0
-            )
+            vertices[i].edgeDist = 2.0
         }
-        return EffectMesh(vertices: vertices)
+        return EffectMesh(vertices: vertices, primitiveType: .triangle)
     }
 }

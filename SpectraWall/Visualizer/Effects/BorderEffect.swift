@@ -47,10 +47,6 @@ class BorderEffect: BaseEffect {
 
     private var trailHidden = false
 
-    /// One-shot guard for the debug geometry numeric dump. Reset on any layer
-    /// settings change so adjusting baseWidth/cornerRadius re-dumps fresh numbers.
-    var debugDumped = false
-
     // MARK: - Scale Pulse Echo
 
     struct ScaleGhost {
@@ -124,7 +120,6 @@ class BorderEffect: BaseEffect {
     // MARK: - BaseEffect hooks
 
     override func onLayerSettingsChanged() {
-        debugDumped = false
         let bs = borderSettings
         if bs.strokeCount  != lastStrokeCount  ||
            bs.cornerRadius != lastCornerRadius ||
@@ -436,7 +431,7 @@ extension BorderEffect {
         pipelineSpec: PipelineSpec(
             vertexFunctionName: "border_vertex",
             fragmentFunctionName: "border_fragment",
-            blendMode: .additive
+            blendMode: .lighten
         )
     )
 }

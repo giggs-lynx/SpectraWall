@@ -29,6 +29,14 @@ struct EffectVertex {
     var color: SIMD4<Float>
     var alpha: Float
     var edgeDist: Float
+    // Capsule-SDF carrier data for the border glow: the centerline segment this
+    // vertex's quad covers, plus the capsule radius. The border fragment shades
+    // by true distance to [segA, segB] instead of a swept-strip edge coordinate,
+    // so corners can't fold into a spike. Defaulted so every other effect's
+    // existing `EffectVertex(...)` call site (which ignores these) still compiles.
+    var segA: SIMD2<Float> = .zero
+    var segB: SIMD2<Float> = .zero
+    var radius: Float = 0
 }
 
 /// Generic geometry container submitted to the renderer.
@@ -41,10 +49,22 @@ struct EffectMesh {
 enum BlendMode {
     case additive
     case alphaBlend
+    /// Per-pixel max (`result = max(src, dest)`). Overlapping premultiplied
+    /// glow fragments take the brightest instead of summing — lets the border's
+    /// overlapping SDF capsules read as one continuous glow rather than blowing
+    /// out where they overlap (which additive would do dozens of times over).
+    case lighten
 
     func apply(to attachment: MTLRenderPipelineColorAttachmentDescriptor) {
         attachment.isBlendingEnabled = true
         switch self {
+        case .lighten:
+            attachment.rgbBlendOperation           = .max
+            attachment.alphaBlendOperation         = .max
+            attachment.sourceRGBBlendFactor        = .one
+            attachment.destinationRGBBlendFactor   = .one
+            attachment.sourceAlphaBlendFactor      = .one
+            attachment.destinationAlphaBlendFactor = .one
         case .additive:
             attachment.rgbBlendOperation           = .add
             attachment.alphaBlendOperation         = .add
