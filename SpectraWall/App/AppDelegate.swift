@@ -66,7 +66,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem?.button {
-            button.image = drawMenuBarIcon(AudioActivityMonitor.shared.restingHeights)
+            button.image = drawMenuBarIcon(IconSpectrum.restingHeights)
             button.action = #selector(togglePopover)
             button.target = self
         }

@@ -34,11 +34,10 @@ final class AudioActivityMonitor: ObservableObject {
     /// Hysteresis-debounced silence state.
     @Published private(set) var isSilent: Bool = true
 
-    /// The icon's static spectrum shape (low→high), shown when silent.
-    let restingHeights: [Double] = [0.42, 0.62, 0.88, 0.66, 0.50]
-
-    // Frequency bands over the 96 chromatic bins (low → high), one per icon bar.
-    private let bandRanges: [Range<Int>] = [0..<5, 5..<13, 13..<28, 28..<52, 52..<96]
+    // Bar count, band split, and resting shape all come from IconSpectrum —
+    // the shared identity of the five-bar glyph.
+    private let restingHeights = IconSpectrum.restingHeights
+    private let bandRanges = IconSpectrum.bandRanges
 
     // Silence thresholds (full-spectrum peak) shared with OrbEffect via SilenceThreshold.
     private let staleTimeout: TimeInterval = 0.3
