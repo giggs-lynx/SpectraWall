@@ -66,6 +66,16 @@ class VisualizerSceneManager: ObservableObject {
         return copy
     }
 
+    /// Adopts an already-independent scene snapshot (fresh scene/layer UUIDs,
+    /// built by PresetStore) into the library and makes it active.
+    @discardableResult
+    func addScene(from snapshot: SceneSettings) -> SceneSettings {
+        scenes.append(snapshot)
+        activeSceneID = snapshot.id
+        persistImmediately()
+        return snapshot
+    }
+
     func removeScene(_ scene: SceneSettings) -> SceneSettings? {
         guard let index = scenes.firstIndex(where: { $0 === scene }) else { return nil }
         let removed = scenes.remove(at: index)

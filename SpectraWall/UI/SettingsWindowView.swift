@@ -97,9 +97,17 @@ struct SceneListColumn: View {
     @Binding var selectedSceneID: UUID?
     @Binding var selectedLayerID: UUID?
     @ObservedObject var sceneManager = VisualizerSceneManager.shared
+    @ObservedObject var presetStore = PresetStore.shared
     @State private var showDeleteConfirm = false
     @State private var sceneToDelete: SceneSettings?
-    
+    @State private var showSavePresetPrompt = false
+    @State private var presetName = ""
+    @State private var sceneToPreset: SceneSettings?
+    @State private var showDeletePresetConfirm = false
+    @State private var presetToDelete: SceneSettings?
+    @State private var showError = false
+    @State private var errorMessage = ""
+
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $selectedSceneID) {
@@ -125,6 +133,12 @@ struct SceneListColumn: View {
                                 selectedSceneID = copy.id
                                 selectedLayerID = nil
                             },
+                            onSaveAsPreset: {
+                                sceneToPreset = scene
+                                presetName = scene.name
+                                showSavePresetPrompt = true
+                            },
+                            onExport: { exportScene(scene) },
                             onDelete: {
                                 sceneToDelete = scene
                                 showDeleteConfirm = true
@@ -157,6 +171,31 @@ struct SceneListColumn: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .confirmationDialog(
+            "Are you sure you want to delete the preset \"\(presetToDelete?.name ?? "")\"?",
+            isPresented: $showDeletePresetConfirm
+        ) {
+            Button("Delete", role: .destructive) {
+                if let preset = presetToDelete {
+                    presetStore.deletePreset(preset)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Save as Preset", isPresented: $showSavePresetPrompt) {
+            TextField("Preset Name", text: $presetName)
+            Button("Save") {
+                if let scene = sceneToPreset {
+                    presetStore.savePreset(from: scene, name: presetName)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
     }
 
     private var headerView: some View {
@@ -165,14 +204,70 @@ struct SceneListColumn: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
             Spacer()
-            Button {
+            addSceneMenu
+        }
+    }
+
+    private var addSceneMenu: some View {
+        Menu {
+            Button("New Scene") {
                 let scene = sceneManager.addScene()
                 selectedSceneID = scene.id
                 selectedLayerID = nil
-            } label: {
-                Image(systemName: "plus")
             }
-            .buttonStyle(.plain)
+            Menu("From Preset") {
+                if presetStore.presets.isEmpty {
+                    Button("No Presets") {}.disabled(true)
+                } else {
+                    ForEach(presetStore.presets) { preset in
+                        Button(preset.name) {
+                            if let scene = presetStore.instantiate(preset) {
+                                selectedSceneID = scene.id
+                                selectedLayerID = nil
+                            }
+                        }
+                    }
+                }
+            }
+            Button("Import Preset…") { importPreset() }
+            if !presetStore.presets.isEmpty {
+                Divider()
+                Menu("Delete Preset") {
+                    ForEach(presetStore.presets) { preset in
+                        Button(preset.name) {
+                            presetToDelete = preset
+                            showDeletePresetConfirm = true
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "plus")
+        }
+        .menuIndicator(.hidden)
+        .menuStyle(.borderlessButton)
+        .frame(width: 20)
+    }
+
+    private func importPreset() {
+        guard let url = PresetFilePanels.runOpenPanel() else { return }
+        do {
+            let scene = try PresetStore.shared.importScene(from: url)
+            selectedSceneID = scene.id
+            selectedLayerID = nil
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private func exportScene(_ scene: SceneSettings) {
+        guard let url = PresetFilePanels.runSavePanel(suggestedName: scene.name) else { return }
+        do {
+            try presetStore.exportData(for: scene).write(to: url, options: .atomic)
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
         }
     }
 }
@@ -182,6 +277,8 @@ struct SceneRow: View {
     @ObservedObject var scene: SceneSettings
     let isActive: Bool
     let onDuplicate: () -> Void
+    let onSaveAsPreset: () -> Void
+    let onExport: () -> Void
     let onDelete: () -> Void
     @State private var isEditing = false
     @State private var editingName = ""
@@ -214,15 +311,18 @@ struct SceneRow: View {
             Button("Rename") { startEditing() }
             Button("Duplicate") { onDuplicate() }
             Divider()
+            Button("Save as Preset…") { onSaveAsPreset() }
+            Button("Export…") { onExport() }
+            Divider()
             Button("Delete", role: .destructive) { onDelete() }
         }
     }
-    
+
     private func startEditing() {
         editingName = scene.name
         isEditing = true
     }
-    
+
     private func commitRename() {
         if !editingName.trimmingCharacters(in: .whitespaces).isEmpty {
             scene.name = editingName

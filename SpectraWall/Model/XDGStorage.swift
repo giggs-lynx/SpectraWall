@@ -28,6 +28,7 @@ final class XDGStorage {
 
     let configFileURL: URL
     let scenesDirURL: URL
+    let presetsDirURL: URL
     let stateFileURL: URL
 
     /// Latched true when config.json exists on disk but fails to decode.
@@ -45,6 +46,7 @@ final class XDGStorage {
             .appendingPathComponent(appSlug)
         configFileURL = configDir.appendingPathComponent("config.json")
         scenesDirURL = configDir.appendingPathComponent("scenes")
+        presetsDirURL = configDir.appendingPathComponent("presets")
         stateFileURL = stateDir.appendingPathComponent("state.json")
 
         runMigrationsIfNeeded()
@@ -160,33 +162,41 @@ final class XDGStorage {
         }
     }
 
+    /// Canonical on-disk JSON encoding: pretty-printed, sorted keys, doubles
+    /// rounded to 4 decimals. Also used verbatim for preset export so a
+    /// shared file is byte-identical to its internal counterpart.
+    static func encodeJSONForDisk<T: Encodable>(_ value: T) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let raw = try encoder.encode(value)
+        // JSONEncoder writes doubles with the "shortest decimal that
+        // round-trips" rule — so values like `0.1 + 0.05 == 0.15000…002`
+        // get the full IEEE-754 string. Post-process: regex-find every
+        // decimal literal, round to 4 decimals, emit the shortest repr.
+        guard var text = String(data: raw, encoding: .utf8) else {
+            throw NSError(
+                domain: "XDGStorage", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "UTF-8 decode of encoded JSON failed"]
+            )
+        }
+        text = roundDoublesInJSONText(text)
+        guard let cleaned = text.data(using: .utf8) else {
+            throw NSError(
+                domain: "XDGStorage", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "UTF-8 re-encode after rounding failed"]
+            )
+        }
+        return cleaned
+    }
+
     private func save<T: Encodable>(_ value: T, to url: URL) {
         do {
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let raw = try encoder.encode(value)
-            // JSONEncoder writes doubles with the "shortest decimal that
-            // round-trips" rule — so values like `0.1 + 0.05 == 0.15000…002`
-            // get the full IEEE-754 string. Post-process: regex-find every
-            // decimal literal, round to 4 decimals, emit the shortest repr.
-            guard var text = String(data: raw, encoding: .utf8) else {
-                throw NSError(
-                    domain: "XDGStorage", code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "UTF-8 decode of encoded JSON failed"]
-                )
-            }
-            text = Self.roundDoublesInJSONText(text)
-            guard let cleaned = text.data(using: .utf8) else {
-                throw NSError(
-                    domain: "XDGStorage", code: 2,
-                    userInfo: [NSLocalizedDescriptionKey: "UTF-8 re-encode after rounding failed"]
-                )
-            }
-            try cleaned.write(to: url, options: .atomic)
+            let data = try Self.encodeJSONForDisk(value)
+            try data.write(to: url, options: .atomic)
         } catch {
             AppLog.persist.error("""
                 Failed to save \(url.lastPathComponent, privacy: .public): \
@@ -402,5 +412,46 @@ final class XDGStorage {
         config.scenes = sceneIDs
         config.activeScene = activeID
         saveConfig(config)
+    }
+}
+
+// MARK: - Per-preset files (UUID-keyed)
+//
+// Presets reuse SceneSettings' wire format and mirror the scenes/ layout,
+// but deliberately have no registry in config.json (no order/active
+// semantics — the directory IS the library). That independence also means
+// none of these are gated on `configFileIsBroken`.
+
+extension XDGStorage {
+
+    func presetFileURL(for uuid: UUID) -> URL {
+        presetsDirURL.appendingPathComponent("preset-\(uuid.uuidString).json")
+    }
+
+    func loadPreset(uuid: UUID) -> SceneSettings? {
+        guard let preset = load(SceneSettings.self, from: presetFileURL(for: uuid)) else { return nil }
+        preset.id = uuid
+        return preset
+    }
+
+    func savePreset(_ preset: SceneSettings) {
+        save(preset, to: presetFileURL(for: preset.id))
+    }
+
+    func deletePreset(uuid: UUID) {
+        try? FileManager.default.removeItem(at: presetFileURL(for: uuid))
+    }
+
+    func listPresetUUIDs() -> [UUID] {
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: presetsDirURL,
+            includingPropertiesForKeys: nil
+        ) else { return [] }
+        return urls.compactMap { url in
+            guard url.pathExtension == "json" else { return nil }
+            let stem = url.deletingPathExtension().lastPathComponent
+            guard stem.hasPrefix("preset-") else { return nil }
+            return UUID(uuidString: String(stem.dropFirst("preset-".count)))
+        }
     }
 }
