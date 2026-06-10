@@ -165,6 +165,9 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
     /// Global debug master, fanned in from AppSettings.debugEnabled. Read +
     /// written only on `renderQueue`, so a plain Bool is race-free here.
     private(set) var isDebugEnabled = false
+    /// Per-type debug filter, fanned in from AppSettings.debugTypes alongside
+    /// the master. Same renderQueue-only access rule as `isDebugEnabled`.
+    private(set) var debugTypes: Set<EffectType> = Set(EffectRegistry.allTypes)
 
     private var screenSize: SIMD2<Float> = .zero
 
@@ -358,6 +361,14 @@ class EffectRenderer: NSObject, CAMetalDisplayLinkDelegate {
             self.isDebugEnabled = enabled
             if !enabled { self.debugSubmissions.removeAll() }
         }
+    }
+
+    /// Restrict which effect types contribute debug geometry while the master
+    /// is on. No cleanup needed here: a filtered-out effect's next tick draws
+    /// an empty canvas, which removes its stale submission and unhides its
+    /// normal mesh.
+    func setDebugTypes(_ types: Set<EffectType>) {
+        onRenderQueue(.async) { self.debugTypes = types }
     }
 
     /// Submit (or replace) an effect's debug geometry for the next frame. Drawn

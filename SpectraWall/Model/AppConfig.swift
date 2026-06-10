@@ -29,6 +29,9 @@ struct AppConfig: Codable {
     /// `drawDebug` paint their geometry skeleton on top via the renderer's
     /// dedicated debug pipeline.
     var debugOverlayEnabled: Bool = false
+    /// Which effect types draw their wireframe while the master is on.
+    /// nil (key absent) = all registered types; [] = none.
+    var debugTypes: [EffectType]?
 
     /// Explicit memberwise init. Required because providing `init(from:)`
     /// below disables Swift's auto-synthesized memberwise init.
@@ -38,7 +41,8 @@ struct AppConfig: Codable {
          scenes: [UUID] = [],
          activeScene: UUID? = nil,
          msaaEnabled: Bool = true,
-         debugOverlayEnabled: Bool = false) {
+         debugOverlayEnabled: Bool = false,
+         debugTypes: [EffectType]? = nil) {
         self.version = version
         self.motionStyle = motionStyle
         self.enabledDisplayIDs = enabledDisplayIDs
@@ -46,6 +50,7 @@ struct AppConfig: Codable {
         self.activeScene = activeScene
         self.msaaEnabled = msaaEnabled
         self.debugOverlayEnabled = debugOverlayEnabled
+        self.debugTypes = debugTypes
     }
 
     /// Decode with per-field fallback so older config.json files that
@@ -61,6 +66,7 @@ struct AppConfig: Codable {
         activeScene = try c.decodeIfPresent(UUID.self, forKey: .activeScene)
         msaaEnabled = try c.decodeIfPresent(Bool.self, forKey: .msaaEnabled) ?? true
         debugOverlayEnabled = try c.decodeIfPresent(Bool.self, forKey: .debugOverlayEnabled) ?? false
+        debugTypes = try c.decodeIfPresent([EffectType].self, forKey: .debugTypes)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -72,9 +78,11 @@ struct AppConfig: Codable {
         try c.encodeIfPresent(activeScene, forKey: .activeScene)
         try c.encode(msaaEnabled, forKey: .msaaEnabled)
         try c.encode(debugOverlayEnabled, forKey: .debugOverlayEnabled)
+        try c.encodeIfPresent(debugTypes, forKey: .debugTypes)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, motionStyle, enabledDisplayIDs, scenes, activeScene, msaaEnabled, debugOverlayEnabled
+        case version, motionStyle, enabledDisplayIDs, scenes, activeScene, msaaEnabled, debugOverlayEnabled,
+             debugTypes
     }
 }

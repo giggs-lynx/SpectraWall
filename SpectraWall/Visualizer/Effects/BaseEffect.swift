@@ -123,7 +123,11 @@ class BaseEffect: Effect {
         // nothing, so effects that don't implement drawDebug would vanish.
         if let renderer, renderer.isDebugEnabled {
             var canvas = DebugCanvas()
-            drawDebug(into: &canvas)
+            // Filtered-out types skip drawing: the canvas stays empty, the
+            // stale submission is removed and the host mesh renders normally.
+            if renderer.debugTypes.contains(layer.effectType) {
+                drawDebug(into: &canvas)
+            }
             if canvas.isEmpty {
                 renderer.removeDebug(id: id)
             } else {

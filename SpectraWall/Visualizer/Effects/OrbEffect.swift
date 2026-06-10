@@ -36,7 +36,7 @@ class OrbEffect: BaseEffect {
         layer.effectSettings as? OrbSettings ?? .defaults
     }
 
-    private let fanSegments = 32
+    let fanSegments = 32
 
     override class var effectTypeName: String { "Orb" }
 
@@ -90,6 +90,12 @@ class OrbEffect: BaseEffect {
         renderer.submit(id: id, type: .orb, mesh: buildOrbData())
     }
 
+    // `override` must live in the class body (Swift forbids it in extensions);
+    // the geometry build lives in OrbEffectDebug.swift.
+    override func drawDebug(into canvas: inout DebugCanvas) {
+        buildOrbDebug(into: &canvas)
+    }
+
     override func onAudio(_ bins: StereoBins) {
         let os = orbSettings
 
@@ -129,25 +135,39 @@ class OrbEffect: BaseEffect {
 
     // MARK: - Vertex Building
 
-    private func buildOrbData() -> EffectMesh {
+    /// Geometry shared by the render mesh and the debug wireframe in
+    /// OrbEffectDebug.swift, so the skeleton can never drift from the mesh.
+    struct OrbGeometry {
+        let center: SIMD2<Float>
+        let innerRadius: Float
+        let outerRadius: Float
+        let baseRadius: Float
+    }
+
+    func orbGeometry() -> OrbGeometry {
         let os = orbSettings
         let cx = Float(sceneSize.width  * layer.positionX)
         let cy = Float(sceneSize.height * layer.positionY)
-        let center = SIMD2<Float>(cx, cy)
+        return OrbGeometry(
+            center: SIMD2<Float>(cx, cy),
+            innerRadius: Float(os.baseRadius) * renderedInnerScale,
+            outerRadius: Float(os.baseRadius) * renderedOuterScale * Float(os.outerRadiusMultiplier),
+            baseRadius: Float(os.baseRadius))
+    }
 
-        let innerR = Float(os.baseRadius) * renderedInnerScale
-        let outerR = Float(os.baseRadius) * renderedOuterScale * Float(os.outerRadiusMultiplier)
+    private func buildOrbData() -> EffectMesh {
+        let geo = orbGeometry()
 
         var vertices: [EffectVertex] = []
         vertices.reserveCapacity(fanSegments * 3 * 2)
 
         // Outer glow first (drawn underneath inner orb); negative edgeDist = glow mode in shader
-        vertices.append(contentsOf: buildFan(center: center, radius: outerR,
+        vertices.append(contentsOf: buildFan(center: geo.center, radius: geo.outerRadius,
                                              color: currentOuterColor, alpha: opacity,
                                              outerEdgeDist: -1))
 
         // Inner solid disk on top; positive edgeDist = solid-disk mode in shader
-        vertices.append(contentsOf: buildFan(center: center, radius: innerR,
+        vertices.append(contentsOf: buildFan(center: geo.center, radius: geo.innerRadius,
                                              color: currentInnerColor, alpha: opacity,
                                              outerEdgeDist: +1))
 

@@ -275,6 +275,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         EffectRendererRegistry.shared.register(renderer, for: screen)
         renderer.setDebugEnabled(AppSettings.shared.debugEnabled)
+        renderer.setDebugTypes(AppSettings.shared.debugTypes)
 
         let scale = screen.backingScaleFactor
         renderer.setSceneSize(size)
@@ -352,6 +353,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             .sink { enabled in
                 for renderer in EffectRendererRegistry.shared.allRenderers() {
                     renderer.setDebugEnabled(enabled)
+                }
+            }
+            .store(in: &cancellables)
+
+        AppSettings.shared.$debugTypes
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { types in
+                for renderer in EffectRendererRegistry.shared.allRenderers() {
+                    renderer.setDebugTypes(types)
                 }
             }
             .store(in: &cancellables)

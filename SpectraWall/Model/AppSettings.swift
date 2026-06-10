@@ -58,6 +58,13 @@ class AppSettings: ObservableObject {
         didSet { writeConfig { $0.debugOverlayEnabled = debugEnabled } }
     }
 
+    /// Which effect types draw their wireframe while the master is on. Effects
+    /// outside the set keep rendering normally. Same fan-out path as
+    /// `debugEnabled`. Persisted sorted for a stable config.json.
+    @Published var debugTypes: Set<EffectType> {
+        didSet { writeConfig { $0.debugTypes = debugTypes.sorted { $0.rawValue < $1.rawValue } } }
+    }
+
     private init() {
         let config = XDGStorage.shared.loadConfig() ?? AppConfig()
         let state = XDGStorage.shared.loadState() ?? AppState()
@@ -71,6 +78,7 @@ class AppSettings: ObservableObject {
         motionStyle = config.motionStyle
         msaaEnabled = config.msaaEnabled
         debugEnabled = config.debugOverlayEnabled
+        debugTypes = config.debugTypes.map(Set.init) ?? Set(EffectRegistry.allTypes)
 
         // After all stored properties are initialized we can safely persist
         // any first-launch defaults.

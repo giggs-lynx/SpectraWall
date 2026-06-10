@@ -64,6 +64,14 @@ struct GlobalSettingsView: View {
 
             Section("Debug") {
                 Toggle("Debug Overlay (geometry skeleton)", isOn: $appSettings.debugEnabled)
+                if appSettings.debugEnabled {
+                    ForEach(EffectRegistry.allTypes, id: \.self) { type in
+                        Toggle(isOn: debugTypeBinding(for: type)) {
+                            Text(type.localized)
+                        }
+                        .padding(.leading, 12)
+                    }
+                }
             }
 
             Section {
@@ -78,6 +86,19 @@ struct GlobalSettingsView: View {
             launchAtLogin = SMAppService.mainApp.status == .enabled
             screens = NSScreen.screens
         }
+    }
+
+    private func debugTypeBinding(for type: EffectType) -> Binding<Bool> {
+        Binding(
+            get: { appSettings.debugTypes.contains(type) },
+            set: { isOn in
+                if isOn {
+                    appSettings.debugTypes.insert(type)
+                } else {
+                    appSettings.debugTypes.remove(type)
+                }
+            }
+        )
     }
 
     private func screenToggleBinding(for screen: NSScreen) -> Binding<Bool> {
