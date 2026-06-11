@@ -20,6 +20,7 @@ struct EffectType: Hashable, Codable, RawRepresentable {
     static let orb            = EffectType(rawValue: "Orb")
     static let border         = EffectType(rawValue: "Border")
     static let radialSpectrum = EffectType(rawValue: "RadialSpectrum")
+    static let ambientGlow    = EffectType(rawValue: "AmbientGlow")
 }
 
 extension EffectType {

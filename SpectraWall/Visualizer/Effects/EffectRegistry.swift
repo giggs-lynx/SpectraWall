@@ -33,6 +33,7 @@ enum EffectRegistry {
         register(OrbEffect.descriptor)
         register(BorderEffect.descriptor)
         register(RadialSpectrumEffect.descriptor)
+        register(AmbientGlowEffect.descriptor)
     }()
 
     /// EffectType values currently registered, sorted by renderOrder so UI

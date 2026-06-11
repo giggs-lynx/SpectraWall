@@ -141,6 +141,16 @@ fragment float4 spectrum_fragment(VertexOut in [[stage_in]]) {
     return float4(in.color.rgb, in.color.a * in.alpha);
 }
 
+// MARK: - Ambient Glow
+
+// Reuses spectrum_vertex. edgeDist carries the fade coordinate: 0 at the
+// inner (transparent) edge, 1 at the screen edge. Smoothstep instead of the
+// vertex-interpolated linear ramp so large fills don't band.
+fragment float4 glow_fragment(VertexOut in [[stage_in]]) {
+    float t = smoothstep(0.0, 1.0, clamp(in.edgeDist, 0.0, 1.0));
+    return float4(in.color.rgb, in.color.a * in.alpha * t);
+}
+
 // MARK: - Orb
 
 vertex VertexOut orb_vertex(
