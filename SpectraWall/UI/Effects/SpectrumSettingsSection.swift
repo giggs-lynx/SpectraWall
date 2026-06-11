@@ -45,6 +45,9 @@ struct SpectrumSettingsSection: View {
                         applyMirrorPosition(mirrored)
                     }
 
+                Toggle("Peak Caps", isOn: $settings.capsEnabled)
+                    .disabled(settings.style != .bars)
+
                 // MARK: - Dimension Settings
                 SettingsSlider(label: "Height", value: $settings.gain, spec: SpectrumSpec.gain)
                 SettingsSlider(label: "Max Height", value: $settings.maxHeight, spec: SpectrumSpec.maxHeight)

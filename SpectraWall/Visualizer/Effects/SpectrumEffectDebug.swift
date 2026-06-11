@@ -28,6 +28,9 @@ extension SpectrumEffect {
             for i in 0..<binCount {
                 drawBarRect(barFrame(i, in: layout), vertical: layout.vertical, into: &canvas)
             }
+            if layout.caps {
+                drawCapMarkers(layout, into: &canvas)
+            }
         case .curve, .line:
             drawCurveSkeleton(layout, into: &canvas)
         }
@@ -39,6 +42,23 @@ extension SpectrumEffect {
         if layout.mirror {
             drawAmpAxisLine(at: layout.base - layout.tipSign * layout.maxExtent, layout: layout,
                             color: DebugColor.ceiling, into: &canvas)
+        }
+    }
+
+    /// Cross-axis tick at every held cap position (reads current capLen
+    /// without advancing it — the render pass owns the update).
+    private func drawCapMarkers(_ layout: SpectrumLayout, into canvas: inout DebugCanvas) {
+        for i in 0..<binCount where capLen[i] > 0 {
+            let lo = layout.stripLo + CGFloat(i) * layout.stride
+            let hi = lo + layout.barSize
+            func tick(side: CGFloat) {
+                let amp = layout.base + side * layout.tipSign * CGFloat(capLen[i])
+                let a = layout.vertical ? CGPoint(x: lo, y: amp) : CGPoint(x: amp, y: lo)
+                let b = layout.vertical ? CGPoint(x: hi, y: amp) : CGPoint(x: amp, y: hi)
+                canvas.segment(a, b, color: DebugColor.ceiling, width: 1.5)
+            }
+            tick(side: 1)
+            if layout.mirror { tick(side: -1) }
         }
     }
 

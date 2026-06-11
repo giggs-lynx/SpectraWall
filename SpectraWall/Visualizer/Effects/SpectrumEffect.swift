@@ -20,6 +20,15 @@ class SpectrumEffect: BaseEffect {
     private var smoothed: [Float] = Array(repeating: 0, count: 96)
     private var renderedHeight: [Float] = Array(repeating: 0, count: 96)
     private var lastTickTime: TimeInterval = 0
+    private var lastDt: TimeInterval = 0.016
+
+    // Peak-hold caps (bars style only): per-bar recent peak in len-space,
+    // held briefly then falling linearly. Read by the debug overlay.
+    var capLen: [Float] = Array(repeating: 0, count: 96)
+    private var capHoldUntil: [TimeInterval] = Array(repeating: 0, count: 96)
+    private let capHoldTime: TimeInterval = 0.5
+    private let capFallRate: Float = 0.5   // fraction of maxExtent per second
+    private let capThickness: Float = 3
 
     // Animation style cached on renderQueue via Combine sink so onTick never
     // touches AppSettings (an ObservableObject) from a background thread.
@@ -48,6 +57,8 @@ class SpectrumEffect: BaseEffect {
     override func onReset() {
         smoothed       = Array(repeating: 0, count: binCount)
         renderedHeight = Array(repeating: 0, count: binCount)
+        capLen         = Array(repeating: 0, count: binCount)
+        capHoldUntil   = Array(repeating: 0, count: binCount)
         lastTickTime   = 0
     }
 
@@ -69,6 +80,7 @@ class SpectrumEffect: BaseEffect {
             let target = pow(smoothed[i], powerCurve)
             renderedHeight[i] += (target - renderedHeight[i]) * lerpRate
         }
+        lastDt = dt
         lastTickTime = timestamp
 
         renderer.submit(id: id, type: .spectrum, mesh: EffectMesh(vertices: buildVertices()))
@@ -119,6 +131,7 @@ class SpectrumEffect: BaseEffect {
         let tipSign: CGFloat
         let mirror: Bool
         let style: SpectrumStyle
+        let caps: Bool
         let maxExtent: CGFloat
         let stripLo: CGFloat
         let stripHi: CGFloat
@@ -156,6 +169,7 @@ class SpectrumEffect: BaseEffect {
             tipSign: (ss.anchor == .bottom || ss.anchor == .left) ? 1 : -1,
             mirror: ss.mirror,
             style: ss.style,
+            caps: ss.capsEnabled,
             maxExtent: ampSpan * CGFloat(ss.maxHeight),
             stripLo: stripLo,
             stripHi: stripLo + stride * CGFloat(binCount - 1) + barSize,
@@ -164,8 +178,13 @@ class SpectrumEffect: BaseEffect {
             gain: CGFloat(ss.gain))
     }
 
+    /// Bar length in points; shared clamp for bars, caps, and the tip spline.
+    func barLen(_ i: Int, in layout: SpectrumLayout) -> CGFloat {
+        max(1, min(CGFloat(renderedHeight[i]) * layout.maxExtent * layout.gain, layout.maxExtent))
+    }
+
     func barFrame(_ i: Int, in layout: SpectrumLayout) -> BarFrame {
-        let len = max(1, min(CGFloat(renderedHeight[i]) * layout.maxExtent * layout.gain, layout.maxExtent))
+        let len = barLen(i, in: layout)
         let lo = layout.stripLo + CGFloat(i) * layout.stride
         return BarFrame(lo: Float(lo),
                         hi: Float(lo + layout.barSize),
@@ -194,8 +213,7 @@ class SpectrumEffect: BaseEffect {
         var lens = [Float]()
         lens.reserveCapacity(binCount)
         for i in 0..<binCount {
-            lens.append(Float(max(1, min(CGFloat(renderedHeight[i]) * layout.maxExtent * layout.gain,
-                                         layout.maxExtent))))
+            lens.append(Float(barLen(i, in: layout)))
         }
         let crossLo = Float(layout.stripLo)
         let crossStep = Float(layout.stripHi - layout.stripLo) / Float(binCount - 1)
@@ -266,9 +284,53 @@ class SpectrumEffect: BaseEffect {
                 v3 = EffectVertex(position: SIMD2(f.tip, f.hi), color: color, alpha: opacity, edgeDist: +1)
             }
             appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
+
+            if layout.caps {
+                updateCap(i, in: layout)
+                appendCapQuads(i, color: color, layout: layout, to: &vertices)
+            }
         }
 
         return vertices
+    }
+
+    // MARK: - Peak-hold caps
+
+    private func updateCap(_ i: Int, in layout: SpectrumLayout) {
+        let len = Float(barLen(i, in: layout))
+        if len >= capLen[i] {
+            capLen[i] = len
+            capHoldUntil[i] = lastTickTime + capHoldTime
+        } else if lastTickTime > capHoldUntil[i] {
+            capLen[i] = max(len, capLen[i] - capFallRate * Float(layout.maxExtent) * Float(lastDt))
+        }
+    }
+
+    /// Small floating quad at the held peak, brightened toward white so it
+    /// reads as a marker; mirrored bars get one on each side.
+    private func appendCapQuads(_ i: Int, color: SIMD4<Float>,
+                                layout: SpectrumLayout, to vertices: inout [EffectVertex]) {
+        let capColor = color + (SIMD4<Float>(1, 1, 1, color.w) - color) * 0.5
+        let lo = Float(layout.stripLo + CGFloat(i) * layout.stride)
+        let hi = lo + Float(layout.barSize)
+        let base = Float(layout.base)
+        let tipSign = Float(layout.tipSign)
+
+        func emit(side: Float) {
+            let inner = base + side * tipSign * capLen[i]
+            let outer = inner + side * tipSign * capThickness
+            let v0 = EffectVertex(position: scenePoint(cross: lo, amp: inner, in: layout),
+                                  color: capColor, alpha: opacity, edgeDist: 0)
+            let v1 = EffectVertex(position: scenePoint(cross: lo, amp: outer, in: layout),
+                                  color: capColor, alpha: opacity, edgeDist: 0)
+            let v2 = EffectVertex(position: scenePoint(cross: hi, amp: inner, in: layout),
+                                  color: capColor, alpha: opacity, edgeDist: 0)
+            let v3 = EffectVertex(position: scenePoint(cross: hi, amp: outer, in: layout),
+                                  color: capColor, alpha: opacity, edgeDist: 0)
+            appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
+        }
+        emit(side: +1)
+        if layout.mirror { emit(side: -1) }
     }
 
     /// Filled mountain silhouette: one continuous strip, two vertices per

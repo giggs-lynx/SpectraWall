@@ -58,6 +58,9 @@ struct SpectrumSettings: EffectSettings, Equatable {
     /// How the spectrum is drawn: discrete bars, a smooth filled silhouette,
     /// or the same smooth curve stroked as a constant-width line.
     var style: SpectrumStyle
+    /// Classic EQ peak caps: a brightened marker holds each bar's recent peak
+    /// briefly, then falls. Bars style only.
+    var capsEnabled: Bool
 
     var colorSync: Bool
     var colorSettings: ChannelColorSettings
@@ -75,6 +78,7 @@ struct SpectrumSettings: EffectSettings, Equatable {
             anchor: .bottom,
             mirror: false,
             style: .bars,
+            capsEnabled: false,
             colorSync: true,
             colorSettings: .init(),
             leftColorSettings: .init(),
@@ -128,7 +132,7 @@ extension SpectrumSettings {
     // because CodingKeys map 1:1 to properties.
     enum CodingKeys: String, CodingKey {
         case gain, powerCurve, attack, release
-        case width, maxHeight, anchor, mirror, style
+        case width, maxHeight, anchor, mirror, style, capsEnabled
         case colorSync, colorSettings, leftColorSettings, rightColorSettings
     }
 
@@ -144,6 +148,7 @@ extension SpectrumSettings {
             anchor: try c.decode(SpectrumAnchor.self, forKey: .anchor),
             mirror: try c.decodeIfPresent(Bool.self, forKey: .mirror) ?? false,
             style: try c.decodeIfPresent(SpectrumStyle.self, forKey: .style) ?? .bars,
+            capsEnabled: try c.decodeIfPresent(Bool.self, forKey: .capsEnabled) ?? false,
             colorSync: try c.decode(Bool.self, forKey: .colorSync),
             colorSettings: try c.decode(ChannelColorSettings.self, forKey: .colorSettings),
             leftColorSettings: try c.decode(ChannelColorSettings.self, forKey: .leftColorSettings),
