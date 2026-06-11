@@ -70,6 +70,12 @@ enum OrbSpec {
     static let hueCycleSpeed = SliderSpec(range: 0.0...0.5, step: 0.01, defaultValue: 0.0)
 }
 
+enum WaveformSpec {
+    static let windowSeconds = SliderSpec(range: 1.0...10.0, step: 0.5, defaultValue: 3.0)
+    static let gain = SliderSpec(range: 0.5...8.0, step: 0.1, defaultValue: 2.0)
+    static let maxHeight = SliderSpec(range: 0.05...0.5, step: 0.01, defaultValue: 0.2)
+}
+
 enum AmbientGlowSpec {
     static let size = SliderSpec(range: 0.05...0.4, step: 0.01, defaultValue: 0.15)
     static let intensity = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.5)

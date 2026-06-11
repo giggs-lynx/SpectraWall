@@ -21,6 +21,7 @@ struct EffectType: Hashable, Codable, RawRepresentable {
     static let border         = EffectType(rawValue: "Border")
     static let radialSpectrum = EffectType(rawValue: "RadialSpectrum")
     static let ambientGlow    = EffectType(rawValue: "AmbientGlow")
+    static let waveform       = EffectType(rawValue: "Waveform")
 }
 
 extension EffectType {

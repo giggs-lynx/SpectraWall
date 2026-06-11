@@ -124,8 +124,11 @@ class AudioEngine {
     private func setupTap(_ activation: (AudioTapManager) -> Void) {
         let tap = AudioTapManager()
         tap.onAudioData = { [weak self] left, right in
-            guard let self,
-                  let bins = self.analyzer?.analyze(left: left, right: right) else { return }
+            guard let self else { return }
+            // Forward the existing arrays as-is — zero extra work on the
+            // audio thread; subscribers hop to their own queues.
+            AudioDataBus.shared.waveformPublisher.send((left: left, right: right))
+            guard let bins = self.analyzer?.analyze(left: left, right: right) else { return }
             AudioDataBus.shared.lastSourceEmitTime = CACurrentMediaTime()
             AudioDataBus.shared.sourceEventCount &+= 1
             AudioDataBus.shared.spectrumPublisher.send(bins)

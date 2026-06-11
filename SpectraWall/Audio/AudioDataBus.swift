@@ -58,6 +58,10 @@ class AudioDataBus {
     static let shared = AudioDataBus()
 
     let spectrumPublisher = PassthroughSubject<StereoBins, Never>()
+    /// Raw PCM per tap callback, pre-FFT — fires every buffer (even while the
+    /// analyzer is still accumulating toward fftSize). Consumers must hop off
+    /// the audio thread (receive(on:)) and keep per-buffer work O(samples).
+    let waveformPublisher = PassthroughSubject<(left: [Float], right: [Float]), Never>()
     let resetPublisher = PassthroughSubject<Void, Never>()
 
     /// CACurrentMediaTime() at which the most-recent spectrumPublisher.send() ran.

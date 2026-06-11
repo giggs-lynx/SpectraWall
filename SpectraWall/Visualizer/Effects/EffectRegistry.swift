@@ -34,6 +34,7 @@ enum EffectRegistry {
         register(BorderEffect.descriptor)
         register(RadialSpectrumEffect.descriptor)
         register(AmbientGlowEffect.descriptor)
+        register(WaveformEffect.descriptor)
     }()
 
     /// EffectType values currently registered, sorted by renderOrder so UI
