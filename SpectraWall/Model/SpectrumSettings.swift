@@ -61,6 +61,8 @@ struct SpectrumSettings: EffectSettings, Equatable {
     /// Classic EQ peak caps: a brightened marker holds each bar's recent peak
     /// briefly, then falls. Bars style only.
     var capsEnabled: Bool
+    /// Round the tip of each bar (both ends when mirrored). Bars style only.
+    var roundedTips: Bool
 
     var colorSync: Bool
     var colorSettings: ChannelColorSettings
@@ -79,6 +81,7 @@ struct SpectrumSettings: EffectSettings, Equatable {
             mirror: false,
             style: .bars,
             capsEnabled: false,
+            roundedTips: false,
             colorSync: true,
             colorSettings: .init(),
             leftColorSettings: .init(),
@@ -132,7 +135,7 @@ extension SpectrumSettings {
     // because CodingKeys map 1:1 to properties.
     enum CodingKeys: String, CodingKey {
         case gain, powerCurve, attack, release
-        case width, maxHeight, anchor, mirror, style, capsEnabled
+        case width, maxHeight, anchor, mirror, style, capsEnabled, roundedTips
         case colorSync, colorSettings, leftColorSettings, rightColorSettings
     }
 
@@ -149,6 +152,7 @@ extension SpectrumSettings {
             mirror: try c.decodeIfPresent(Bool.self, forKey: .mirror) ?? false,
             style: try c.decodeIfPresent(SpectrumStyle.self, forKey: .style) ?? .bars,
             capsEnabled: try c.decodeIfPresent(Bool.self, forKey: .capsEnabled) ?? false,
+            roundedTips: try c.decodeIfPresent(Bool.self, forKey: .roundedTips) ?? false,
             colorSync: try c.decode(Bool.self, forKey: .colorSync),
             colorSettings: try c.decode(ChannelColorSettings.self, forKey: .colorSettings),
             leftColorSettings: try c.decode(ChannelColorSettings.self, forKey: .leftColorSettings),

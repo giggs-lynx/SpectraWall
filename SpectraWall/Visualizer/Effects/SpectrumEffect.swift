@@ -132,6 +132,7 @@ class SpectrumEffect: BaseEffect {
         let mirror: Bool
         let style: SpectrumStyle
         let caps: Bool
+        let rounded: Bool
         let maxExtent: CGFloat
         let stripLo: CGFloat
         let stripHi: CGFloat
@@ -170,6 +171,7 @@ class SpectrumEffect: BaseEffect {
             mirror: ss.mirror,
             style: ss.style,
             caps: ss.capsEnabled,
+            rounded: ss.roundedTips,
             maxExtent: ampSpan * CGFloat(ss.maxHeight),
             stripLo: stripLo,
             stripHi: stripLo + stride * CGFloat(binCount - 1) + barSize,
@@ -268,22 +270,26 @@ class SpectrumEffect: BaseEffect {
         vertices.reserveCapacity(binCount * 4 + (binCount - 1) * 3)
 
         for i in 0..<binCount {
-            let f = barFrame(i, in: layout)
             let color = barColorSIMD(at: Float(i))
 
-            let v0, v1, v2, v3: EffectVertex
-            if layout.vertical {
-                v0 = EffectVertex(position: SIMD2(f.lo, f.base), color: color, alpha: opacity, edgeDist: -1)
-                v1 = EffectVertex(position: SIMD2(f.lo, f.tip), color: color, alpha: opacity, edgeDist: +1)
-                v2 = EffectVertex(position: SIMD2(f.hi, f.base), color: color, alpha: opacity, edgeDist: -1)
-                v3 = EffectVertex(position: SIMD2(f.hi, f.tip), color: color, alpha: opacity, edgeDist: +1)
+            if layout.rounded {
+                appendRoundedBar(i, color: color, layout: layout, to: &vertices)
             } else {
-                v0 = EffectVertex(position: SIMD2(f.base, f.lo), color: color, alpha: opacity, edgeDist: -1)
-                v1 = EffectVertex(position: SIMD2(f.tip, f.lo), color: color, alpha: opacity, edgeDist: +1)
-                v2 = EffectVertex(position: SIMD2(f.base, f.hi), color: color, alpha: opacity, edgeDist: -1)
-                v3 = EffectVertex(position: SIMD2(f.tip, f.hi), color: color, alpha: opacity, edgeDist: +1)
+                let f = barFrame(i, in: layout)
+                let v0, v1, v2, v3: EffectVertex
+                if layout.vertical {
+                    v0 = EffectVertex(position: SIMD2(f.lo, f.base), color: color, alpha: opacity, edgeDist: -1)
+                    v1 = EffectVertex(position: SIMD2(f.lo, f.tip), color: color, alpha: opacity, edgeDist: +1)
+                    v2 = EffectVertex(position: SIMD2(f.hi, f.base), color: color, alpha: opacity, edgeDist: -1)
+                    v3 = EffectVertex(position: SIMD2(f.hi, f.tip), color: color, alpha: opacity, edgeDist: +1)
+                } else {
+                    v0 = EffectVertex(position: SIMD2(f.base, f.lo), color: color, alpha: opacity, edgeDist: -1)
+                    v1 = EffectVertex(position: SIMD2(f.tip, f.lo), color: color, alpha: opacity, edgeDist: +1)
+                    v2 = EffectVertex(position: SIMD2(f.base, f.hi), color: color, alpha: opacity, edgeDist: -1)
+                    v3 = EffectVertex(position: SIMD2(f.tip, f.hi), color: color, alpha: opacity, edgeDist: +1)
+                }
+                appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
             }
-            appendBar(to: &vertices, v0: v0, v1: v1, v2: v2, v3: v3)
 
             if layout.caps {
                 updateCap(i, in: layout)
@@ -292,6 +298,41 @@ class SpectrumEffect: BaseEffect {
         }
 
         return vertices
+    }
+
+    /// Rounded-tip bar as a column strip: 9 cross samples, the tip edge walks
+    /// a semi-ellipse (semi-axes barSize/2 across, min(barSize/2, len) along
+    /// amp — squashes flat instead of inverting when the bar is shorter than
+    /// its radius). Mirrored bars round both ends.
+    private func appendRoundedBar(_ i: Int, color: SIMD4<Float>,
+                                  layout: SpectrumLayout, to vertices: inout [EffectVertex]) {
+        let columns = 8
+        let len = Float(barLen(i, in: layout))
+        let lo = Float(layout.stripLo + CGFloat(i) * layout.stride)
+        let halfW = Float(layout.barSize) / 2
+        let mid = lo + halfW
+        let inset = min(halfW, len)
+        let base = Float(layout.base)
+        let tipSign = Float(layout.tipSign)
+
+        for k in 0...columns {
+            let u = Float(k) / Float(columns) * 2 - 1          // -1 ... +1 across the bar
+            let cross = mid + u * halfW
+            let bulge = (len - inset) + inset * sqrt(max(0, 1 - u * u))
+            let tipAmp = base + tipSign * bulge
+            let lowAmp = layout.mirror ? base - tipSign * bulge : base
+            let v0 = EffectVertex(position: scenePoint(cross: cross, amp: lowAmp, in: layout),
+                                  color: color, alpha: opacity, edgeDist: -1)
+            let v1 = EffectVertex(position: scenePoint(cross: cross, amp: tipAmp, in: layout),
+                                  color: color, alpha: opacity, edgeDist: +1)
+            if k == 0, let lastV = vertices.last {
+                vertices.append(lastV)
+                vertices.append(lastV)
+                vertices.append(v0)
+            }
+            vertices.append(v0)
+            vertices.append(v1)
+        }
     }
 
     // MARK: - Peak-hold caps
