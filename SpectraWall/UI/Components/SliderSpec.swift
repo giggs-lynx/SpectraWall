@@ -47,6 +47,15 @@ enum SpectrumSpec {
     static let release = SliderSpec(range: 0.1...0.5, step: 0.05, defaultValue: 0.2)
 }
 
+enum RadialSpectrumSpec {
+    static let gain = SliderSpec(range: 0.5...3.0, step: 0.1, defaultValue: 2.6)
+    static let powerCurve = SliderSpec(range: 1.0...3.0, step: 0.1, defaultValue: 2.0)
+    static let attack = SliderSpec(range: 0.5...1.0, step: 0.05, defaultValue: 0.95)
+    static let release = SliderSpec(range: 0.1...0.5, step: 0.05, defaultValue: 0.2)
+    static let innerRadius = SliderSpec(range: 40...300, step: 5, defaultValue: 120)
+    static let maxExtent = SliderSpec(range: 20...200, step: 5, defaultValue: 80)
+}
+
 enum OrbSpec {
     static let boost = SliderSpec(range: 1.0...6.0, step: 0.1, defaultValue: 3.0)
     static let attack = SliderSpec(range: 0.3...1.0, step: 0.05, defaultValue: 0.95)

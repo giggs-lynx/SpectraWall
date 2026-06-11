@@ -16,9 +16,10 @@ import Foundation
 struct EffectType: Hashable, Codable, RawRepresentable {
     let rawValue: String
 
-    static let spectrum = EffectType(rawValue: "Spectrum")
-    static let orb      = EffectType(rawValue: "Orb")
-    static let border   = EffectType(rawValue: "Border")
+    static let spectrum       = EffectType(rawValue: "Spectrum")
+    static let orb            = EffectType(rawValue: "Orb")
+    static let border         = EffectType(rawValue: "Border")
+    static let radialSpectrum = EffectType(rawValue: "RadialSpectrum")
 }
 
 extension EffectType {
