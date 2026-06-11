@@ -25,6 +25,12 @@ struct BorderSettings: EffectSettings, Equatable {
     /// no flash; 1 = lerp the trail colour all the way to white at peak.
     /// Alpha boost is derived from this so brightness/visibility move together.
     var pulseFlash: Double
+    /// Extra trail speed at the instant a beat fires, decaying with the flash
+    /// envelope (~120ms half-life). 0 = constant speed; 3 = up to 4× on beat.
+    var pulseSpeedBoost: Double
+    /// Width breathing with the smoothed amplitude envelope. 0 = constant
+    /// width; 1 = up to ~2× at full amplitude.
+    var widthBreath: Double
     /// Whether a beat spawns a translucent ghost copy of the trail. Flash on
     /// the main trail still fires regardless.
     var ghostEnabled: Bool
@@ -53,6 +59,8 @@ struct BorderSettings: EffectSettings, Equatable {
             pulseRelease: 0.1,
             pulseThreshold: 0.01,
             pulseFlash: 0.7,
+            pulseSpeedBoost: 0.0,
+            widthBreath: 0.0,
             ghostEnabled: true,
             ghostSize: 0.9,
             ghostOpacity: 0.65,
@@ -78,6 +86,8 @@ extension BorderSettings {
         s.pulseAttack = BorderSpec.pulseAttack.random()
         s.pulseRelease = BorderSpec.pulseRelease.random()
         s.pulseFlash = BorderSpec.pulseFlash.random()
+        s.pulseSpeedBoost = BorderSpec.pulseSpeedBoost.random()
+        s.widthBreath = BorderSpec.widthBreath.random()
         s.ghostSize = BorderSpec.ghostSize.random()
         s.ghostOpacity = BorderSpec.ghostOpacity.random()
         s.ghostDecay = BorderSpec.ghostDecay.random()
@@ -99,6 +109,7 @@ extension BorderSettings {
         case strokeCount, clockwise, speed, tailLength, baseWidth, cornerRadius
         case stroke1ColorStart, stroke1ColorEnd, stroke2ColorStart, stroke2ColorEnd
         case pulseAttack, pulseRelease, pulseThreshold, pulseFlash
+        case pulseSpeedBoost, widthBreath
         case ghostEnabled, ghostSize, ghostOpacity, ghostDecay
     }
 
@@ -119,6 +130,8 @@ extension BorderSettings {
             pulseRelease: try c.decode(Double.self, forKey: .pulseRelease),
             pulseThreshold: try c.decode(Double.self, forKey: .pulseThreshold),
             pulseFlash: try c.decodeIfPresent(Double.self, forKey: .pulseFlash) ?? 0.7,
+            pulseSpeedBoost: try c.decodeIfPresent(Double.self, forKey: .pulseSpeedBoost) ?? 0.0,
+            widthBreath: try c.decodeIfPresent(Double.self, forKey: .widthBreath) ?? 0.0,
             ghostEnabled: try c.decodeIfPresent(Bool.self, forKey: .ghostEnabled) ?? true,
             ghostSize: try c.decodeIfPresent(Double.self, forKey: .ghostSize) ?? 0.9,
             ghostOpacity: try c.decodeIfPresent(Double.self, forKey: .ghostOpacity) ?? 0.65,

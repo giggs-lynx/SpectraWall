@@ -69,6 +69,8 @@ enum BorderSpec {
     static let pulseAttack = SliderSpec(range: 0.05...1.0, step: 0.05, defaultValue: 0.85)
     static let pulseRelease = SliderSpec(range: 0.05...1.0, step: 0.05, defaultValue: 0.1)
     static let pulseFlash = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.7)
+    static let pulseSpeedBoost = SliderSpec(range: 0.0...3.0, step: 0.1, defaultValue: 0.0)
+    static let widthBreath = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.0)
     static let ghostSize = SliderSpec(range: 0.0...2.0, step: 0.1, defaultValue: 0.9)
     static let ghostOpacity = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.65)
     static let ghostDecay = SliderSpec(range: 0.5...10.0, step: 0.1, defaultValue: 4.0)

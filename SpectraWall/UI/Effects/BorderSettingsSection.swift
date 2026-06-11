@@ -45,6 +45,8 @@ struct BorderSettingsSection: View {
                 SettingsSlider(label: "Pulse Attack", value: $settings.pulseAttack, spec: BorderSpec.pulseAttack)
                 SettingsSlider(label: "Pulse Release", value: $settings.pulseRelease, spec: BorderSpec.pulseRelease)
                 SettingsSlider(label: "Pulse Flash", value: $settings.pulseFlash, spec: BorderSpec.pulseFlash)
+                SettingsSlider(label: "Beat Speed Boost", value: $settings.pulseSpeedBoost, spec: BorderSpec.pulseSpeedBoost)
+                SettingsSlider(label: "Width Breath", value: $settings.widthBreath, spec: BorderSpec.widthBreath)
 
                 Divider()
 

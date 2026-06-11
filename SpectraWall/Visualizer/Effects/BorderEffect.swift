@@ -367,7 +367,11 @@ class BorderEffect: BaseEffect {
         }
 
         let bs = borderSettings
-        let deltaProgress = bs.speed * deltaTime * (bs.clockwise ? 1 : -1)
+        // Beat surge rides the flash envelope (spikes to 1 on beat, ~120ms
+        // half-life) so the trail lurches forward and settles back.
+        let flashEnv = Double(strokeFlashIntensity.max() ?? 0)
+        let deltaProgress = bs.speed * (1 + bs.pulseSpeedBoost * flashEnv)
+            * deltaTime * (bs.clockwise ? 1 : -1)
 
         for strokeIndex in 0..<strokes.count {
             var progress = (strokes[strokeIndex].progress + deltaProgress)
@@ -400,6 +404,16 @@ class BorderEffect: BaseEffect {
             }
         }
         return allVertices
+    }
+
+    /// Width multiplier for the breathing option: rides the smoothed
+    /// amplitude envelope (attack/release), not the flash spike, so the trail
+    /// swells and shrinks with the music instead of twitching per beat.
+    var widthBreathMultiplier: CGFloat {
+        let breath = borderSettings.widthBreath
+        guard breath > 0 else { return 1 }
+        let combined = min((smoothedLeft + smoothedRight) / 2, 1)
+        return 1 + CGFloat(breath) * CGFloat(combined)
     }
 
     private func appendWithDegenerateJoin(_ vertices: inout [EffectVertex], new: [EffectVertex]) {
