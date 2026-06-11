@@ -23,8 +23,13 @@ extension SpectrumEffect {
     func buildSpectrumDebug(into canvas: inout DebugCanvas) {
         let layout = makeLayout()
 
-        for i in 0..<binCount {
-            drawBarRect(barFrame(i, in: layout), vertical: layout.vertical, into: &canvas)
+        switch layout.style {
+        case .bars:
+            for i in 0..<binCount {
+                drawBarRect(barFrame(i, in: layout), vertical: layout.vertical, into: &canvas)
+            }
+        case .curve, .line:
+            drawCurveSkeleton(layout, into: &canvas)
         }
 
         drawAmpAxisLine(at: layout.base, layout: layout,
@@ -34,6 +39,27 @@ extension SpectrumEffect {
         if layout.mirror {
             drawAmpAxisLine(at: layout.base - layout.tipSign * layout.maxExtent, layout: layout,
                             color: DebugColor.ceiling, into: &canvas)
+        }
+    }
+
+    /// Sampled tip spline (same sampler as the render mesh) plus a dot on
+    /// every real control point so the 96 tips read apart from interpolation.
+    private func drawCurveSkeleton(_ layout: SpectrumLayout, into canvas: inout DebugCanvas) {
+        let samples = sampleCurve(in: layout)
+
+        func pt(_ s: CurveSample, side: CGFloat) -> CGPoint {
+            let amp = layout.base + side * layout.tipSign * CGFloat(s.len)
+            return layout.vertical
+                ? CGPoint(x: CGFloat(s.cross), y: amp)
+                : CGPoint(x: amp, y: CGFloat(s.cross))
+        }
+
+        canvas.polyline(samples.map { pt($0, side: 1) }, color: DebugColor.bar, width: 1.5)
+        if layout.mirror {
+            canvas.polyline(samples.map { pt($0, side: -1) }, color: DebugColor.bar, width: 1.5)
+        }
+        for (k, s) in samples.enumerated() where k % curveSubdivisions == 0 {
+            canvas.point(pt(s, side: 1), color: DebugColor.bar, size: 4)
         }
     }
 

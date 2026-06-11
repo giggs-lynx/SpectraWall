@@ -21,6 +21,14 @@ struct SpectrumSettingsSection: View {
                     onUndo: restore
                 )
             }) {
+                // MARK: - Style
+                Picker("Style", selection: $settings.style) {
+                    ForEach(SpectrumStyle.allCases, id: \.self) { style in
+                        Text(style.localized).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 // MARK: - Layout & Anchor
                 Picker("Anchor", selection: $settings.anchor) {
                     ForEach(SpectrumAnchor.allCases, id: \.self) { anchor in

@@ -118,6 +118,7 @@ class SpectrumEffect: BaseEffect {
         let base: CGFloat
         let tipSign: CGFloat
         let mirror: Bool
+        let style: SpectrumStyle
         let maxExtent: CGFloat
         let stripLo: CGFloat
         let stripHi: CGFloat
@@ -154,6 +155,7 @@ class SpectrumEffect: BaseEffect {
             base: ampSpan * ampPos,
             tipSign: (ss.anchor == .bottom || ss.anchor == .left) ? 1 : -1,
             mirror: ss.mirror,
+            style: ss.style,
             maxExtent: ampSpan * CGFloat(ss.maxHeight),
             stripLo: stripLo,
             stripHi: stripLo + stride * CGFloat(binCount - 1) + barSize,
@@ -171,19 +173,85 @@ class SpectrumEffect: BaseEffect {
                         tip: Float(layout.base + layout.tipSign * len))
     }
 
+    // MARK: - Tip Spline (curve / line styles; shared with the debug wireframe)
+
+    /// One sampled point on the tip spline, in layout (cross, len) space.
+    /// `u` is the fractional bin index, for continuous color.
+    struct CurveSample {
+        let cross: Float
+        let len: Float      // clamped to [0, maxExtent]
+        let u: Float        // 0 ... binCount-1
+    }
+
+    let curveSubdivisions = 8
+
+    /// Smooth spline through the bar-tip amplitudes. 1D Catmull-Rom on len
+    /// only (cross is uniform, so splining it would just reproduce lerp) —
+    /// this keeps the curve a function of cross, which makes the fill strip
+    /// trivially valid. Control values share barFrame's clamp so silence
+    /// matches the bars' 1px stubs; samples are re-clamped to kill overshoot.
+    func sampleCurve(in layout: SpectrumLayout) -> [CurveSample] {
+        var lens = [Float]()
+        lens.reserveCapacity(binCount)
+        for i in 0..<binCount {
+            lens.append(Float(max(1, min(CGFloat(renderedHeight[i]) * layout.maxExtent * layout.gain,
+                                         layout.maxExtent))))
+        }
+        let crossLo = Float(layout.stripLo)
+        let crossStep = Float(layout.stripHi - layout.stripLo) / Float(binCount - 1)
+        let maxExtent = Float(layout.maxExtent)
+
+        var samples = [CurveSample]()
+        samples.reserveCapacity((binCount - 1) * curveSubdivisions + 1)
+        func emit(_ u: Float, _ rawLen: Float) {
+            samples.append(CurveSample(cross: crossLo + u * crossStep,
+                                       len: min(max(rawLen, 0), maxExtent),
+                                       u: u))
+        }
+        for seg in 0..<(binCount - 1) {
+            let p0 = lens[max(seg - 1, 0)]
+            let p3 = lens[min(seg + 2, binCount - 1)]
+            for s in 0..<curveSubdivisions {
+                let t = Float(s) / Float(curveSubdivisions)
+                emit(Float(seg) + t, catmullRom(p0, lens[seg], lens[seg + 1], p3, t))
+            }
+        }
+        emit(Float(binCount - 1), lens[binCount - 1])
+        return samples
+    }
+
+    private func catmullRom(_ p0: Float, _ p1: Float, _ p2: Float, _ p3: Float, _ t: Float) -> Float {
+        let t2 = t * t
+        let t3 = t2 * t
+        return 0.5 * ((2 * p1)
+                    + (-p0 + p2) * t
+                    + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2
+                    + (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+    }
+
+    /// Orientation swizzle: (cross, amp) → scene position.
+    func scenePoint(cross: Float, amp: Float, in layout: SpectrumLayout) -> SIMD2<Float> {
+        layout.vertical ? SIMD2(cross, amp) : SIMD2(amp, cross)
+    }
+
     // MARK: - Vertex Building
 
     private func buildVertices() -> [EffectVertex] {
         let layout = makeLayout()
-        let half = binCount / 2
+        switch layout.style {
+        case .bars:  return buildBarVertices(in: layout)
+        case .curve: return buildCurveFill(in: layout)
+        case .line:  return buildCurveLine(in: layout)
+        }
+    }
 
+    private func buildBarVertices(in layout: SpectrumLayout) -> [EffectVertex] {
         var vertices: [EffectVertex] = []
         vertices.reserveCapacity(binCount * 4 + (binCount - 1) * 3)
 
         for i in 0..<binCount {
             let f = barFrame(i, in: layout)
-            let isRight = layer.channelMode == .stereo && i >= half
-            let color = barColorSIMD(for: i, value: renderedHeight[i], isRight: isRight)
+            let color = barColorSIMD(at: Float(i))
 
             let v0, v1, v2, v3: EffectVertex
             if layout.vertical {
@@ -203,6 +271,67 @@ class SpectrumEffect: BaseEffect {
         return vertices
     }
 
+    /// Filled mountain silhouette: one continuous strip, two vertices per
+    /// sampled column (lower edge / curve). No degenerate stitching needed —
+    /// the 1D spline guarantees one column per cross position.
+    private func buildCurveFill(in layout: SpectrumLayout) -> [EffectVertex] {
+        let samples = sampleCurve(in: layout)
+        let base = Float(layout.base)
+        let tipSign = Float(layout.tipSign)
+        var verts = [EffectVertex]()
+        verts.reserveCapacity(samples.count * 2)
+        for s in samples {
+            let color = barColorSIMD(at: s.u)
+            let lowAmp = layout.mirror ? base - tipSign * s.len : base
+            let tipAmp = base + tipSign * s.len
+            verts.append(EffectVertex(position: scenePoint(cross: s.cross, amp: lowAmp, in: layout),
+                                      color: color, alpha: opacity, edgeDist: -1))
+            verts.append(EffectVertex(position: scenePoint(cross: s.cross, amp: tipAmp, in: layout),
+                                      color: color, alpha: opacity, edgeDist: +1))
+        }
+        return verts
+    }
+
+    /// 3pt stroke along the spline. True 2D normal offset (not amp-axis) so
+    /// steep powerCurve spikes keep constant apparent width. Mirror = second
+    /// strip joined with the same degenerate stitch appendBar uses.
+    private let lineHalfWidth: Float = 1.5
+
+    private func buildCurveLine(in layout: SpectrumLayout) -> [EffectVertex] {
+        let samples = sampleCurve(in: layout)
+        let base = Float(layout.base)
+        let tipSign = Float(layout.tipSign)
+        var verts = [EffectVertex]()
+        verts.reserveCapacity(samples.count * 2 * (layout.mirror ? 2 : 1) + 3)
+
+        func appendStroke(side: Float) {
+            var pts = [SIMD2<Float>]()
+            pts.reserveCapacity(samples.count)
+            for s in samples {
+                pts.append(scenePoint(cross: s.cross, amp: base + side * tipSign * s.len, in: layout))
+            }
+            for k in pts.indices {
+                var tangent = pts[min(k + 1, pts.count - 1)] - pts[max(k - 1, 0)]
+                let m = simd_length(tangent)
+                tangent = m > 0 ? tangent / m : SIMD2(1, 0)
+                let normal = SIMD2(-tangent.y, tangent.x) * lineHalfWidth
+                let color = barColorSIMD(at: samples[k].u)
+                let a = EffectVertex(position: pts[k] + normal, color: color, alpha: opacity, edgeDist: +1)
+                let b = EffectVertex(position: pts[k] - normal, color: color, alpha: opacity, edgeDist: -1)
+                if k == 0, let lastV = verts.last {
+                    verts.append(lastV)
+                    verts.append(lastV)
+                    verts.append(a)
+                }
+                verts.append(a)
+                verts.append(b)
+            }
+        }
+        appendStroke(side: +1)
+        if layout.mirror { appendStroke(side: -1) }
+        return verts
+    }
+
     private func appendBar(to vertices: inout [EffectVertex],
                            v0: EffectVertex, v1: EffectVertex,
                            v2: EffectVertex, v3: EffectVertex) {
@@ -216,8 +345,13 @@ class SpectrumEffect: BaseEffect {
 
     // MARK: - Color Calculation (alloc-free)
 
-    private func barColorSIMD(for index: Int, value: Float, isRight: Bool) -> SIMD4<Float> {
+    /// `u` is a fractional bin index so the curve/line styles get continuous
+    /// color; bars call with whole numbers and get the exact pre-fractional
+    /// output. The stereo palette switch at u = half−0.5 lands on the seam
+    /// midpoint, equivalent to the old `i >= half` for integers.
+    private func barColorSIMD(at u: Float) -> SIMD4<Float> {
         let ss = spectrumSettings
+        let isRight = layer.channelMode == .stereo && CGFloat(u) >= CGFloat(binCount / 2) - 0.5
         let cs: ChannelColorSettings
         if layer.channelMode == .stereo && !ss.colorSync {
             cs = isRight ? ss.rightColorSettings : ss.leftColorSettings
@@ -226,10 +360,10 @@ class SpectrumEffect: BaseEffect {
         }
         switch cs.colorMode {
         case .rainbow:
-            let hue = Float(0.6 - rainbowRatio(for: index) * 0.5)
+            let hue = Float(0.6 - rainbowRatio(at: CGFloat(u)) * 0.5)
             return hsbToRGBA(h: hue, s: 0.8, b: 1.0, a: 1.0)
         case .gradient:
-            let t = Float(gradientRatio(for: index))
+            let t = Float(gradientRatio(at: CGFloat(u)))
             let lo = SIMD4<Float>(Float(cs.gradientColorLow.red), Float(cs.gradientColorLow.green),
                                   Float(cs.gradientColorLow.blue), Float(cs.gradientColorLow.alpha))
             let hi = SIMD4<Float>(Float(cs.gradientColorHigh.red), Float(cs.gradientColorHigh.green),
@@ -241,24 +375,28 @@ class SpectrumEffect: BaseEffect {
         }
     }
 
-    private func rainbowRatio(for index: Int) -> CGFloat {
+    private func rainbowRatio(at u: CGFloat) -> CGFloat {
         if layer.channelMode == .stereo {
-            let half = binCount / 2
-            return index < half
-                ? CGFloat(index) / CGFloat(half - 1)
-                : 1.0 - CGFloat(index - half) / CGFloat(half - 1)
+            let half = CGFloat(binCount / 2)
+            let r = u < half - 0.5
+                ? u / (half - 1)
+                : 1.0 - (u - half) / (half - 1)
+            return min(max(r, 0), 1)
         }
-        return CGFloat(index) / CGFloat(binCount)
+        // Divides by binCount (not binCount-1) — existing inconsistency with
+        // gradientRatio, preserved so bars don't shift hue.
+        return u / CGFloat(binCount)
     }
 
-    private func gradientRatio(for index: Int) -> CGFloat {
+    private func gradientRatio(at u: CGFloat) -> CGFloat {
         if layer.channelMode == .stereo {
-            let half = binCount / 2
-            return index < half
-                ? CGFloat(index) / CGFloat(half - 1)
-                : 1.0 - CGFloat(index - half) / CGFloat(half - 1)
+            let half = CGFloat(binCount / 2)
+            let r = u < half - 0.5
+                ? u / (half - 1)
+                : 1.0 - (u - half) / (half - 1)
+            return min(max(r, 0), 1)
         }
-        return CGFloat(index) / CGFloat(binCount - 1)
+        return u / CGFloat(binCount - 1)
     }
 
     private func hsbToRGBA(h: Float, s: Float, b: Float, a: Float) -> SIMD4<Float> {

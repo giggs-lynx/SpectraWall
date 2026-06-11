@@ -25,6 +25,22 @@ enum SpectrumAnchor: String, Codable, CaseIterable {
     }
 }
 
+// MARK: - Spectrum Style
+
+enum SpectrumStyle: String, Codable, CaseIterable {
+    case bars
+    case curve
+    case line
+
+    var localized: LocalizedStringResource {
+        switch self {
+        case .bars:  return "Bars"
+        case .curve: return "Curve"
+        case .line:  return "Line"
+        }
+    }
+}
+
 // MARK: - Spectrum Settings Structure
 
 struct SpectrumSettings: EffectSettings, Equatable {
@@ -39,6 +55,9 @@ struct SpectrumSettings: EffectSettings, Equatable {
     /// Bars grow symmetrically to both sides of the base line (each side up
     /// to maxHeight, so total span is 2× the single-sided extent).
     var mirror: Bool
+    /// How the spectrum is drawn: discrete bars, a smooth filled silhouette,
+    /// or the same smooth curve stroked as a constant-width line.
+    var style: SpectrumStyle
 
     var colorSync: Bool
     var colorSettings: ChannelColorSettings
@@ -55,6 +74,7 @@ struct SpectrumSettings: EffectSettings, Equatable {
             maxHeight: 0.35,
             anchor: .bottom,
             mirror: false,
+            style: .bars,
             colorSync: true,
             colorSettings: .init(),
             leftColorSettings: .init(),
@@ -70,8 +90,8 @@ struct SpectrumSettings: EffectSettings, Equatable {
 extension SpectrumSettings {
     /// Randomize numeric params within their spec ranges. Colours follow each
     /// channel's existing colorMode (rainbow → none, gradient → pair, solid →
-    /// single). Topology/enums (anchor, mirror, colorSync) stay put so the
-    /// result is always usable.
+    /// single). Topology/enums (anchor, mirror, style, colorSync) stay put so
+    /// the result is always usable.
     func randomized() -> SpectrumSettings {
         var s = self
         s.gain = SpectrumSpec.gain.random()
@@ -108,7 +128,7 @@ extension SpectrumSettings {
     // because CodingKeys map 1:1 to properties.
     enum CodingKeys: String, CodingKey {
         case gain, powerCurve, attack, release
-        case width, maxHeight, anchor, mirror
+        case width, maxHeight, anchor, mirror, style
         case colorSync, colorSettings, leftColorSettings, rightColorSettings
     }
 
@@ -123,6 +143,7 @@ extension SpectrumSettings {
             maxHeight: try c.decode(Double.self, forKey: .maxHeight),
             anchor: try c.decode(SpectrumAnchor.self, forKey: .anchor),
             mirror: try c.decodeIfPresent(Bool.self, forKey: .mirror) ?? false,
+            style: try c.decodeIfPresent(SpectrumStyle.self, forKey: .style) ?? .bars,
             colorSync: try c.decode(Bool.self, forKey: .colorSync),
             colorSettings: try c.decode(ChannelColorSettings.self, forKey: .colorSettings),
             leftColorSettings: try c.decode(ChannelColorSettings.self, forKey: .leftColorSettings),
