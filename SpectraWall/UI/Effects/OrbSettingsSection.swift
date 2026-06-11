@@ -35,6 +35,7 @@ struct OrbSettingsSection: View {
                     value: $settings.outerRadiusMultiplier,
                     spec: OrbSpec.outerRadiusMultiplier
                 )
+                SettingsSlider(label: "Blob", value: $settings.blobAmount, spec: OrbSpec.blobAmount)
             }
 
             // MARK: - Ripple

@@ -30,8 +30,20 @@ extension OrbEffect {
                  color: DebugColor.outer, into: &canvas)
         drawRing(center: center, radius: CGFloat(geo.baseRadius),
                  color: DebugColor.base, into: &canvas)
-        drawRing(center: center, radius: CGFloat(geo.innerRadius),
-                 color: DebugColor.inner, into: &canvas)
+        let blob = debugBlobAmount
+        if blob > 0 {
+            var pts: [CGPoint] = []
+            pts.reserveCapacity(fanSegments + 1)
+            for k in 0...fanSegments {
+                let t = CGFloat(k) / CGFloat(fanSegments) * 2 * .pi
+                let r = CGFloat(geo.innerRadius * (1 + blob * blobValue(at: Float(t))))
+                pts.append(CGPoint(x: center.x + cos(t) * r, y: center.y + sin(t) * r))
+            }
+            canvas.polyline(pts, color: DebugColor.inner, width: 1.5)
+        } else {
+            drawRing(center: center, radius: CGFloat(geo.innerRadius),
+                     color: DebugColor.inner, into: &canvas)
+        }
         for radius in currentRippleRadii() {
             drawRing(center: center, radius: CGFloat(radius),
                      color: DebugColor.outer, into: &canvas)

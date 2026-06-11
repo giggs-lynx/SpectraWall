@@ -27,6 +27,9 @@ struct OrbSettings: EffectSettings, Equatable {
     var rippleOpacity: Double
     /// Ring decay speed. Lifetime ≈ 1 / rippleDecay seconds.
     var rippleDecay: Double
+    /// Per-angle deformation of the inner disk driven by frequency bands
+    /// (low bands push big lobes). 0 = perfect circle.
+    var blobAmount: Double
 
     static var defaults: OrbSettings {
         OrbSettings(
@@ -43,7 +46,8 @@ struct OrbSettings: EffectSettings, Equatable {
             rippleEnabled: true,
             rippleSpeed: 1.5,
             rippleOpacity: 0.5,
-            rippleDecay: 3.0
+            rippleDecay: 3.0,
+            blobAmount: 0.0
         )
     }
 
@@ -66,6 +70,7 @@ extension OrbSettings {
         s.rippleSpeed = OrbSpec.rippleSpeed.random()
         s.rippleOpacity = OrbSpec.rippleOpacity.random()
         s.rippleDecay = OrbSpec.rippleDecay.random()
+        s.blobAmount = OrbSpec.blobAmount.random()
         let inner = RandomColor.relatedPair()
         s.innerColorLow = inner.0
         s.innerColorHigh = inner.1
@@ -84,6 +89,7 @@ extension OrbSettings {
         case boost, attack, release, baseRadius, outerRadiusMultiplier
         case innerColorLow, innerColorHigh, outerColorLow, outerColorHigh, outerOpacity
         case rippleEnabled, rippleSpeed, rippleOpacity, rippleDecay
+        case blobAmount
     }
 
     init(from decoder: Decoder) throws {
@@ -102,7 +108,8 @@ extension OrbSettings {
             rippleEnabled: try c.decodeIfPresent(Bool.self, forKey: .rippleEnabled) ?? true,
             rippleSpeed: try c.decodeIfPresent(Double.self, forKey: .rippleSpeed) ?? 1.5,
             rippleOpacity: try c.decodeIfPresent(Double.self, forKey: .rippleOpacity) ?? 0.5,
-            rippleDecay: try c.decodeIfPresent(Double.self, forKey: .rippleDecay) ?? 3.0
+            rippleDecay: try c.decodeIfPresent(Double.self, forKey: .rippleDecay) ?? 3.0,
+            blobAmount: try c.decodeIfPresent(Double.self, forKey: .blobAmount) ?? 0.0
         )
     }
 }

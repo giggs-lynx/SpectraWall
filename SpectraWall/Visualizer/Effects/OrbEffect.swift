@@ -37,6 +37,11 @@ class OrbEffect: BaseEffect {
     private let maxRipples = 6
     private let rippleHalfThickness: Float = 4
 
+    // Blob deformation: 8 band-driven control values around the circle
+    // (audio thread writes targets, tick thread smooths — both renderQueue).
+    private var blobTargets = [Float](repeating: 0, count: 8)
+    private var blobControls = [Float](repeating: 0, count: 8)
+
     // Animation style cached on renderQueue via Combine sink so onTick never
     // touches AppSettings (an ObservableObject) from a background thread.
     // Wired in init() right after super.init so `renderer` / renderQueue exist.
@@ -74,6 +79,8 @@ class OrbEffect: BaseEffect {
         ripples.removeAll()
         pendingRipple      = false
         isPulsing          = false
+        blobTargets        = [Float](repeating: 0, count: 8)
+        blobControls       = [Float](repeating: 0, count: 8)
     }
 
     override func onTick(_ timestamp: TimeInterval) {
@@ -98,6 +105,11 @@ class OrbEffect: BaseEffect {
             renderedInnerScale += (currentScale - renderedInnerScale) * Float(1.0 - exp(-dt / 0.18))
             renderedOuterScale += (currentScale - renderedOuterScale) * Float(1.0 - exp(-dt / 0.25))
         }
+        let blobRate = Float(1.0 - exp(-dt / 0.08))
+        for g in 0..<8 {
+            blobControls[g] += (blobTargets[g] - blobControls[g]) * blobRate
+        }
+
         lastTickTime = timestamp
 
         if pendingRipple {
@@ -161,6 +173,12 @@ class OrbEffect: BaseEffect {
             isPulsing = false
         }
 
+        if os.blobAmount > 0 {
+            for g in 0..<8 {
+                blobTargets[g] = bins.amplitude(for: layer.channelMode, binRange: (g * 4)..<((g + 1) * 4))
+            }
+        }
+
         let intensity = bins.amplitude(for: layer.channelMode, binRange: 0..<4)
         currentInnerColor = lerpColor(from: os.innerColorLow, to: os.innerColorHigh, t: intensity)
         currentOuterColor = lerpColor(from: os.outerColorLow, to: os.outerColorHigh, t: intensity,
@@ -195,15 +213,21 @@ class OrbEffect: BaseEffect {
         var vertices: [EffectVertex] = []
         vertices.reserveCapacity(fanSegments * 3 * 2 + ripples.count * fanSegments * 12)
 
-        // Outer glow first (drawn underneath inner orb); negative edgeDist = glow mode in shader
+        // Outer glow first (drawn underneath inner orb); negative edgeDist = glow
+        // mode in shader. Glow stays a circle — the calm halo anchors the blob.
         vertices.append(contentsOf: buildFan(center: geo.center, radius: geo.outerRadius,
                                              color: currentOuterColor, alpha: opacity,
                                              outerEdgeDist: -1))
 
-        // Inner solid disk on top; positive edgeDist = solid-disk mode in shader
+        // Inner solid disk on top; positive edgeDist = solid-disk mode in shader.
+        // Blob deformation modulates the per-angle radius.
+        let blobAmount = Float(orbSettings.blobAmount)
         vertices.append(contentsOf: buildFan(center: geo.center, radius: geo.innerRadius,
                                              color: currentInnerColor, alpha: opacity,
-                                             outerEdgeDist: +1))
+                                             outerEdgeDist: +1,
+                                             radiusAt: blobAmount > 0
+                                                ? { [self] a in 1 + blobAmount * blobValue(at: a) }
+                                                : nil))
 
         appendRippleRings(at: timestamp, geo: geo, into: &vertices)
 
@@ -247,6 +271,9 @@ class OrbEffect: BaseEffect {
         }
     }
 
+    /// Blob amount for the debug overlay (settings are private to the class).
+    var debugBlobAmount: Float { Float(orbSettings.blobAmount) }
+
     /// Current ripple ring radii, for the debug overlay.
     func currentRippleRadii() -> [Float] {
         let os = orbSettings
@@ -260,22 +287,42 @@ class OrbEffect: BaseEffect {
 
     private func buildFan(center: SIMD2<Float>, radius: Float,
                           color: SIMD4<Float>, alpha: Float,
-                          outerEdgeDist: Float) -> [EffectVertex] {
+                          outerEdgeDist: Float,
+                          radiusAt: ((Float) -> Float)? = nil) -> [EffectVertex] {
         let step = Float.pi * 2 / Float(fanSegments)
         let centerVert = EffectVertex(position: center, color: color, alpha: alpha, edgeDist: 0)
         var result: [EffectVertex] = []
         result.reserveCapacity(fanSegments * 3)
 
+        func rim(_ angle: Float) -> SIMD2<Float> {
+            let r = radius * (radiusAt?(angle) ?? 1)
+            return SIMD2(center.x + cos(angle) * r, center.y + sin(angle) * r)
+        }
         for i in 0..<fanSegments {
             let a0 = step * Float(i)
             let a1 = step * Float(i + 1)
-            let p0 = SIMD2<Float>(center.x + cos(a0) * radius, center.y + sin(a0) * radius)
-            let p1 = SIMD2<Float>(center.x + cos(a1) * radius, center.y + sin(a1) * radius)
             result.append(centerVert)
-            result.append(EffectVertex(position: p0, color: color, alpha: alpha, edgeDist: outerEdgeDist))
-            result.append(EffectVertex(position: p1, color: color, alpha: alpha, edgeDist: outerEdgeDist))
+            result.append(EffectVertex(position: rim(a0), color: color, alpha: alpha, edgeDist: outerEdgeDist))
+            result.append(EffectVertex(position: rim(a1), color: color, alpha: alpha, edgeDist: outerEdgeDist))
         }
         return result
+    }
+
+    /// Periodic Catmull-Rom through the 8 mean-centred band controls so the
+    /// blob deforms shape instead of just rescaling when all bands rise.
+    func blobValue(at angle: Float) -> Float {
+        let mean = blobControls.reduce(0, +) / 8
+        let u = angle / (Float.pi * 2) * 8
+        let i = Int(floor(u)) % 8
+        let t = u - floor(u)
+        let c = { (k: Int) -> Float in self.blobControls[((k % 8) + 8) % 8] - mean }
+        let p0 = c(i - 1), p1 = c(i), p2 = c(i + 1), p3 = c(i + 2)
+        let t2 = t * t
+        let t3 = t2 * t
+        return 0.5 * ((2 * p1)
+                    + (-p0 + p2) * t
+                    + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2
+                    + (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
     }
 
     // MARK: - Color Helpers
