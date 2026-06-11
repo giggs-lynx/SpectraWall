@@ -27,6 +27,16 @@ class OrbEffect: BaseEffect {
     private var renderedOuterScale: Float = 0
     private var lastTickTime: TimeInterval = 0
 
+    // Beat-spawned ripple rings: birth timestamps, capped at maxRipples.
+    // Detection mirrors BorderEffect's pulse latch: combined amplitude crosses
+    // the threshold rising-edge, re-arms once it falls back below half.
+    private var ripples: [TimeInterval] = []
+    private var pendingRipple = false
+    private var isPulsing = false
+    private let rippleThreshold: Float = 0.01
+    private let maxRipples = 6
+    private let rippleHalfThickness: Float = 4
+
     // Animation style cached on renderQueue via Combine sink so onTick never
     // touches AppSettings (an ObservableObject) from a background thread.
     // Wired in init() right after super.init so `renderer` / renderQueue exist.
@@ -61,6 +71,9 @@ class OrbEffect: BaseEffect {
         renderedInnerScale = 0
         renderedOuterScale = 0
         lastTickTime       = 0
+        ripples.removeAll()
+        pendingRipple      = false
+        isPulsing          = false
     }
 
     override func onTick(_ timestamp: TimeInterval) {
@@ -87,7 +100,19 @@ class OrbEffect: BaseEffect {
         }
         lastTickTime = timestamp
 
-        renderer.submit(id: id, type: .orb, mesh: buildOrbData())
+        if pendingRipple {
+            pendingRipple = false
+            if orbSettings.rippleEnabled {
+                ripples.append(timestamp)
+                if ripples.count > maxRipples {
+                    ripples.removeFirst(ripples.count - maxRipples)
+                }
+            }
+        }
+        let decay = Float(orbSettings.rippleDecay)
+        ripples.removeAll { Float(timestamp - $0) * decay >= 1 }
+
+        renderer.submit(id: id, type: .orb, mesh: buildOrbData(at: timestamp))
     }
 
     // `override` must live in the class body (Swift forbids it in extensions);
@@ -127,6 +152,15 @@ class OrbEffect: BaseEffect {
         let silenceGate = clampedT * clampedT * (3 - 2 * clampedT)
         currentScale = silenceGate * min(1.0 + amplitude * Float(os.boost), 2.5)
 
+        // Ripple beat latch (combined so a beat spawns one ring, not per-channel).
+        let combined = (smoothedLeft + smoothedRight) / 2
+        if silenceGate > 0.5, combined > rippleThreshold, !isPulsing {
+            isPulsing = true
+            pendingRipple = true
+        } else if combined < rippleThreshold * 0.5 {
+            isPulsing = false
+        }
+
         let intensity = bins.amplitude(for: layer.channelMode, binRange: 0..<4)
         currentInnerColor = lerpColor(from: os.innerColorLow, to: os.innerColorHigh, t: intensity)
         currentOuterColor = lerpColor(from: os.outerColorLow, to: os.outerColorHigh, t: intensity,
@@ -155,11 +189,11 @@ class OrbEffect: BaseEffect {
             baseRadius: Float(os.baseRadius))
     }
 
-    private func buildOrbData() -> EffectMesh {
+    private func buildOrbData(at timestamp: TimeInterval) -> EffectMesh {
         let geo = orbGeometry()
 
         var vertices: [EffectVertex] = []
-        vertices.reserveCapacity(fanSegments * 3 * 2)
+        vertices.reserveCapacity(fanSegments * 3 * 2 + ripples.count * fanSegments * 12)
 
         // Outer glow first (drawn underneath inner orb); negative edgeDist = glow mode in shader
         vertices.append(contentsOf: buildFan(center: geo.center, radius: geo.outerRadius,
@@ -171,7 +205,57 @@ class OrbEffect: BaseEffect {
                                              color: currentInnerColor, alpha: opacity,
                                              outerEdgeDist: +1))
 
+        appendRippleRings(at: timestamp, geo: geo, into: &vertices)
+
         return EffectMesh(vertices: vertices, primitiveType: .triangle)
+    }
+
+    /// Expanding annulus per live ripple. Three radial rows (edgeDist −1/0/−1)
+    /// so the orb fragment's rim mask anti-aliases both band edges; the ring
+    /// expands from the resting glow radius regardless of the audio-scaled
+    /// outer radius so rings don't jitter with the music.
+    private func appendRippleRings(at timestamp: TimeInterval, geo: OrbGeometry,
+                                   into vertices: inout [EffectVertex]) {
+        let os = orbSettings
+        guard os.rippleEnabled, !ripples.isEmpty else { return }
+        let step = Float.pi * 2 / Float(fanSegments)
+
+        for birth in ripples {
+            let age = Float(timestamp - birth)
+            let fade = max(0, 1 - age * Float(os.rippleDecay))
+            guard fade > 0 else { continue }
+            let r = geo.baseRadius * (Float(os.outerRadiusMultiplier) + Float(os.rippleSpeed) * age)
+            let color = SIMD4<Float>(currentOuterColor.x, currentOuterColor.y, currentOuterColor.z,
+                                     Float(os.rippleOpacity) * fade)
+            let rIn = max(0, r - rippleHalfThickness)
+            let rOut = r + rippleHalfThickness
+
+            func vert(_ angle: Float, _ radius: Float, _ edge: Float) -> EffectVertex {
+                EffectVertex(position: SIMD2(geo.center.x + cos(angle) * radius,
+                                             geo.center.y + sin(angle) * radius),
+                             color: color, alpha: opacity, edgeDist: edge)
+            }
+            for k in 0..<fanSegments {
+                let a0 = step * Float(k)
+                let a1 = step * Float(k + 1)
+                let i0 = vert(a0, rIn, -1), i1 = vert(a1, rIn, -1)
+                let m0 = vert(a0, r, 0),    m1 = vert(a1, r, 0)
+                let o0 = vert(a0, rOut, -1), o1 = vert(a1, rOut, -1)
+                vertices.append(contentsOf: [i0, m0, i1,  i1, m0, m1,
+                                             m0, o0, m1,  m1, o0, o1])
+            }
+        }
+    }
+
+    /// Current ripple ring radii, for the debug overlay.
+    func currentRippleRadii() -> [Float] {
+        let os = orbSettings
+        guard os.rippleEnabled else { return [] }
+        let geo = orbGeometry()
+        return ripples.map {
+            geo.baseRadius * (Float(os.outerRadiusMultiplier)
+                              + Float(os.rippleSpeed) * Float(lastTickTime - $0))
+        }
     }
 
     private func buildFan(center: SIMD2<Float>, radius: Float,

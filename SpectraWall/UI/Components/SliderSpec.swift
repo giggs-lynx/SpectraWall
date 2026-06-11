@@ -54,6 +54,9 @@ enum OrbSpec {
     static let baseRadius = SliderSpec(range: 40...300, step: 5, defaultValue: 80)
     static let outerRadiusMultiplier = SliderSpec(range: 1.0...3.0, step: 0.1, defaultValue: 1.4)
     static let outerOpacity = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.15)
+    static let rippleSpeed = SliderSpec(range: 0.5...4.0, step: 0.1, defaultValue: 1.5)
+    static let rippleOpacity = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.5)
+    static let rippleDecay = SliderSpec(range: 1.0...8.0, step: 0.1, defaultValue: 3.0)
 }
 
 enum BorderSpec {

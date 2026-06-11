@@ -37,6 +37,14 @@ struct OrbSettingsSection: View {
                 )
             }
 
+            // MARK: - Ripple
+            SettingsCard(title: "Ripple") {
+                Toggle("Enable Ripple", isOn: $settings.rippleEnabled)
+                SettingsSlider(label: "Speed", value: $settings.rippleSpeed, spec: OrbSpec.rippleSpeed)
+                SettingsSlider(label: "Opacity", value: $settings.rippleOpacity, spec: OrbSpec.rippleOpacity)
+                SettingsSlider(label: "Decay", value: $settings.rippleDecay, spec: OrbSpec.rippleDecay)
+            }
+
             // MARK: - Appearance: Inner
             SettingsCard(title: "Inner Color") {
                 ColorPickerRow(label: "Low Frequency", colorData: $settings.innerColorLow)

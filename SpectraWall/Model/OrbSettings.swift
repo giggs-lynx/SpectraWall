@@ -18,6 +18,15 @@ struct OrbSettings: EffectSettings, Equatable {
     var outerColorLow: ColorData
     var outerColorHigh: ColorData
     var outerOpacity: Double
+    /// Beat-spawned expanding rings (ghost-style: each beat spawns one, each
+    /// fades out independently; several can be alive at once).
+    var rippleEnabled: Bool
+    /// Ring expansion rate in baseRadius units per second.
+    var rippleSpeed: Double
+    /// Ring alpha at spawn; fades to 0 over its lifetime.
+    var rippleOpacity: Double
+    /// Ring decay speed. Lifetime ≈ 1 / rippleDecay seconds.
+    var rippleDecay: Double
 
     static var defaults: OrbSettings {
         OrbSettings(
@@ -30,7 +39,11 @@ struct OrbSettings: EffectSettings, Equatable {
             innerColorHigh: ColorData(red: 0.8, green: 0.2, blue: 1.0),
             outerColorLow: ColorData(red: 0.2, green: 0.4, blue: 1.0),
             outerColorHigh: ColorData(red: 0.8, green: 0.2, blue: 1.0),
-            outerOpacity: 0.15
+            outerOpacity: 0.15,
+            rippleEnabled: true,
+            rippleSpeed: 1.5,
+            rippleOpacity: 0.5,
+            rippleDecay: 3.0
         )
     }
 
@@ -50,6 +63,9 @@ extension OrbSettings {
         s.baseRadius = OrbSpec.baseRadius.random()
         s.outerRadiusMultiplier = OrbSpec.outerRadiusMultiplier.random()
         s.outerOpacity = OrbSpec.outerOpacity.random()
+        s.rippleSpeed = OrbSpec.rippleSpeed.random()
+        s.rippleOpacity = OrbSpec.rippleOpacity.random()
+        s.rippleDecay = OrbSpec.rippleDecay.random()
         let inner = RandomColor.relatedPair()
         s.innerColorLow = inner.0
         s.innerColorHigh = inner.1
@@ -57,5 +73,36 @@ extension OrbSettings {
         s.outerColorLow = outer.0
         s.outerColorHigh = outer.1
         return s
+    }
+}
+
+extension OrbSettings {
+    // Custom init so configs that predate the ripple keys still decode —
+    // missing keys fall back to defaults. Encode is auto-synthesised because
+    // CodingKeys map 1:1 to properties.
+    enum CodingKeys: String, CodingKey {
+        case boost, attack, release, baseRadius, outerRadiusMultiplier
+        case innerColorLow, innerColorHigh, outerColorLow, outerColorHigh, outerOpacity
+        case rippleEnabled, rippleSpeed, rippleOpacity, rippleDecay
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            boost: try c.decode(Double.self, forKey: .boost),
+            attack: try c.decode(Double.self, forKey: .attack),
+            release: try c.decode(Double.self, forKey: .release),
+            baseRadius: try c.decode(Double.self, forKey: .baseRadius),
+            outerRadiusMultiplier: try c.decode(Double.self, forKey: .outerRadiusMultiplier),
+            innerColorLow: try c.decode(ColorData.self, forKey: .innerColorLow),
+            innerColorHigh: try c.decode(ColorData.self, forKey: .innerColorHigh),
+            outerColorLow: try c.decode(ColorData.self, forKey: .outerColorLow),
+            outerColorHigh: try c.decode(ColorData.self, forKey: .outerColorHigh),
+            outerOpacity: try c.decode(Double.self, forKey: .outerOpacity),
+            rippleEnabled: try c.decodeIfPresent(Bool.self, forKey: .rippleEnabled) ?? true,
+            rippleSpeed: try c.decodeIfPresent(Double.self, forKey: .rippleSpeed) ?? 1.5,
+            rippleOpacity: try c.decodeIfPresent(Double.self, forKey: .rippleOpacity) ?? 0.5,
+            rippleDecay: try c.decodeIfPresent(Double.self, forKey: .rippleDecay) ?? 3.0
+        )
     }
 }

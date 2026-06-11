@@ -32,6 +32,10 @@ extension OrbEffect {
                  color: DebugColor.base, into: &canvas)
         drawRing(center: center, radius: CGFloat(geo.innerRadius),
                  color: DebugColor.inner, into: &canvas)
+        for radius in currentRippleRadii() {
+            drawRing(center: center, radius: CGFloat(radius),
+                     color: DebugColor.outer, into: &canvas)
+        }
     }
 
     private func drawRing(center: CGPoint, radius: CGFloat,
