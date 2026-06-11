@@ -14,7 +14,9 @@ class SpectrumEffect: BaseEffect {
 
     // MARK: - Properties
 
-    let binCount = 96
+    /// Displayed bar count, settings-driven (24/48/96). Bin-state arrays are
+    /// re-allocated lazily when this changes — see ensureBinCapacity().
+    var binCount: Int { spectrumSettings.barCount }
     private let barSpacing: CGFloat = 4
 
     private var smoothed: [Float] = Array(repeating: 0, count: 96)
@@ -62,8 +64,21 @@ class SpectrumEffect: BaseEffect {
         lastTickTime   = 0
     }
 
+    /// Re-sizes all per-bin state when the user switches bar count. Called on
+    /// both the audio and tick paths since either can observe the new count
+    /// first; a frame of zeroed bins on switch is fine.
+    private func ensureBinCapacity() {
+        let n = binCount
+        guard smoothed.count != n else { return }
+        smoothed       = Array(repeating: 0, count: n)
+        renderedHeight = Array(repeating: 0, count: n)
+        capLen         = Array(repeating: 0, count: n)
+        capHoldUntil   = Array(repeating: 0, count: n)
+    }
+
     override func onTick(_ timestamp: TimeInterval) {
         guard let renderer else { return }
+        ensureBinCapacity()
 
         let dt = lastTickTime == 0 ? 0.016 : min(timestamp - lastTickTime, 0.1)
         // Snappy = 50ms linear reach (matches the SpriteKit SKAction baseline).
@@ -93,6 +108,7 @@ class SpectrumEffect: BaseEffect {
     }
 
     override func onAudio(_ bins: StereoBins) {
+        ensureBinCapacity()
         let ss       = spectrumSettings
         let selected = selectedBins(from: bins)
         for i in 0..<smoothed.count {
@@ -105,16 +121,36 @@ class SpectrumEffect: BaseEffect {
     // MARK: - Audio
 
     private func selectedBins(from stereo: StereoBins) -> [Float] {
+        let n = binCount
         switch layer.channelMode {
         case .stereo:
-            let half = binCount / 2
-            return Array(stereo.left.prefix(half)) + Array(stereo.right.prefix(half).reversed())
+            // Same frequency span as 96 bars (lower half of each channel),
+            // averaged down — not a narrower span with fewer bins.
+            let sourceHalf = stereo.left.count / 2
+            let left  = downsample(Array(stereo.left.prefix(sourceHalf)), to: n / 2)
+            let right = downsample(Array(stereo.right.prefix(sourceHalf)), to: n / 2)
+            return left + right.reversed()
         case .left:
-            return Array(stereo.left.prefix(binCount))
+            return downsample(stereo.left, to: n)
         case .right:
-            return Array(stereo.right.prefix(binCount))
+            return downsample(stereo.right, to: n)
         case .mono:
-            return zip(stereo.left.prefix(binCount), stereo.right.prefix(binCount)).map { ($0 + $1) / 2 }
+            return downsample(zip(stereo.left, stereo.right).map { ($0 + $1) / 2 }, to: n)
+        }
+    }
+
+    /// Adjacent-group average; pass-through (prefix) when no reduction is
+    /// needed, so 96 bars is bit-identical to the pre-barCount behaviour.
+    private func downsample(_ source: [Float], to n: Int) -> [Float] {
+        guard n > 0 else { return [] }
+        guard source.count > n else { return Array(source.prefix(n)) }
+        let factor = source.count / n
+        return (0..<n).map { j in
+            let lo = j * factor
+            let hi = min(lo + factor, source.count)
+            var sum: Float = 0
+            for k in lo..<hi { sum += source[k] }
+            return sum / Float(hi - lo)
         }
     }
 

@@ -51,6 +51,10 @@ struct SpectrumSettings: EffectSettings, Equatable {
     
     var width: Double
     var maxHeight: Double
+    /// Displayed bar count (24 / 48 / 96). The analyzer always produces 96
+    /// semitone bins; fewer bars are adjacent-bin averages — never more than
+    /// the source resolution.
+    var barCount: Int
     var anchor: SpectrumAnchor
     /// Bars grow symmetrically to both sides of the base line (each side up
     /// to maxHeight, so total span is 2× the single-sided extent).
@@ -77,6 +81,7 @@ struct SpectrumSettings: EffectSettings, Equatable {
             release: 0.2,
             width: 1.0,
             maxHeight: 0.35,
+            barCount: 96,
             anchor: .bottom,
             mirror: false,
             style: .bars,
@@ -135,12 +140,15 @@ extension SpectrumSettings {
     // because CodingKeys map 1:1 to properties.
     enum CodingKeys: String, CodingKey {
         case gain, powerCurve, attack, release
-        case width, maxHeight, anchor, mirror, style, capsEnabled, roundedTips
+        case width, maxHeight, barCount, anchor, mirror, style, capsEnabled, roundedTips
         case colorSync, colorSettings, leftColorSettings, rightColorSettings
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        // Hand-edited configs can hold arbitrary ints; clamp to the supported
+        // set so the effect never allocates off-spec bin arrays.
+        let rawBars = try c.decodeIfPresent(Int.self, forKey: .barCount) ?? 96
         self.init(
             gain: try c.decode(Double.self, forKey: .gain),
             powerCurve: try c.decode(Double.self, forKey: .powerCurve),
@@ -148,6 +156,7 @@ extension SpectrumSettings {
             release: try c.decode(Double.self, forKey: .release),
             width: try c.decode(Double.self, forKey: .width),
             maxHeight: try c.decode(Double.self, forKey: .maxHeight),
+            barCount: [24, 48, 96].contains(rawBars) ? rawBars : 96,
             anchor: try c.decode(SpectrumAnchor.self, forKey: .anchor),
             mirror: try c.decodeIfPresent(Bool.self, forKey: .mirror) ?? false,
             style: try c.decodeIfPresent(SpectrumStyle.self, forKey: .style) ?? .bars,

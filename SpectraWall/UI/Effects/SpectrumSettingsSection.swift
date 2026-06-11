@@ -29,6 +29,13 @@ struct SpectrumSettingsSection: View {
                 }
                 .pickerStyle(.segmented)
 
+                Picker("Bars", selection: $settings.barCount) {
+                    ForEach([24, 48, 96], id: \.self) { count in
+                        Text("\(count)").tag(count)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 // MARK: - Layout & Anchor
                 Picker("Anchor", selection: $settings.anchor) {
                     ForEach(SpectrumAnchor.allCases, id: \.self) { anchor in
