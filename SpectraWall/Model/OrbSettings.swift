@@ -30,6 +30,9 @@ struct OrbSettings: EffectSettings, Equatable {
     /// Per-angle deformation of the inner disk driven by frequency bands
     /// (low bands push big lobes). 0 = perfect circle.
     var blobAmount: Double
+    /// Continuous hue rotation applied after the low/high colour lerp, in
+    /// cycles per second. 0 = off.
+    var hueCycleSpeed: Double
 
     static var defaults: OrbSettings {
         OrbSettings(
@@ -47,7 +50,8 @@ struct OrbSettings: EffectSettings, Equatable {
             rippleSpeed: 1.5,
             rippleOpacity: 0.5,
             rippleDecay: 3.0,
-            blobAmount: 0.0
+            blobAmount: 0.0,
+            hueCycleSpeed: 0.0
         )
     }
 
@@ -71,6 +75,7 @@ extension OrbSettings {
         s.rippleOpacity = OrbSpec.rippleOpacity.random()
         s.rippleDecay = OrbSpec.rippleDecay.random()
         s.blobAmount = OrbSpec.blobAmount.random()
+        s.hueCycleSpeed = OrbSpec.hueCycleSpeed.random()
         let inner = RandomColor.relatedPair()
         s.innerColorLow = inner.0
         s.innerColorHigh = inner.1
@@ -89,7 +94,7 @@ extension OrbSettings {
         case boost, attack, release, baseRadius, outerRadiusMultiplier
         case innerColorLow, innerColorHigh, outerColorLow, outerColorHigh, outerOpacity
         case rippleEnabled, rippleSpeed, rippleOpacity, rippleDecay
-        case blobAmount
+        case blobAmount, hueCycleSpeed
     }
 
     init(from decoder: Decoder) throws {
@@ -109,7 +114,8 @@ extension OrbSettings {
             rippleSpeed: try c.decodeIfPresent(Double.self, forKey: .rippleSpeed) ?? 1.5,
             rippleOpacity: try c.decodeIfPresent(Double.self, forKey: .rippleOpacity) ?? 0.5,
             rippleDecay: try c.decodeIfPresent(Double.self, forKey: .rippleDecay) ?? 3.0,
-            blobAmount: try c.decodeIfPresent(Double.self, forKey: .blobAmount) ?? 0.0
+            blobAmount: try c.decodeIfPresent(Double.self, forKey: .blobAmount) ?? 0.0,
+            hueCycleSpeed: try c.decodeIfPresent(Double.self, forKey: .hueCycleSpeed) ?? 0.0
         )
     }
 }

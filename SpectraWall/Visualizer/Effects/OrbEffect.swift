@@ -213,23 +213,30 @@ class OrbEffect: BaseEffect {
         var vertices: [EffectVertex] = []
         vertices.reserveCapacity(fanSegments * 3 * 2 + ripples.count * fanSegments * 12)
 
+        // Hue cycle rotates the already-lerped colours so the low/high
+        // intensity mapping keeps working underneath the drift.
+        let hueSpeed = Float(orbSettings.hueCycleSpeed)
+        let hueShift = hueSpeed > 0 ? Float(timestamp.truncatingRemainder(dividingBy: 1 / Double(hueSpeed))) * hueSpeed : 0
+        let outerColor = rotateHue(currentOuterColor, by: hueShift)
+        let innerColor = rotateHue(currentInnerColor, by: hueShift)
+
         // Outer glow first (drawn underneath inner orb); negative edgeDist = glow
         // mode in shader. Glow stays a circle — the calm halo anchors the blob.
         vertices.append(contentsOf: buildFan(center: geo.center, radius: geo.outerRadius,
-                                             color: currentOuterColor, alpha: opacity,
+                                             color: outerColor, alpha: opacity,
                                              outerEdgeDist: -1))
 
         // Inner solid disk on top; positive edgeDist = solid-disk mode in shader.
         // Blob deformation modulates the per-angle radius.
         let blobAmount = Float(orbSettings.blobAmount)
         vertices.append(contentsOf: buildFan(center: geo.center, radius: geo.innerRadius,
-                                             color: currentInnerColor, alpha: opacity,
+                                             color: innerColor, alpha: opacity,
                                              outerEdgeDist: +1,
                                              radiusAt: blobAmount > 0
                                                 ? { [self] a in 1 + blobAmount * blobValue(at: a) }
                                                 : nil))
 
-        appendRippleRings(at: timestamp, geo: geo, into: &vertices)
+        appendRippleRings(at: timestamp, geo: geo, baseColor: outerColor, into: &vertices)
 
         return EffectMesh(vertices: vertices, primitiveType: .triangle)
     }
@@ -239,6 +246,7 @@ class OrbEffect: BaseEffect {
     /// expands from the resting glow radius regardless of the audio-scaled
     /// outer radius so rings don't jitter with the music.
     private func appendRippleRings(at timestamp: TimeInterval, geo: OrbGeometry,
+                                   baseColor: SIMD4<Float>,
                                    into vertices: inout [EffectVertex]) {
         let os = orbSettings
         guard os.rippleEnabled, !ripples.isEmpty else { return }
@@ -249,7 +257,7 @@ class OrbEffect: BaseEffect {
             let fade = max(0, 1 - age * Float(os.rippleDecay))
             guard fade > 0 else { continue }
             let r = geo.baseRadius * (Float(os.outerRadiusMultiplier) + Float(os.rippleSpeed) * age)
-            let color = SIMD4<Float>(currentOuterColor.x, currentOuterColor.y, currentOuterColor.z,
+            let color = SIMD4<Float>(baseColor.x, baseColor.y, baseColor.z,
                                      Float(os.rippleOpacity) * fade)
             let rIn = max(0, r - rippleHalfThickness)
             let rOut = r + rippleHalfThickness
@@ -326,6 +334,44 @@ class OrbEffect: BaseEffect {
     }
 
     // MARK: - Color Helpers
+
+    /// Rotate hue by `shift` (0...1 around the wheel), preserving saturation,
+    /// brightness, and alpha.
+    private func rotateHue(_ c: SIMD4<Float>, by shift: Float) -> SIMD4<Float> {
+        guard shift > 0 else { return c }
+        let maxC = max(c.x, max(c.y, c.z))
+        let minC = min(c.x, min(c.y, c.z))
+        let delta = maxC - minC
+
+        var h: Float = 0
+        if delta > 0 {
+            if maxC == c.x      { h = (c.y - c.z) / delta }
+            else if maxC == c.y { h = (c.z - c.x) / delta + 2 }
+            else                { h = (c.x - c.y) / delta + 4 }
+            h /= 6
+            if h < 0 { h += 1 }
+        }
+        let s = maxC > 0 ? delta / maxC : 0
+        let b = maxC
+
+        var nh = h + shift
+        nh -= floor(nh)
+        let sector = Int(nh * 6) % 6
+        let f = nh * 6 - Float(Int(nh * 6))
+        let p = b * (1 - s)
+        let q = b * (1 - f * s)
+        let t = b * (1 - (1 - f) * s)
+        let rgb: SIMD3<Float>
+        switch sector {
+        case 0: rgb = SIMD3(b, t, p)
+        case 1: rgb = SIMD3(q, b, p)
+        case 2: rgb = SIMD3(p, b, t)
+        case 3: rgb = SIMD3(p, q, b)
+        case 4: rgb = SIMD3(t, p, b)
+        default: rgb = SIMD3(b, p, q)
+        }
+        return SIMD4(rgb, c.w)
+    }
 
     private func lerpColor(from lo: ColorData, to hi: ColorData,
                            t: Float, alphaOverride: Float? = nil) -> SIMD4<Float> {

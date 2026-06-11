@@ -58,6 +58,7 @@ enum OrbSpec {
     static let rippleOpacity = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.5)
     static let rippleDecay = SliderSpec(range: 1.0...8.0, step: 0.1, defaultValue: 3.0)
     static let blobAmount = SliderSpec(range: 0.0...0.8, step: 0.05, defaultValue: 0.0)
+    static let hueCycleSpeed = SliderSpec(range: 0.0...0.5, step: 0.01, defaultValue: 0.0)
 }
 
 enum BorderSpec {
