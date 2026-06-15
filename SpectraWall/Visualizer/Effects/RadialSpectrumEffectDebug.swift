@@ -25,13 +25,14 @@ extension RadialSpectrumEffect {
         let center = CGPoint(x: CGFloat(geo.center.x), y: CGFloat(geo.center.y))
 
         canvas.point(center, color: DebugColor.ceiling)
-        drawCircle(center: center, radius: CGFloat(geo.hubRadius),
-                   color: DebugColor.hub, into: &canvas)
-        drawCircle(center: center, radius: CGFloat(geo.hubRadius + geo.maxExtent),
-                   color: DebugColor.ceiling, into: &canvas)
+        canvas.circle(center: center, radius: CGFloat(geo.hubRadius),
+                      color: DebugColor.hub, width: 1.5)
+        canvas.circle(center: center, radius: CGFloat(geo.hubRadius + geo.maxExtent),
+                      color: DebugColor.ceiling, width: 1.5)
         if geo.mirror {
-            drawCircle(center: center, radius: CGFloat(max(geo.hubRadius * 0.2, geo.hubRadius - geo.maxExtent)),
-                       color: DebugColor.ceiling, into: &canvas)
+            canvas.circle(center: center,
+                          radius: CGFloat(max(geo.hubRadius * 0.2, geo.hubRadius - geo.maxExtent)),
+                          color: DebugColor.ceiling, width: 1.5)
         }
 
         for i in 0..<binCount {
@@ -43,17 +44,5 @@ extension RadialSpectrumEffect {
                             y: center.y + sin(angle) * CGFloat(rOut))
             canvas.segment(a, b, color: DebugColor.bar, width: 1.5)
         }
-    }
-
-    private func drawCircle(center: CGPoint, radius: CGFloat,
-                            color: SIMD4<Float>, into canvas: inout DebugCanvas) {
-        guard radius > 0 else { return }
-        var pts: [CGPoint] = []
-        pts.reserveCapacity(49)
-        for k in 0...48 {
-            let t = CGFloat(k) / 48 * 2 * .pi
-            pts.append(CGPoint(x: center.x + cos(t) * radius, y: center.y + sin(t) * radius))
-        }
-        canvas.polyline(pts, color: color, width: 1.5)
     }
 }

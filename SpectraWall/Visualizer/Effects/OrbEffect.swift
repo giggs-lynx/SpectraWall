@@ -63,8 +63,6 @@ class OrbEffect: BaseEffect {
         layer.effectSettings as? OrbSettings ?? .defaults
     }
 
-    let fanSegments = 32
-
     override class var effectTypeName: String { "Orb" }
 
     // MARK: - Lifecycle
@@ -228,7 +226,8 @@ class OrbEffect: BaseEffect {
         let geo = orbGeometry()
 
         var vertices: [EffectVertex] = []
-        vertices.reserveCapacity(fanSegments * 3 * 2 + ripples.count * fanSegments * 12)
+        let estSegs = circleSegments(forRadius: geo.outerRadius)
+        vertices.reserveCapacity(estSegs * 3 * 2 + ripples.count * estSegs * 12)
 
         // Hue cycle rotates the already-lerped colours so the low/high
         // intensity mapping keeps working underneath the drift.
@@ -267,7 +266,6 @@ class OrbEffect: BaseEffect {
                                    into vertices: inout [EffectVertex]) {
         let os = orbSettings
         guard os.rippleEnabled, !ripples.isEmpty else { return }
-        let step = Float.pi * 2 / Float(fanSegments)
 
         for birth in ripples {
             let age = Float(timestamp - birth)
@@ -278,13 +276,15 @@ class OrbEffect: BaseEffect {
                                      Float(os.rippleOpacity) * fade)
             let rIn = max(0, r - rippleHalfThickness)
             let rOut = r + rippleHalfThickness
+            let segs = circleSegments(forRadius: r)
+            let step = Float.pi * 2 / Float(segs)
 
             func vert(_ angle: Float, _ radius: Float, _ edge: Float) -> EffectVertex {
                 EffectVertex(position: SIMD2(geo.center.x + cos(angle) * radius,
                                              geo.center.y + sin(angle) * radius),
                              color: color, alpha: opacity, edgeDist: edge)
             }
-            for k in 0..<fanSegments {
+            for k in 0..<segs {
                 let a0 = step * Float(k)
                 let a1 = step * Float(k + 1)
                 let i0 = vert(a0, rIn, -1), i1 = vert(a1, rIn, -1)
@@ -313,16 +313,17 @@ class OrbEffect: BaseEffect {
                           color: SIMD4<Float>, alpha: Float,
                           outerEdgeDist: Float,
                           radiusAt: ((Float) -> Float)? = nil) -> [EffectVertex] {
-        let step = Float.pi * 2 / Float(fanSegments)
+        let segs = circleSegments(forRadius: radius)
+        let step = Float.pi * 2 / Float(segs)
         let centerVert = EffectVertex(position: center, color: color, alpha: alpha, edgeDist: 0)
         var result: [EffectVertex] = []
-        result.reserveCapacity(fanSegments * 3)
+        result.reserveCapacity(segs * 3)
 
         func rim(_ angle: Float) -> SIMD2<Float> {
             let r = radius * (radiusAt?(angle) ?? 1)
             return SIMD2(center.x + cos(angle) * r, center.y + sin(angle) * r)
         }
-        for i in 0..<fanSegments {
+        for i in 0..<segs {
             let a0 = step * Float(i)
             let a1 = step * Float(i + 1)
             result.append(centerVert)

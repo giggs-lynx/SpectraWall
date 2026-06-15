@@ -16,6 +16,16 @@ import CoreGraphics
 import Metal
 import simd
 
+/// Segment count for a circle of the given radius, scaled so facets stay below
+/// ~0.4pt of sag (imperceptible) on big circles while small ones stay cheap.
+/// Shared by the Orb mesh and every debug ring so a wireframe tessellates
+/// identically to the geometry it traces. Sag s ≈ r·(π/N)²/2 → N = π·√(r/2s).
+func circleSegments(forRadius radius: Float) -> Int {
+    let sag: Float = 0.4
+    let ideal = Float.pi * (max(0, radius) / (2 * sag)).squareRoot()
+    return min(128, max(24, Int(ideal.rounded(.up))))
+}
+
 struct DebugCanvas {
     private var vertices: [EffectVertex] = []
 
@@ -48,6 +58,20 @@ struct DebugCanvas {
         for i in 0..<(points.count - 1) {
             segment(points[i], points[i + 1], color: color, width: width)
         }
+    }
+
+    /// Closed circle outline, auto-tessellated by radius (see circleSegments).
+    mutating func circle(center: CGPoint, radius: CGFloat,
+                         color: SIMD4<Float>, width: CGFloat = 2) {
+        guard radius > 0 else { return }
+        let segs = circleSegments(forRadius: Float(radius))
+        var pts: [CGPoint] = []
+        pts.reserveCapacity(segs + 1)
+        for k in 0...segs {
+            let t = CGFloat(k) / CGFloat(segs) * 2 * .pi
+            pts.append(CGPoint(x: center.x + cos(t) * radius, y: center.y + sin(t) * radius))
+        }
+        polyline(pts, color: color, width: width)
     }
 
     /// Small axis-aligned square marker centred on `p`.

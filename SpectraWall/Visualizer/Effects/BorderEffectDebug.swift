@@ -20,9 +20,8 @@ extension BorderEffect {
         static let cap        = SIMD4<Float>(1, 0, 1, 1)   // magenta head / tail cap
     }
 
-    /// Centerline samples between drawn radius rings, and ring tessellation.
+    /// Spacing (in centerline samples) between drawn radius rings.
     private static let ringStride = 12
-    private static let ringSegments = 20
 
     func buildBorderDebug(into canvas: inout DebugCanvas) {
         for strokeIndex in 0..<strokes.count {
@@ -41,25 +40,12 @@ extension BorderEffect {
 
             // Radius rings trace the capsule envelope (the glow's nominal edge).
             for i in stride(from: 0, to: n, by: Self.ringStride) {
-                drawRing(center: ctx.centerPoints[i], radius: ctx.stripWidths[i] / 2,
-                         color: i == 0 ? DebugColor.cap : DebugColor.ring, into: &canvas)
+                canvas.circle(center: ctx.centerPoints[i], radius: ctx.stripWidths[i] / 2,
+                              color: i == 0 ? DebugColor.cap : DebugColor.ring, width: 1.5)
             }
             // Always mark the tail cap (the strided loop may skip the last sample).
-            drawRing(center: ctx.centerPoints[n - 1], radius: ctx.stripWidths[n - 1] / 2,
-                     color: DebugColor.cap, into: &canvas)
+            canvas.circle(center: ctx.centerPoints[n - 1], radius: ctx.stripWidths[n - 1] / 2,
+                          color: DebugColor.cap, width: 1.5)
         }
-    }
-
-    /// Draw a closed polygon approximating the capsule's radius circle.
-    private func drawRing(center: CGPoint, radius: CGFloat,
-                          color: SIMD4<Float>, into canvas: inout DebugCanvas) {
-        guard radius > 0 else { return }
-        var pts: [CGPoint] = []
-        pts.reserveCapacity(Self.ringSegments + 1)
-        for k in 0...Self.ringSegments {
-            let t = CGFloat(k) / CGFloat(Self.ringSegments) * 2 * .pi
-            pts.append(CGPoint(x: center.x + cos(t) * radius, y: center.y + sin(t) * radius))
-        }
-        canvas.polyline(pts, color: color, width: 1.5)
     }
 }

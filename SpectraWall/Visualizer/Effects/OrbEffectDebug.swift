@@ -26,39 +26,30 @@ extension OrbEffect {
         let center = CGPoint(x: CGFloat(geo.center.x), y: CGFloat(geo.center.y))
 
         canvas.point(center, color: DebugColor.center)
-        drawRing(center: center, radius: CGFloat(geo.outerRadius),
-                 color: DebugColor.outer, into: &canvas)
-        drawRing(center: center, radius: CGFloat(geo.baseRadius),
-                 color: DebugColor.base, into: &canvas)
+        canvas.circle(center: center, radius: CGFloat(geo.outerRadius),
+                      color: DebugColor.outer, width: 1.5)
+        canvas.circle(center: center, radius: CGFloat(geo.baseRadius),
+                      color: DebugColor.base, width: 1.5)
         let blob = debugBlobAmount
         if blob > 0 {
+            // Deformed rim can't use canvas.circle; tessellate by the same policy
+            // keyed on innerRadius so it matches the mesh fan.
+            let segs = circleSegments(forRadius: geo.innerRadius)
             var pts: [CGPoint] = []
-            pts.reserveCapacity(fanSegments + 1)
-            for k in 0...fanSegments {
-                let t = CGFloat(k) / CGFloat(fanSegments) * 2 * .pi
+            pts.reserveCapacity(segs + 1)
+            for k in 0...segs {
+                let t = CGFloat(k) / CGFloat(segs) * 2 * .pi
                 let r = CGFloat(geo.innerRadius * (1 + blob * blobValue(at: Float(t))))
                 pts.append(CGPoint(x: center.x + cos(t) * r, y: center.y + sin(t) * r))
             }
             canvas.polyline(pts, color: DebugColor.inner, width: 1.5)
         } else {
-            drawRing(center: center, radius: CGFloat(geo.innerRadius),
-                     color: DebugColor.inner, into: &canvas)
+            canvas.circle(center: center, radius: CGFloat(geo.innerRadius),
+                          color: DebugColor.inner, width: 1.5)
         }
         for radius in currentRippleRadii() {
-            drawRing(center: center, radius: CGFloat(radius),
-                     color: DebugColor.outer, into: &canvas)
+            canvas.circle(center: center, radius: CGFloat(radius),
+                          color: DebugColor.outer, width: 1.5)
         }
-    }
-
-    private func drawRing(center: CGPoint, radius: CGFloat,
-                          color: SIMD4<Float>, into canvas: inout DebugCanvas) {
-        guard radius > 0 else { return }
-        var pts: [CGPoint] = []
-        pts.reserveCapacity(fanSegments + 1)
-        for k in 0...fanSegments {
-            let t = CGFloat(k) / CGFloat(fanSegments) * 2 * .pi
-            pts.append(CGPoint(x: center.x + cos(t) * radius, y: center.y + sin(t) * radius))
-        }
-        canvas.polyline(pts, color: color, width: 1.5)
     }
 }
