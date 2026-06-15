@@ -40,8 +40,8 @@ struct BorderSettings: EffectSettings, Equatable {
     var ghostSize: Double
     /// Ghost fill alpha at spawn (lifetime=0); fades to 0 over its lifetime.
     var ghostOpacity: Double
-    /// Ghost decay speed. Lifetime ≈ 1 / ghostDecay seconds.
-    var ghostDecay: Double
+    /// Ghost lifetime in seconds; it fades out over this span. Larger = lingers longer.
+    var ghostDuration: Double
 
     static var defaults: BorderSettings {
         BorderSettings(
@@ -64,7 +64,7 @@ struct BorderSettings: EffectSettings, Equatable {
             ghostEnabled: true,
             ghostSize: 0.9,
             ghostOpacity: 0.65,
-            ghostDecay: 4.0
+            ghostDuration: 0.3
         )
     }
 
@@ -90,7 +90,7 @@ extension BorderSettings {
         s.widthBreath = BorderSpec.widthBreath.random()
         s.ghostSize = BorderSpec.ghostSize.random()
         s.ghostOpacity = BorderSpec.ghostOpacity.random()
-        s.ghostDecay = BorderSpec.ghostDecay.random()
+        s.ghostDuration = BorderSpec.ghostDuration.random()
         let s1 = RandomColor.relatedPair()
         s.stroke1ColorStart = s1.0
         s.stroke1ColorEnd = s1.1
@@ -110,7 +110,7 @@ extension BorderSettings {
         case stroke1ColorStart, stroke1ColorEnd, stroke2ColorStart, stroke2ColorEnd
         case pulseAttack, pulseRelease, pulseThreshold, pulseFlash
         case pulseSpeedBoost, widthBreath
-        case ghostEnabled, ghostSize, ghostOpacity, ghostDecay
+        case ghostEnabled, ghostSize, ghostOpacity, ghostDuration
     }
 
     init(from decoder: Decoder) throws {
@@ -135,7 +135,7 @@ extension BorderSettings {
             ghostEnabled: try c.decodeIfPresent(Bool.self, forKey: .ghostEnabled) ?? true,
             ghostSize: try c.decodeIfPresent(Double.self, forKey: .ghostSize) ?? 0.9,
             ghostOpacity: try c.decodeIfPresent(Double.self, forKey: .ghostOpacity) ?? 0.65,
-            ghostDecay: try c.decodeIfPresent(Double.self, forKey: .ghostDecay) ?? 4.0
+            ghostDuration: try c.decodeIfPresent(Double.self, forKey: .ghostDuration) ?? 0.3
         )
     }
 }

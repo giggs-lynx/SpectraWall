@@ -78,7 +78,7 @@ class BorderEffect: BaseEffect {
     let echoWidthDelta: CGFloat   = 1.1      // ghostSize=1 → width  × 2.1
     let echoLengthDelta: CGFloat  = 0.05     // ghostSize=1 → length × 1.05
     // ghost fill alpha at lifetime=0 comes from borderSettings.ghostOpacity
-    // ghost decay speed comes from borderSettings.ghostDecay (lifetime ≈ 1/decay)
+    // ghost lifetime (seconds) comes from borderSettings.ghostDuration
     let echoAlphaCurve: CGFloat  = 2.5     // alpha decays as (1 - t^curve);
                                            // higher = stays visible longer
                                            // before snapping out at the end.
@@ -297,7 +297,7 @@ class BorderEffect: BaseEffect {
                 continue
             }
 
-            scaleGhosts[index].lifetime += dt * CGFloat(borderSettings.ghostDecay)
+            scaleGhosts[index].lifetime += dt / CGFloat(borderSettings.ghostDuration)
             let lifetime = scaleGhosts[index].lifetime
 
             if lifetime >= 1.0 {

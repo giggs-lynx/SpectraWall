@@ -57,7 +57,7 @@ struct BorderSettingsSection: View {
                 if settings.ghostEnabled {
                     SettingsSlider(label: "Ghost Size", value: $settings.ghostSize, spec: BorderSpec.ghostSize)
                     SettingsSlider(label: "Ghost Opacity", value: $settings.ghostOpacity, spec: BorderSpec.ghostOpacity)
-                    SettingsSlider(label: "Ghost Decay", value: $settings.ghostDecay, spec: BorderSpec.ghostDecay)
+                    SettingsSlider(label: "Ghost Duration", value: $settings.ghostDuration, spec: BorderSpec.ghostDuration)
                 }
             }
 

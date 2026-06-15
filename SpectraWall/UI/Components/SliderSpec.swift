@@ -96,7 +96,7 @@ enum BorderSpec {
     static let widthBreath = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.0)
     static let ghostSize = SliderSpec(range: 0.0...2.0, step: 0.1, defaultValue: 0.9)
     static let ghostOpacity = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.65)
-    static let ghostDecay = SliderSpec(range: 0.5...10.0, step: 0.1, defaultValue: 4.0)
+    static let ghostDuration = SliderSpec(range: 0.1...1.5, step: 0.1, defaultValue: 0.3)
 }
 
 // MARK: - Pleasant random colours
