@@ -6,9 +6,9 @@
 //
 
 import AppKit
+import Combine
 import SwiftUI
 import simd
-import Combine
 
 class OrbEffect: BaseEffect {
 
@@ -27,15 +27,27 @@ class OrbEffect: BaseEffect {
     private var renderedOuterScale: Float = 0
     private var lastTickTime: TimeInterval = 0
 
-    // Beat-spawned ripple rings: birth timestamps, capped at maxRipples.
-    // Detection mirrors BorderEffect's pulse latch: combined amplitude crosses
-    // the threshold rising-edge, re-arms once it falls back below half.
+    // Beat-spawned ripple rings (birth timestamps), capped at maxRipples.
+    // Rings expand from the orb's center: they surface from behind the inner
+    // disk and stay visible the whole way out because the outer glow is a
+    // translucent gradient halo. Detection mirrors BorderEffect's ghost beat
+    // detector: combined amplitude rising sharply above the previous buffer,
+    // over the user-set threshold, rate-limited. (An earlier high/low
+    // hysteresis latch re-armed only below 0.005 — an order of magnitude
+    // under continuous-music levels, measured 0.06–0.39 — so it fired once
+    // per silence→sound onset and then never again mid-song.)
     private var ripples: [TimeInterval] = []
     private var pendingRipple = false
-    private var isPulsing = false
-    private let rippleThreshold: Float = 0.01
+    private var lastRippleCombined: Float = 0
+    private var lastRippleSpawn: TimeInterval = 0
+    // ×1.3: at ×1.1 the smoothed signal's ordinary fluctuations counted as
+    // onsets and rings fired near-continuously in loud passages.
+    private let rippleSensitivity: Float = 1.3
+    private let minRippleInterval: TimeInterval = 0.12
     private let maxRipples = 6
-    private let rippleHalfThickness: Float = 4
+    // Wide enough to survive the shader's soft ring profile (edgeDist ramps
+    // the band alpha to 0 at both edges, halving the apparent width).
+    private let rippleHalfThickness: Float = 6
 
     // Blob deformation: 8 band-driven control values around the circle
     // (audio thread writes targets, tick thread smooths — both renderQueue).
@@ -78,7 +90,8 @@ class OrbEffect: BaseEffect {
         lastTickTime       = 0
         ripples.removeAll()
         pendingRipple      = false
-        isPulsing          = false
+        lastRippleCombined = 0
+        lastRippleSpawn    = 0
         blobTargets        = [Float](repeating: 0, count: 8)
         blobControls       = [Float](repeating: 0, count: 8)
     }
@@ -164,14 +177,18 @@ class OrbEffect: BaseEffect {
         let silenceGate = clampedT * clampedT * (3 - 2 * clampedT)
         currentScale = silenceGate * min(1.0 + amplitude * Float(os.boost), 2.5)
 
-        // Ripple beat latch (combined so a beat spawns one ring, not per-channel).
+        // Ripple beat detection (combined so a beat spawns one ring, not
+        // per-channel). lastTickTime is the freshest clock available here —
+        // onAudio has no timestamp — and at display cadence it is at most one
+        // frame stale, well under minRippleInterval.
         let combined = (smoothedLeft + smoothedRight) / 2
-        if silenceGate > 0.5, combined > rippleThreshold, !isPulsing {
-            isPulsing = true
+        if silenceGate > 0.5, combined > Float(os.rippleThreshold),
+           combined > lastRippleCombined * rippleSensitivity,
+           lastTickTime - lastRippleSpawn > minRippleInterval {
             pendingRipple = true
-        } else if combined < rippleThreshold * 0.5 {
-            isPulsing = false
+            lastRippleSpawn = lastTickTime
         }
+        lastRippleCombined = combined
 
         if os.blobAmount > 0 {
             for g in 0..<8 {
@@ -242,9 +259,9 @@ class OrbEffect: BaseEffect {
     }
 
     /// Expanding annulus per live ripple. Three radial rows (edgeDist −1/0/−1)
-    /// so the orb fragment's rim mask anti-aliases both band edges; the ring
-    /// expands from the resting glow radius regardless of the audio-scaled
-    /// outer radius so rings don't jitter with the music.
+    /// so the orb fragment's halo curve shapes a soft band profile; the ring
+    /// expands from the orb center at a rate independent of the audio-scaled
+    /// radii so rings don't jitter with the music.
     private func appendRippleRings(at timestamp: TimeInterval, geo: OrbGeometry,
                                    baseColor: SIMD4<Float>,
                                    into vertices: inout [EffectVertex]) {
@@ -256,7 +273,7 @@ class OrbEffect: BaseEffect {
             let age = Float(timestamp - birth)
             let fade = max(0, 1 - age * Float(os.rippleDecay))
             guard fade > 0 else { continue }
-            let r = geo.baseRadius * (Float(os.outerRadiusMultiplier) + Float(os.rippleSpeed) * age)
+            let r = geo.baseRadius * Float(os.rippleSpeed) * age
             let color = SIMD4<Float>(baseColor.x, baseColor.y, baseColor.z,
                                      Float(os.rippleOpacity) * fade)
             let rIn = max(0, r - rippleHalfThickness)
@@ -288,8 +305,7 @@ class OrbEffect: BaseEffect {
         guard os.rippleEnabled else { return [] }
         let geo = orbGeometry()
         return ripples.map {
-            geo.baseRadius * (Float(os.outerRadiusMultiplier)
-                              + Float(os.rippleSpeed) * Float(lastTickTime - $0))
+            geo.baseRadius * Float(os.rippleSpeed) * Float(lastTickTime - $0)
         }
     }
 

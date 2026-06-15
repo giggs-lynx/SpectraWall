@@ -176,8 +176,12 @@ fragment float4 orb_fragment(VertexOut in [[stage_in]]) {
     float d = clamp(abs(in.edgeDist), 0.0, 1.0);
     float mask;
     if (in.edgeDist < 0.0) {
-        // Outer glow: solid filled circle matching SKShapeNode, 5% antialiasing at edge
-        mask = smoothstep(1.0, 0.95, d);
+        // Outer glow: gradient halo — solid core (hidden under the inner disk),
+        // fading to transparent at the rim. A solid disc here buries the ripple
+        // rings: its audio-scaled edge jitters ±80px, far more than a ring
+        // travels in its lifetime. Ripple ring bands reuse this curve (edgeDist
+        // 0 at the ring centerline, −1 at both band edges → soft ring profile).
+        mask = 1.0 - smoothstep(0.4, 1.0, d);
     } else {
         // Inner solid disk with minimal anti-aliasing
         mask = smoothstep(1.0, 0.95, d);

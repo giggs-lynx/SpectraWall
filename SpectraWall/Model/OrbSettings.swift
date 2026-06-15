@@ -27,6 +27,9 @@ struct OrbSettings: EffectSettings, Equatable {
     var rippleOpacity: Double
     /// Ring decay speed. Lifetime ≈ 1 / rippleDecay seconds.
     var rippleDecay: Double
+    /// Minimum combined amplitude for the beat detector to spawn a ring —
+    /// raise it so only hard beats ripple, quieter hits get filtered out.
+    var rippleThreshold: Double
     /// Per-angle deformation of the inner disk driven by frequency bands
     /// (low bands push big lobes). 0 = perfect circle.
     var blobAmount: Double
@@ -50,6 +53,7 @@ struct OrbSettings: EffectSettings, Equatable {
             rippleSpeed: 1.5,
             rippleOpacity: 0.5,
             rippleDecay: 3.0,
+            rippleThreshold: 0.01,
             blobAmount: 0.0,
             hueCycleSpeed: 0.0
         )
@@ -93,7 +97,7 @@ extension OrbSettings {
     enum CodingKeys: String, CodingKey {
         case boost, attack, release, baseRadius, outerRadiusMultiplier
         case innerColorLow, innerColorHigh, outerColorLow, outerColorHigh, outerOpacity
-        case rippleEnabled, rippleSpeed, rippleOpacity, rippleDecay
+        case rippleEnabled, rippleSpeed, rippleOpacity, rippleDecay, rippleThreshold
         case blobAmount, hueCycleSpeed
     }
 
@@ -114,6 +118,7 @@ extension OrbSettings {
             rippleSpeed: try c.decodeIfPresent(Double.self, forKey: .rippleSpeed) ?? 1.5,
             rippleOpacity: try c.decodeIfPresent(Double.self, forKey: .rippleOpacity) ?? 0.5,
             rippleDecay: try c.decodeIfPresent(Double.self, forKey: .rippleDecay) ?? 3.0,
+            rippleThreshold: try c.decodeIfPresent(Double.self, forKey: .rippleThreshold) ?? 0.01,
             blobAmount: try c.decodeIfPresent(Double.self, forKey: .blobAmount) ?? 0.0,
             hueCycleSpeed: try c.decodeIfPresent(Double.self, forKey: .hueCycleSpeed) ?? 0.0
         )

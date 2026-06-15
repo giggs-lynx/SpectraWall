@@ -42,9 +42,14 @@ struct OrbSettingsSection: View {
             // MARK: - Ripple
             SettingsCard(title: "Ripple") {
                 Toggle("Enable Ripple", isOn: $settings.rippleEnabled)
+                SettingsSlider(label: "Threshold", value: $settings.rippleThreshold, spec: OrbSpec.rippleThreshold)
+                    .disabled(!settings.rippleEnabled)
                 SettingsSlider(label: "Speed", value: $settings.rippleSpeed, spec: OrbSpec.rippleSpeed)
+                    .disabled(!settings.rippleEnabled)
                 SettingsSlider(label: "Opacity", value: $settings.rippleOpacity, spec: OrbSpec.rippleOpacity)
+                    .disabled(!settings.rippleEnabled)
                 SettingsSlider(label: "Decay", value: $settings.rippleDecay, spec: OrbSpec.rippleDecay)
+                    .disabled(!settings.rippleEnabled)
             }
 
             // MARK: - Appearance: Inner
