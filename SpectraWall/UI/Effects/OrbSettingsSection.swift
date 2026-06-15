@@ -48,7 +48,7 @@ struct OrbSettingsSection: View {
                     .disabled(!settings.rippleEnabled)
                 SettingsSlider(label: "Opacity", value: $settings.rippleOpacity, spec: OrbSpec.rippleOpacity)
                     .disabled(!settings.rippleEnabled)
-                SettingsSlider(label: "Decay", value: $settings.rippleDecay, spec: OrbSpec.rippleDecay)
+                SettingsSlider(label: "Duration", value: $settings.rippleDuration, spec: OrbSpec.rippleDuration)
                     .disabled(!settings.rippleEnabled)
             }
 

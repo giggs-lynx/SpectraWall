@@ -132,8 +132,8 @@ class OrbEffect: BaseEffect {
                 }
             }
         }
-        let decay = Float(orbSettings.rippleDecay)
-        ripples.removeAll { Float(timestamp - $0) * decay >= 1 }
+        let duration = Float(orbSettings.rippleDuration)
+        ripples.removeAll { Float(timestamp - $0) >= duration }
 
         renderer.submit(id: id, type: .orb, mesh: buildOrbData(at: timestamp))
     }
@@ -269,7 +269,7 @@ class OrbEffect: BaseEffect {
 
         for birth in ripples {
             let age = Float(timestamp - birth)
-            let fade = max(0, 1 - age * Float(os.rippleDecay))
+            let fade = max(0, 1 - age / Float(os.rippleDuration))
             guard fade > 0 else { continue }
             let r = geo.baseRadius * Float(os.rippleSpeed) * age
             let color = SIMD4<Float>(baseColor.x, baseColor.y, baseColor.z,

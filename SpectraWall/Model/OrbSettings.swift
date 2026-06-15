@@ -25,8 +25,9 @@ struct OrbSettings: EffectSettings, Equatable {
     var rippleSpeed: Double
     /// Ring alpha at spawn; fades to 0 over its lifetime.
     var rippleOpacity: Double
-    /// Ring decay speed. Lifetime ≈ 1 / rippleDecay seconds.
-    var rippleDecay: Double
+    /// Ring lifetime in seconds; it fades linearly from spawn to gone over this
+    /// span. Larger = lingers longer (and expands farther, since radius = speed × age).
+    var rippleDuration: Double
     /// Minimum combined amplitude for the beat detector to spawn a ring —
     /// raise it so only hard beats ripple, quieter hits get filtered out.
     var rippleThreshold: Double
@@ -52,7 +53,7 @@ struct OrbSettings: EffectSettings, Equatable {
             rippleEnabled: true,
             rippleSpeed: 1.5,
             rippleOpacity: 0.5,
-            rippleDecay: 3.0,
+            rippleDuration: 2.0,
             rippleThreshold: 0.01,
             blobAmount: 0.0,
             hueCycleSpeed: 0.0
@@ -77,7 +78,7 @@ extension OrbSettings {
         s.outerOpacity = OrbSpec.outerOpacity.random()
         s.rippleSpeed = OrbSpec.rippleSpeed.random()
         s.rippleOpacity = OrbSpec.rippleOpacity.random()
-        s.rippleDecay = OrbSpec.rippleDecay.random()
+        s.rippleDuration = OrbSpec.rippleDuration.random()
         s.blobAmount = OrbSpec.blobAmount.random()
         s.hueCycleSpeed = OrbSpec.hueCycleSpeed.random()
         let inner = RandomColor.relatedPair()
@@ -97,7 +98,7 @@ extension OrbSettings {
     enum CodingKeys: String, CodingKey {
         case boost, attack, release, baseRadius, outerRadiusMultiplier
         case innerColorLow, innerColorHigh, outerColorLow, outerColorHigh, outerOpacity
-        case rippleEnabled, rippleSpeed, rippleOpacity, rippleDecay, rippleThreshold
+        case rippleEnabled, rippleSpeed, rippleOpacity, rippleDuration, rippleThreshold
         case blobAmount, hueCycleSpeed
     }
 
@@ -117,7 +118,7 @@ extension OrbSettings {
             rippleEnabled: try c.decodeIfPresent(Bool.self, forKey: .rippleEnabled) ?? true,
             rippleSpeed: try c.decodeIfPresent(Double.self, forKey: .rippleSpeed) ?? 1.5,
             rippleOpacity: try c.decodeIfPresent(Double.self, forKey: .rippleOpacity) ?? 0.5,
-            rippleDecay: try c.decodeIfPresent(Double.self, forKey: .rippleDecay) ?? 3.0,
+            rippleDuration: try c.decodeIfPresent(Double.self, forKey: .rippleDuration) ?? 2.0,
             rippleThreshold: try c.decodeIfPresent(Double.self, forKey: .rippleThreshold) ?? 0.01,
             blobAmount: try c.decodeIfPresent(Double.self, forKey: .blobAmount) ?? 0.0,
             hueCycleSpeed: try c.decodeIfPresent(Double.self, forKey: .hueCycleSpeed) ?? 0.0
