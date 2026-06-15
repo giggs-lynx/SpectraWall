@@ -22,6 +22,7 @@
 
 import Combine
 import Foundation
+import os
 import QuartzCore
 
 final class AudioActivityMonitor: ObservableObject {
@@ -42,11 +43,16 @@ final class AudioActivityMonitor: ObservableObject {
     // Silence thresholds (full-spectrum peak) shared with OrbEffect via SilenceThreshold.
     private let staleTimeout: TimeInterval = 0.3
 
-    // Written on `sinkQueue` (sink), read on main (tick). Plain scalars/small
-    // arrays — a torn read just yields a slightly stale meter frame.
-    private var rawBands: [Float]
-    private var rawPeak: Float = 0
-    private var lastEmit: TimeInterval = 0
+    // Written on `sinkQueue` (sink), read on main (tick). Must be locked:
+    // Swift Array is a CoW heap buffer, so an unsynchronized reader can catch
+    // the writer mid-swap and read a freed buffer (crashed in the field as a
+    // bogus index-out-of-range trap in tick()).
+    private struct RawFeed {
+        var bands: [Float]
+        var peak: Float = 0
+        var lastEmit: TimeInterval = 0
+    }
+    private let rawFeed: OSAllocatedUnfairLock<RawFeed>
 
     // The spectrum feed is published on the Core Audio real-time thread; effects
     // hop off it via renderQueue before doing any work. Mirror that here so the
@@ -73,24 +79,27 @@ final class AudioActivityMonitor: ObservableObject {
         iconBars = restingHeights
         smoothed = Array(repeating: 0, count: n)
         iconSmoothed = restingHeights
-        rawBands = Array(repeating: 0, count: n)
+        rawFeed = OSAllocatedUnfairLock(initialState: RawFeed(bands: Array(repeating: 0, count: n)))
 
         cancellable = AudioDataBus.shared.spectrumPublisher
             .receive(on: sinkQueue)
             .sink { [weak self] bins in
                 guard let self, self.started else { return }
-                for (i, range) in self.bandRanges.enumerated() {
-                    let l = bins.leftAmplitude(binRange: range)
-                    let r = bins.rightAmplitude(binRange: range)
-                    self.rawBands[i] = max(l, r)
+                let bands = self.bandRanges.map { range in
+                    max(bins.leftAmplitude(binRange: range), bins.rightAmplitude(binRange: range))
                 }
-                self.rawPeak = bins.peak
-                self.lastEmit = CACurrentMediaTime()
+                let peak = bins.peak
+                let now = CACurrentMediaTime()
+                self.rawFeed.withLock {
+                    $0.bands = bands
+                    $0.peak = peak
+                    $0.lastEmit = now
+                }
 
                 // Wake the parked tick loop the moment audio returns. `isParked` is a
                 // hint written on main; a stale read just delays the resume by one
                 // buffer (~12ms), and resumeTimer() is idempotent.
-                if self.isParked && self.rawPeak > SilenceThreshold.exit {
+                if self.isParked && peak > SilenceThreshold.exit {
                     DispatchQueue.main.async { self.resumeTimer() }
                 }
             }
@@ -126,13 +135,14 @@ final class AudioActivityMonitor: ObservableObject {
     }
 
     private func tick() {
-        let stale = CACurrentMediaTime() - lastEmit > staleTimeout
+        let feed = rawFeed.withLock { $0 }
+        let stale = CACurrentMediaTime() - feed.lastEmit > staleTimeout
 
         // Silence hysteresis on the full-spectrum peak.
         let nowSilent: Bool
-        if stale || rawPeak < SilenceThreshold.enter {
+        if stale || feed.peak < SilenceThreshold.enter {
             nowSilent = true
-        } else if rawPeak > SilenceThreshold.exit {
+        } else if feed.peak > SilenceThreshold.exit {
             nowSilent = false
         } else {
             nowSilent = isSilent
@@ -141,18 +151,18 @@ final class AudioActivityMonitor: ObservableObject {
 
         // Auto-gain: rise instantly to the loudest band, decay slowly, floored so a
         // near-silent floor doesn't get amplified into full bars.
-        let maxRaw = rawBands.max() ?? 0
+        let maxRaw = feed.bands.max() ?? 0
         agc = max(agcFloor, max(maxRaw, agc * 0.92))
 
         var newBands = smoothed
         var newIcon = iconSmoothed
         for i in smoothed.indices {
             // Popover: audio level, → 0 when silent.
-            let bandTarget = (stale || nowSilent) ? 0 : Double(min(1, rawBands[i] / agc))
+            let bandTarget = (stale || nowSilent) ? 0 : Double(min(1, feed.bands[i] / agc))
             newBands[i] += (bandTarget - smoothed[i]) * (bandTarget > smoothed[i] ? 0.5 : 0.18)
 
             // Menu-bar: same audio, but rest at the logo shape when silent.
-            let iconTarget = (stale || nowSilent) ? restingHeights[i] : Double(min(1, rawBands[i] / agc))
+            let iconTarget = (stale || nowSilent) ? restingHeights[i] : Double(min(1, feed.bands[i] / agc))
             newIcon[i] += (iconTarget - iconSmoothed[i]) * (iconTarget > iconSmoothed[i] ? 0.45 : 0.2)
         }
         smoothed = newBands

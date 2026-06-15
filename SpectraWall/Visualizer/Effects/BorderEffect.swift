@@ -28,6 +28,15 @@ class BorderEffect: BaseEffect {
     var smoothedRight: Float = 0
     var lastAmplitudeLeft: Float = 0
     var lastAmplitudeRight: Float = 0
+    // Width breathing rides its own loudness envelope (the shared pulse
+    // envelope is too smooth — measured norm pinned at exactly 1.0, it never
+    // moves). breathEnv rises fast, falls with ~0.5s half-life; breathAgc is
+    // its running peak so the swing is normalized to the source's own level.
+    // Note the timescale: during continuous music norm sits at 0.84–1.0, so
+    // breathing tracks multi-second loud/quiet passages, not individual beats
+    // — a deliberate trade against a beat-driven pop.
+    private var breathEnv: Float = 0
+    private var breathAgc: Float = 0.05
 
     private var lastUpdateTime: TimeInterval = 0
     var perimeterLength: CGFloat = 0
@@ -168,6 +177,8 @@ class BorderEffect: BaseEffect {
         smoothedRight      = 0
         lastAmplitudeLeft  = 0
         lastAmplitudeRight = 0
+        breathEnv          = 0
+        breathAgc          = 0.05
         scaleGhosts        = []
     }
 
@@ -183,6 +194,11 @@ class BorderEffect: BaseEffect {
 
         smoothedLeft  = smoothedLeft  * (1 - leftCoeff)  + leftAmp  * leftCoeff
         smoothedRight = smoothedRight * (1 - rightCoeff) + rightAmp * rightCoeff
+        let rawCombined = (leftAmp + rightAmp) / 2
+        breathEnv = rawCombined > breathEnv
+            ? breathEnv * 0.7 + rawCombined * 0.3
+            : breathEnv * 0.985
+        breathAgc = max(0.02, max(breathEnv, breathAgc * 0.997))
 
         // Silence detection uses peak across the FULL spectrum, not just bins 0..<8
         // (which leftAmp/rightAmp use). High-frequency-only musical passages have
@@ -215,8 +231,6 @@ class BorderEffect: BaseEffect {
     }
 
     private func detectAndSpawnEcho() {
-        guard scaleGhosts.count < maxScaleGhosts else { return }
-
         let now = lastUpdateTime
         guard now - lastEchoTime > minEchoInterval else { return }
 
@@ -235,6 +249,8 @@ class BorderEffect: BaseEffect {
               combined > lastCombined * sensitivity else {
             return
         }
+
+        guard scaleGhosts.count < maxScaleGhosts else { return }
 
         if strokes.count == 1 {
             spawnScalePulse(strokeIndex: 0, amplitude: combined)
@@ -406,14 +422,19 @@ class BorderEffect: BaseEffect {
         return allVertices
     }
 
-    /// Width multiplier for the breathing option: rides the smoothed
-    /// amplitude envelope (attack/release), not the flash spike, so the trail
-    /// swells and shrinks with the music instead of twitching per beat.
+    /// Width multiplier for the breathing option: rides the dedicated breath
+    /// envelope (see breathEnv), not the flash spike, so the trail swells and
+    /// shrinks with the rhythm instead of twitching per beat. AGC-normalized
+    /// and centred on baseWidth (1 ± breath/2) so both the swell and the
+    /// shrink half of the breath are visible.
     var widthBreathMultiplier: CGFloat {
         let breath = borderSettings.widthBreath
         guard breath > 0 else { return 1 }
-        let combined = min((smoothedLeft + smoothedRight) / 2, 1)
-        return 1 + CGFloat(breath) * CGFloat(combined)
+        // Asymmetric swing: quiet floor at 1 − breath/2, loud peak at
+        // 1 + 1.5·breath (0.5×…2.5× at full slider). The symmetric ±breath/2
+        // version capped at 1.5× and read as "barely moving" even maxed out.
+        let normalized = min(breathEnv / breathAgc, 1)
+        return 1 - CGFloat(breath) * 0.5 + CGFloat(breath) * 2 * CGFloat(normalized)
     }
 
     private func appendWithDegenerateJoin(_ vertices: inout [EffectVertex], new: [EffectVertex]) {

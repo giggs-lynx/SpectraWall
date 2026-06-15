@@ -96,7 +96,10 @@ extension BorderEffect {
             let localT = seg.length > 0 ? min(localDist / seg.length, 1.0) : 0
             let (point, tangent) = seg.sample(at: localT)
 
-            let baseW = (CGFloat(bs.baseWidth) * widthBreathMultiplier + CGFloat(amplitude) * 3.0) * stepT
+            // Breath scales the whole width (audio term included) — scaling
+            // only baseWidth left most of the stroke unaffected and the pop
+            // invisible at thin base widths.
+            let baseW = (CGFloat(bs.baseWidth) + CGFloat(amplitude) * 3.0) * widthBreathMultiplier * stepT
             ctx.centerPoints.append(CGPoint(x: point.x, y: heightF - point.y))
             ctx.widths.append(baseW * stripScale)
             ctx.stripWidths.append(baseW * 3.0 * stripScale)

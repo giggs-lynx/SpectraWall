@@ -336,13 +336,14 @@ class SpectrumEffect: BaseEffect {
         return vertices
     }
 
-    /// Rounded-tip bar as a column strip: 9 cross samples, the tip edge walks
-    /// a semi-ellipse (semi-axes barSize/2 across, min(barSize/2, len) along
-    /// amp — squashes flat instead of inverting when the bar is shorter than
-    /// its radius). Mirrored bars round both ends.
+    /// Rounded-tip bar as a column strip, the tip edge walks a semi-ellipse
+    /// (semi-axes barSize/2 across, min(barSize/2, len) along amp — squashes
+    /// flat instead of inverting when the bar is shorter than its radius).
+    /// Mirrored bars round both ends. Column count scales with the bar's
+    /// width so wide bars (24-bar mode) stay round instead of faceting.
     private func appendRoundedBar(_ i: Int, color: SIMD4<Float>,
                                   layout: SpectrumLayout, to vertices: inout [EffectVertex]) {
-        let columns = 8
+        let columns = min(32, max(8, Int(layout.barSize / 2)))
         let len = Float(barLen(i, in: layout))
         let lo = Float(layout.stripLo + CGFloat(i) * layout.stride)
         let halfW = Float(layout.barSize) / 2
