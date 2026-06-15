@@ -28,8 +28,10 @@ struct OrbSettings: EffectSettings, Equatable {
     /// Ring lifetime in seconds; it fades linearly from spawn to gone over this
     /// span. Larger = lingers longer (and expands farther, since radius = speed × age).
     var rippleDuration: Double
-    /// Minimum combined amplitude for the beat detector to spawn a ring —
-    /// raise it so only hard beats ripple, quieter hits get filtered out.
+    /// Onset threshold as a relative multiple of the adaptive flux baseline
+    /// (not an absolute amplitude). Loudness-independent, no per-track tuning:
+    /// ~1.0 ripples on any above-average onset (dense), ~3.0 only on the
+    /// hardest beats (sparse).
     var rippleThreshold: Double
     /// Per-angle deformation of the inner disk driven by frequency bands
     /// (low bands push big lobes). 0 = perfect circle.
@@ -54,7 +56,7 @@ struct OrbSettings: EffectSettings, Equatable {
             rippleSpeed: 1.5,
             rippleOpacity: 0.5,
             rippleDuration: 2.0,
-            rippleThreshold: 0.01,
+            rippleThreshold: 1.6,
             blobAmount: 0.0,
             hueCycleSpeed: 0.0
         )
@@ -119,7 +121,10 @@ extension OrbSettings {
             rippleSpeed: try c.decodeIfPresent(Double.self, forKey: .rippleSpeed) ?? 1.5,
             rippleOpacity: try c.decodeIfPresent(Double.self, forKey: .rippleOpacity) ?? 0.5,
             rippleDuration: try c.decodeIfPresent(Double.self, forKey: .rippleDuration) ?? 2.0,
-            rippleThreshold: try c.decodeIfPresent(Double.self, forKey: .rippleThreshold) ?? 0.01,
+            rippleThreshold: try {
+                let v = try c.decodeIfPresent(Double.self, forKey: .rippleThreshold) ?? 1.6
+                return v < 1.0 ? 1.6 : v   // < 1.0 is an old absolute threshold → use the new default
+            }(),
             blobAmount: try c.decodeIfPresent(Double.self, forKey: .blobAmount) ?? 0.0,
             hueCycleSpeed: try c.decodeIfPresent(Double.self, forKey: .hueCycleSpeed) ?? 0.0
         )

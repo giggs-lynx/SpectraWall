@@ -30,19 +30,23 @@ class OrbEffect: BaseEffect {
     // Beat-spawned ripple rings (birth timestamps), capped at maxRipples.
     // Rings expand from the orb's center: they surface from behind the inner
     // disk and stay visible the whole way out because the outer glow is a
-    // translucent gradient halo. Detection mirrors BorderEffect's ghost beat
-    // detector: combined amplitude rising sharply above the previous buffer,
-    // over the user-set threshold, rate-limited. (An earlier high/low
-    // hysteresis latch re-armed only below 0.005 — an order of magnitude
-    // under continuous-music levels, measured 0.06–0.39 — so it fired once
-    // per silence→sound onset and then never again mid-song.)
+    // translucent gradient halo. Onset detection is spectral flux vs an
+    // adaptive baseline (see onAudio): loudness-independent and full-spectrum,
+    // unlike the old low-freq amplitude-vs-previous-buffer test, which both
+    // inverted on sustained-energy tracks (a beat layered on a loud floor was
+    // only a small relative rise) and missed snare/clap/hat beats entirely.
     private var ripples: [TimeInterval] = []
     private var pendingRipple = false
-    private var lastRippleCombined: Float = 0
     private var lastRippleSpawn: TimeInterval = 0
-    // ×1.3: at ×1.1 the smoothed signal's ordinary fluctuations counted as
-    // onsets and rings fired near-continuously in loud passages.
-    private let rippleSensitivity: Float = 1.3
+    // Spectral-flux onset detection. Diffs raw bins between buffers (not the
+    // attack/release-smoothed visual value — smoothing blunts onset edges),
+    // summed over the full spectrum so snare/hat fire like kick does.
+    private var prevBins = [Float](repeating: 0, count: 96)
+    private var hasPrevBins = false
+    // Decaying baseline for flux; an onset fires only when flux clears
+    // baseline × threshold.
+    private var fluxBaseline: Float = 0
+    private let fluxBaselineFloor: Float = 0.001  // keeps the ratio meaningful when flux is tiny
     private let minRippleInterval: TimeInterval = 0.12
     private let maxRipples = 6
     // Wide enough to survive the shader's soft ring profile (edgeDist ramps
@@ -88,7 +92,9 @@ class OrbEffect: BaseEffect {
         lastTickTime       = 0
         ripples.removeAll()
         pendingRipple      = false
-        lastRippleCombined = 0
+        prevBins           = [Float](repeating: 0, count: 96)
+        hasPrevBins        = false
+        fluxBaseline       = 0
         lastRippleSpawn    = 0
         blobTargets        = [Float](repeating: 0, count: 8)
         blobControls       = [Float](repeating: 0, count: 8)
@@ -175,18 +181,37 @@ class OrbEffect: BaseEffect {
         let silenceGate = clampedT * clampedT * (3 - 2 * clampedT)
         currentScale = silenceGate * min(1.0 + amplitude * Float(os.boost), 2.5)
 
-        // Ripple beat detection (combined so a beat spawns one ring, not
-        // per-channel). lastTickTime is the freshest clock available here —
-        // onAudio has no timestamp — and at display cadence it is at most one
-        // frame stale, well under minRippleInterval.
-        let combined = (smoothedLeft + smoothedRight) / 2
-        if silenceGate > 0.5, combined > Float(os.rippleThreshold),
-           combined > lastRippleCombined * rippleSensitivity,
+        // Ripple onset via spectral flux: full-spectrum positive diff vs an
+        // adaptive baseline, loudness-independent (no per-track threshold
+        // tuning) and catches the mid/high beats the old low-freq test missed.
+        // lastTickTime is the freshest clock available here — onAudio has no
+        // timestamp — at most one frame stale, well under minRippleInterval.
+        let left = bins.left, right = bins.right
+        let n = min(left.count, right.count, prevBins.count)
+        var flux: Float = 0
+        if hasPrevBins {
+            for i in 0..<n {
+                let diff = (left[i] + right[i]) * 0.5 - prevBins[i]
+                if diff > 0 { flux += diff }
+            }
+        }
+        if !flux.isFinite { flux = 0 }  // a NaN bin would permanently poison the baseline
+
+        let bar = max(fluxBaseline, fluxBaselineFloor) * Float(os.rippleThreshold)
+        if hasPrevBins, silenceGate > 0.5, flux > bar,
            lastTickTime - lastRippleSpawn > minRippleInterval {
             pendingRipple = true
             lastRippleSpawn = lastTickTime
         }
-        lastRippleCombined = combined
+
+        // Rolling baseline: fast-rise/slow-decay (mirrors breathEnv/breathAgc);
+        // a single loud beat relaxes the bar back within ~0.3s. Update after
+        // the comparison so an onset never lifts its own bar.
+        fluxBaseline = flux > fluxBaseline
+            ? fluxBaseline * 0.6 + flux * 0.4
+            : fluxBaseline * 0.95
+        for i in 0..<n { prevBins[i] = (left[i] + right[i]) * 0.5 }
+        hasPrevBins = true
 
         if os.blobAmount > 0 {
             for g in 0..<8 {
