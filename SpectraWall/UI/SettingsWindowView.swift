@@ -69,7 +69,7 @@ struct SettingsWindowView: View {
             GlobalSettingsView()
         } else if let id = selectedLayerID,
                   let layer = selectedScene?.layers.first(where: { $0.id == id }) {
-            LayerSettingsView(layer: layer)
+            LayerSettingsView(layer: layer, selectedLayerID: $selectedLayerID)
         } else if selectedScene != nil {
             placeholderView(text: "Click + to add an effect")
                 .frame(maxWidth: .infinity)

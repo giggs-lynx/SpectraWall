@@ -9,6 +9,7 @@ import SwiftUI
 
 struct LayerSettingsView: View {
     @ObservedObject var layer: LayerSettings
+    @Binding var selectedLayerID: UUID?
     @State private var showDeleteConfirm = false
     // Tracks which effect-type sections have been instantiated. We never remove
     // entries; once a section is built it stays alive so switching back to that
@@ -70,7 +71,8 @@ struct LayerSettingsView: View {
                 if let scene = VisualizerSceneManager.shared.scenes.first(where: {
                     $0.layers.contains(where: { $0.id == layer.id })
                 }) {
-                    _ = VisualizerSceneManager.shared.removeLayer(layer, from: scene)
+                    let next = VisualizerSceneManager.shared.removeLayer(layer, from: scene)
+                    selectedLayerID = next?.id
                 }
             }
             Button("Cancel", role: .cancel) {}
