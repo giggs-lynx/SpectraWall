@@ -15,6 +15,17 @@ struct WaveformSettings: EffectSettings, Equatable {
     /// Band amplitude as a fraction of screen height (per side of the
     /// centerline).
     var maxHeight: Double
+
+    /// LED-matrix texture: darkened grid lines overlaid inside the fill.
+    var pixelGridEnabled: Bool
+    /// Grid cell size in points (screen-fixed).
+    var pixelGridSpacing: Double
+    /// How dark the grid lines are (0 = invisible, 1 = black).
+    var pixelGridOpacity: Double
+    /// Draw a constant-width white line tracing the top peak envelope.
+    var peakOutlineEnabled: Bool
+    var peakOutlineWidth: Double
+
     var colorSettings: ChannelColorSettings
 
     static var defaults: WaveformSettings {
@@ -22,6 +33,11 @@ struct WaveformSettings: EffectSettings, Equatable {
             windowSeconds: 3.0,
             gain: 2.0,
             maxHeight: 0.2,
+            pixelGridEnabled: false,
+            pixelGridSpacing: 12,
+            pixelGridOpacity: 0.3,
+            peakOutlineEnabled: false,
+            peakOutlineWidth: 1.5,
             colorSettings: .init()
         )
     }
@@ -50,5 +66,30 @@ extension WaveformSettings {
             s.colorSettings.solidColor = RandomColor.pleasant()
         }
         return s
+    }
+}
+
+extension WaveformSettings {
+    // Custom init so presets that predate the grid/outline fields still decode —
+    // missing keys fall back to their defaults. Encode is auto-synthesised.
+    enum CodingKeys: String, CodingKey {
+        case windowSeconds, gain, maxHeight
+        case pixelGridEnabled, pixelGridSpacing, pixelGridOpacity, peakOutlineEnabled, peakOutlineWidth
+        case colorSettings
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            windowSeconds: try c.decode(Double.self, forKey: .windowSeconds),
+            gain: try c.decode(Double.self, forKey: .gain),
+            maxHeight: try c.decode(Double.self, forKey: .maxHeight),
+            pixelGridEnabled: try c.decodeIfPresent(Bool.self, forKey: .pixelGridEnabled) ?? false,
+            pixelGridSpacing: try c.decodeIfPresent(Double.self, forKey: .pixelGridSpacing) ?? 12,
+            pixelGridOpacity: try c.decodeIfPresent(Double.self, forKey: .pixelGridOpacity) ?? 0.3,
+            peakOutlineEnabled: try c.decodeIfPresent(Bool.self, forKey: .peakOutlineEnabled) ?? false,
+            peakOutlineWidth: try c.decodeIfPresent(Double.self, forKey: .peakOutlineWidth) ?? 1.5,
+            colorSettings: try c.decode(ChannelColorSettings.self, forKey: .colorSettings)
+        )
     }
 }

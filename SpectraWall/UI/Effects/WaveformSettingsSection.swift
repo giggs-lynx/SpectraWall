@@ -24,6 +24,20 @@ struct WaveformSettingsSection: View {
                 SettingsSlider(label: "Window", value: $settings.windowSeconds, spec: WaveformSpec.windowSeconds)
                 SettingsSlider(label: "Height", value: $settings.gain, spec: WaveformSpec.gain)
                 SettingsSlider(label: "Max Height", value: $settings.maxHeight, spec: WaveformSpec.maxHeight)
+
+                Divider()
+
+                // MARK: - Texture & Outline
+                Toggle("Pixel Grid", isOn: $settings.pixelGridEnabled)
+                if settings.pixelGridEnabled {
+                    SettingsSlider(label: "Grid Size", value: $settings.pixelGridSpacing, spec: WaveformSpec.pixelGridSpacing)
+                    SettingsSlider(label: "Grid Opacity", value: $settings.pixelGridOpacity, spec: WaveformSpec.pixelGridOpacity)
+                }
+
+                Toggle("Peak Outline", isOn: $settings.peakOutlineEnabled)
+                if settings.peakOutlineEnabled {
+                    SettingsSlider(label: "Outline Width", value: $settings.peakOutlineWidth, spec: WaveformSpec.peakOutlineWidth)
+                }
             }
 
             SettingsCard(title: "Color") {

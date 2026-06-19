@@ -134,11 +134,33 @@ vertex VertexOut spectrum_vertex(
     out.color    = in.color;
     out.alpha    = in.alpha;
     out.edgeDist = in.edgeDist;
+    // Pixel-grid params smuggled through unused Border fields:
+    // segA = (cellSpacing, lineWidth) in px, radius = grid opacity (0 = off),
+    // segB.x = horizontal-lines-only flag (bars use it; fills leave it 0).
+    out.segA     = in.segA;
+    out.segB     = in.segB;
+    out.radius   = in.radius;
     return out;
 }
 
 fragment float4 spectrum_fragment(VertexOut in [[stage_in]]) {
-    return float4(in.color.rgb, in.color.a * in.alpha);
+    float3 rgb = in.color.rgb;
+    // LED-matrix overlay: darken thin lines on a screen-fixed pixel grid.
+    // Only the fill carries radius > 0; the white peak outline leaves it at 0.
+    float gridOpacity = in.radius;
+    if (gridOpacity > 0.0) {
+        float spacing = max(in.segA.x, 1.0);
+        float lineW   = max(in.segA.y, 0.5);
+        float2 g = fract(in.position.xy / spacing) * spacing;
+        float2 d = min(g, spacing - g);
+        // Bars (segB.x > 0.5): horizontal lines only — vertical separation
+        // already comes from the gaps between bars, so vertical grid lines
+        // would just misalign with the bar edges.
+        float dist = in.segB.x > 0.5 ? d.y : min(d.x, d.y);
+        float line = 1.0 - smoothstep(0.0, lineW, dist);
+        rgb = mix(rgb, rgb * (1.0 - gridOpacity), line);
+    }
+    return float4(rgb, in.color.a * in.alpha);
 }
 
 // MARK: - Ambient Glow

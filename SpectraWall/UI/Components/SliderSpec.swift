@@ -45,6 +45,9 @@ enum SpectrumSpec {
     static let powerCurve = SliderSpec(range: 1.0...3.0, step: 0.1, defaultValue: 2.0)
     static let attack = SliderSpec(range: 0.5...1.0, step: 0.05, defaultValue: 0.95)
     static let release = SliderSpec(range: 0.1...0.5, step: 0.05, defaultValue: 0.2)
+    static let pixelGridSpacing = SliderSpec(range: 4...40, step: 1, defaultValue: 12)
+    static let pixelGridOpacity = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.3)
+    static let peakOutlineWidth = SliderSpec(range: 0.5...4.0, step: 0.5, defaultValue: 1.5)
 }
 
 enum RadialSpectrumSpec {
@@ -75,6 +78,9 @@ enum WaveformSpec {
     static let windowSeconds = SliderSpec(range: 1.0...10.0, step: 0.5, defaultValue: 3.0)
     static let gain = SliderSpec(range: 0.5...8.0, step: 0.1, defaultValue: 2.0)
     static let maxHeight = SliderSpec(range: 0.05...0.5, step: 0.01, defaultValue: 0.2)
+    static let pixelGridSpacing = SliderSpec(range: 4...40, step: 1, defaultValue: 12)
+    static let pixelGridOpacity = SliderSpec(range: 0.0...1.0, step: 0.05, defaultValue: 0.3)
+    static let peakOutlineWidth = SliderSpec(range: 0.5...4.0, step: 0.5, defaultValue: 1.5)
 }
 
 enum AmbientGlowSpec {

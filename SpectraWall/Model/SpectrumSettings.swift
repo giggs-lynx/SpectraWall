@@ -68,6 +68,16 @@ struct SpectrumSettings: EffectSettings, Equatable {
     /// Round the tip of each bar (both ends when mirrored). Bars style only.
     var roundedTips: Bool
 
+    /// LED-matrix texture: darkened grid lines overlaid inside the fill.
+    var pixelGridEnabled: Bool
+    /// Grid cell size in points (screen-fixed).
+    var pixelGridSpacing: Double
+    /// How dark the grid lines are (0 = invisible, 1 = black).
+    var pixelGridOpacity: Double
+    /// Draw a constant-width white line tracing the bar tips / curve.
+    var peakOutlineEnabled: Bool
+    var peakOutlineWidth: Double
+
     var colorSync: Bool
     var colorSettings: ChannelColorSettings
     var leftColorSettings: ChannelColorSettings
@@ -87,6 +97,11 @@ struct SpectrumSettings: EffectSettings, Equatable {
             style: .bars,
             capsEnabled: false,
             roundedTips: false,
+            pixelGridEnabled: false,
+            pixelGridSpacing: 12,
+            pixelGridOpacity: 0.3,
+            peakOutlineEnabled: false,
+            peakOutlineWidth: 1.5,
             colorSync: true,
             colorSettings: .init(),
             leftColorSettings: .init(),
@@ -141,6 +156,7 @@ extension SpectrumSettings {
     enum CodingKeys: String, CodingKey {
         case gain, powerCurve, attack, release
         case width, maxHeight, barCount, anchor, mirror, style, capsEnabled, roundedTips
+        case pixelGridEnabled, pixelGridSpacing, pixelGridOpacity, peakOutlineEnabled, peakOutlineWidth
         case colorSync, colorSettings, leftColorSettings, rightColorSettings
     }
 
@@ -162,6 +178,11 @@ extension SpectrumSettings {
             style: try c.decodeIfPresent(SpectrumStyle.self, forKey: .style) ?? .bars,
             capsEnabled: try c.decodeIfPresent(Bool.self, forKey: .capsEnabled) ?? false,
             roundedTips: try c.decodeIfPresent(Bool.self, forKey: .roundedTips) ?? false,
+            pixelGridEnabled: try c.decodeIfPresent(Bool.self, forKey: .pixelGridEnabled) ?? false,
+            pixelGridSpacing: try c.decodeIfPresent(Double.self, forKey: .pixelGridSpacing) ?? 12,
+            pixelGridOpacity: try c.decodeIfPresent(Double.self, forKey: .pixelGridOpacity) ?? 0.3,
+            peakOutlineEnabled: try c.decodeIfPresent(Bool.self, forKey: .peakOutlineEnabled) ?? false,
+            peakOutlineWidth: try c.decodeIfPresent(Double.self, forKey: .peakOutlineWidth) ?? 1.5,
             colorSync: try c.decode(Bool.self, forKey: .colorSync),
             colorSettings: try c.decode(ChannelColorSettings.self, forKey: .colorSettings),
             leftColorSettings: try c.decode(ChannelColorSettings.self, forKey: .leftColorSettings),

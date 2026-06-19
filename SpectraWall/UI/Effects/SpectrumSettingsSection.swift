@@ -69,6 +69,21 @@ struct SpectrumSettingsSection: View {
                 SettingsSlider(label: "Dynamics", value: $settings.powerCurve, spec: SpectrumSpec.powerCurve)
                 SettingsSlider(label: "Attack", value: $settings.attack, spec: SpectrumSpec.attack)
                 SettingsSlider(label: "Release", value: $settings.release, spec: SpectrumSpec.release)
+
+                Divider()
+
+                // MARK: - Texture & Outline
+                Toggle("Pixel Grid", isOn: $settings.pixelGridEnabled)
+                if settings.pixelGridEnabled {
+                    SettingsSlider(label: "Grid Size", value: $settings.pixelGridSpacing, spec: SpectrumSpec.pixelGridSpacing)
+                    SettingsSlider(label: "Grid Opacity", value: $settings.pixelGridOpacity, spec: SpectrumSpec.pixelGridOpacity)
+                }
+
+                Toggle("Peak Outline", isOn: $settings.peakOutlineEnabled)
+                    .disabled(settings.style == .line)
+                if settings.peakOutlineEnabled {
+                    SettingsSlider(label: "Outline Width", value: $settings.peakOutlineWidth, spec: SpectrumSpec.peakOutlineWidth)
+                }
             }
 
             // MARK: - Appearance & Color

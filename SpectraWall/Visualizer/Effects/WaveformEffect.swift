@@ -116,47 +116,88 @@ class WaveformEffect: BaseEffect {
         guard writeCount > 0 else { return [] }
 
         let width = Float(sceneSize.width)
-        let centerY = Float(sceneSize.height * layer.positionY)
-        let span = Float(sceneSize.height) * Float(ws.maxHeight)
+        let height = Float(sceneSize.height)
+        let centerY = height * Float(layer.positionY)
+        let span = height * Float(ws.maxHeight)
+        // Clamp the reachable amplitude to the distance from the centerline to
+        // each screen edge, so a full-scale peak sits flush against the border
+        // rather than being clipped off (or flat-topped).
+        let upSpan = min(span, height - centerY)
+        let downSpan = min(span, centerY)
         let gain = Float(ws.gain)
-
-        var verts: [EffectVertex] = []
-        verts.reserveCapacity(visible * 4 + 3)
 
         // Stereo: left band above the centerline, right mirrored below.
         // Other modes: one band symmetric around the centerline.
         let stereo = layer.channelMode == .stereo
 
+        // Normalized (0...1) per-channel amplitude; scaled by the directional
+        // span at vertex time so up/down each respect their own headroom.
         func amp(_ c: Column) -> (up: Float, down: Float) {
             switch layer.channelMode {
-            case .stereo:
-                return (min(c.left * gain, 1) * span, min(c.right * gain, 1) * span)
-            case .left:
-                let a = min(c.left * gain, 1) * span
-                return (a, a)
-            case .right:
-                let a = min(c.right * gain, 1) * span
-                return (a, a)
-            case .mono:
-                let a = min((c.left + c.right) / 2 * gain, 1) * span
-                return (a, a)
+            case .stereo: return (min(c.left * gain, 1), min(c.right * gain, 1))
+            case .left:   let a = min(c.left * gain, 1);  return (a, a)
+            case .right:  let a = min(c.right * gain, 1); return (a, a)
+            case .mono:   let a = min((c.left + c.right) / 2 * gain, 1); return (a, a)
             }
         }
+
+        // Pixel-grid params ride in segA/radius (see spectrum_fragment); segA.y
+        // is the 1px line width. radius == 0 disables the overlay per-vertex.
+        let gridOpacity = ws.pixelGridEnabled ? Float(ws.pixelGridOpacity) : 0
+        let gridSeg = SIMD2<Float>(Float(ws.pixelGridSpacing), 1)
+
+        var verts: [EffectVertex] = []
+        verts.reserveCapacity(visible * 4 + 3)
+        var topPoints: [SIMD2<Float>] = []
+        if ws.peakOutlineEnabled { topPoints.reserveCapacity(visible) }
 
         for k in 0..<visible {
             let columnIndex = writeCount - visible + k
             let c = columnIndex >= 0 ? columns[columnIndex % ringCapacity] : Column()
             let x = width * (Float(k) + 0.5) / Float(visible)
-            let (up, down) = amp(c)
-            let intensity = stereo ? max(up, down) / max(span, 1) : up / max(span, 1)
+            let (upN, downN) = amp(c)
+            let intensity = stereo ? max(upN, downN) : upN
             let color = columnColor(x: x / width, intensity: intensity)
             // Hairline floor so the strip stays visible in silence.
-            let yTop = centerY + max(up, 0.5)
-            let yBot = centerY - max(down, 0.5)
-            verts.append(EffectVertex(position: SIMD2(x, yBot), color: color, alpha: opacity, edgeDist: -1))
-            verts.append(EffectVertex(position: SIMD2(x, yTop), color: color, alpha: opacity, edgeDist: +1))
+            let yTop = centerY + max(upN * upSpan, 0.5)
+            let yBot = centerY - max(downN * downSpan, 0.5)
+            verts.append(EffectVertex(position: SIMD2(x, yBot), color: color, alpha: opacity,
+                                      edgeDist: -1, segA: gridSeg, radius: gridOpacity))
+            verts.append(EffectVertex(position: SIMD2(x, yTop), color: color, alpha: opacity,
+                                      edgeDist: +1, segA: gridSeg, radius: gridOpacity))
+            if ws.peakOutlineEnabled { topPoints.append(SIMD2(x, yTop)) }
+        }
+
+        if ws.peakOutlineEnabled {
+            appendTopOutline(points: topPoints,
+                             halfWidth: Float(ws.peakOutlineWidth) / 2, to: &verts)
         }
         return verts
+    }
+
+    /// White constant-width stroke along the top peak envelope, joined to the
+    /// band strip with a degenerate stitch. Grid fields stay zero so the line
+    /// never picks up the pixel-grid overlay. Reuses the tangent/normal
+    /// stroking pattern from SpectrumEffect.buildCurveLine.
+    private func appendTopOutline(points: [SIMD2<Float>], halfWidth: Float,
+                                  to verts: inout [EffectVertex]) {
+        guard points.count >= 2 else { return }
+        let white = SIMD4<Float>(1, 1, 1, 1)
+        for k in points.indices {
+            var tangent = points[min(k + 1, points.count - 1)] - points[max(k - 1, 0)]
+            let m = simd_length(tangent)
+            tangent = m > 0 ? tangent / m : SIMD2(1, 0)
+            let normal = SIMD2(-tangent.y, tangent.x) * halfWidth
+            let a = EffectVertex(position: points[k] + normal, color: white, alpha: opacity, edgeDist: +1)
+            let b = EffectVertex(position: points[k] - normal, color: white, alpha: opacity, edgeDist: -1)
+            if k == 0, let lastV = verts.last {
+                verts.append(lastV)
+                verts.append(lastV)
+                verts.append(a)
+            }
+            verts.append(a)
+            verts.append(b)
+        }
     }
 
     // MARK: - Color

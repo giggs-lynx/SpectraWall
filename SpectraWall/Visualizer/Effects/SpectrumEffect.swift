@@ -294,10 +294,35 @@ class SpectrumEffect: BaseEffect {
 
     private func buildVertices() -> [EffectVertex] {
         let layout = makeLayout()
+        var verts: [EffectVertex]
         switch layout.style {
-        case .bars:  return buildBarVertices(in: layout)
-        case .curve: return buildCurveFill(in: layout)
-        case .line:  return buildCurveLine(in: layout)
+        case .bars:  verts = buildBarVertices(in: layout)
+        case .curve: verts = buildCurveFill(in: layout)
+        case .line:  verts = buildCurveLine(in: layout)
+        }
+        // Pixel grid only reads over a filled area, not the thin line style.
+        // Bars get horizontal-only lines (vertical edges come from bar gaps).
+        if layout.style != .line {
+            applyPixelGrid(to: &verts, horizontalOnly: layout.style == .bars)
+        }
+        if spectrumSettings.peakOutlineEnabled { appendPeakOutline(in: layout, to: &verts) }
+        return verts
+    }
+
+    /// Tag fill vertices with pixel-grid params (segA = spacing/lineWidth,
+    /// radius = opacity, segB.x = horizontal-only flag) read by
+    /// spectrum_fragment. The peak outline is added afterwards and keeps
+    /// radius = 0, so it never shows the grid.
+    private func applyPixelGrid(to verts: inout [EffectVertex], horizontalOnly: Bool) {
+        let ss = spectrumSettings
+        guard ss.pixelGridEnabled else { return }
+        let gridOp = Float(ss.pixelGridOpacity)
+        let seg = SIMD2<Float>(Float(ss.pixelGridSpacing), 1)
+        let mode = SIMD2<Float>(horizontalOnly ? 1 : 0, 0)
+        for i in verts.indices {
+            verts[i].segA = seg
+            verts[i].segB = mode
+            verts[i].radius = gridOp
         }
     }
 
@@ -439,12 +464,31 @@ class SpectrumEffect: BaseEffect {
 
     private func buildCurveLine(in layout: SpectrumLayout) -> [EffectVertex] {
         let samples = sampleCurve(in: layout)
-        let base = Float(layout.base)
-        let tipSign = Float(layout.tipSign)
         var verts = [EffectVertex]()
         verts.reserveCapacity(samples.count * 2 * (layout.mirror ? 2 : 1) + 3)
+        appendSplineStroke(samples, in: layout, halfWidth: lineHalfWidth, flatColor: nil, to: &verts)
+        return verts
+    }
 
-        func appendStroke(side: Float) {
+    /// White stroke tracing the tip spline, layered on top of the fill. Reuses
+    /// the same spline + stroker as the line style; flatColor = white.
+    private func appendPeakOutline(in layout: SpectrumLayout, to verts: inout [EffectVertex]) {
+        let samples = sampleCurve(in: layout)
+        appendSplineStroke(samples, in: layout,
+                           halfWidth: Float(spectrumSettings.peakOutlineWidth) / 2,
+                           flatColor: SIMD4<Float>(1, 1, 1, 1), to: &verts)
+    }
+
+    /// Constant-width stroke of the tip spline (true 2D normal offset so steep
+    /// powerCurve spikes keep apparent width). flatColor nil → per-sample bar
+    /// color (line style); non-nil → flat color (peak outline). Mirror strokes
+    /// both sides; each side joins the prior strip with a degenerate stitch.
+    private func appendSplineStroke(_ samples: [CurveSample], in layout: SpectrumLayout,
+                                    halfWidth: Float, flatColor: SIMD4<Float>?,
+                                    to verts: inout [EffectVertex]) {
+        let base = Float(layout.base)
+        let tipSign = Float(layout.tipSign)
+        for side in (layout.mirror ? [Float(1), -1] : [Float(1)]) {
             var pts = [SIMD2<Float>]()
             pts.reserveCapacity(samples.count)
             for s in samples {
@@ -454,8 +498,8 @@ class SpectrumEffect: BaseEffect {
                 var tangent = pts[min(k + 1, pts.count - 1)] - pts[max(k - 1, 0)]
                 let m = simd_length(tangent)
                 tangent = m > 0 ? tangent / m : SIMD2(1, 0)
-                let normal = SIMD2(-tangent.y, tangent.x) * lineHalfWidth
-                let color = barColorSIMD(at: samples[k].u)
+                let normal = SIMD2(-tangent.y, tangent.x) * halfWidth
+                let color = flatColor ?? barColorSIMD(at: samples[k].u)
                 let a = EffectVertex(position: pts[k] + normal, color: color, alpha: opacity, edgeDist: +1)
                 let b = EffectVertex(position: pts[k] - normal, color: color, alpha: opacity, edgeDist: -1)
                 if k == 0, let lastV = verts.last {
@@ -467,9 +511,6 @@ class SpectrumEffect: BaseEffect {
                 verts.append(b)
             }
         }
-        appendStroke(side: +1)
-        if layout.mirror { appendStroke(side: -1) }
-        return verts
     }
 
     private func appendBar(to vertices: inout [EffectVertex],
